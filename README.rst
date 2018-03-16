@@ -2,30 +2,30 @@ inca
 ===============
 .. contents::
 
-INTRODUCTION
+Introduction
 ------------
 Inca is a flexible framework for the automated testing, benchmarking and
 monitoring of cyberinfrastructure (CI) systems. It includes mechanisms to
 schedule the execution of information gathering scripts, and to collect,
 archive, publish, and display data.
 
-INSTALLATION
+Installation
 ------------
 Please see http://inca.sdsc.edu
 
-DOCUMENTATION
+Documentation
 -------------
 Please see http://inca.sdsc.edu
 
-RELEASE NOTES
+Release Notes
 -------------
 See ChangeLog for a list of new features
 
-FEEDBACK
+Feedback
 --------
 Please email inca@sdsc.edu with any suggestions/feedback. 
 
-LICENSE
+License
 -------
 The license for this code can be found in the COPYRIGHT file in this
 directory.
