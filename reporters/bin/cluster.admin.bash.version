@@ -1,0 +1,139 @@
+#! /bin/sh
+
+# This is an Inca reporter that reports the version of bash running on the
+# system.  It is written in sh, rather than perl, to show what's involved in
+# writing reporters that don't use the Inca Perl libraries.
+
+reporterDescription='Reports the version of bash on the system'
+reporterName='cluster.admin.bash.version'
+reporterUrl='http://inca.sdsc.edu'
+reporterVersion='1.0'
+
+# parse argv
+help='no'; log=0; verbose=1; version='no'
+for a in $@; do
+  case $a in
+    *=*) argVal=`echo ${a} | sed 's/.*=//'`;;
+    *) argVal=yes
+  esac
+  arg=`/bin/echo ${a} | sed s/.// | sed 's/=.*//'`
+  eval "${arg}=${argVal}"
+done
+
+# special processing for -version and -help
+if test ${version} = 'yes'; then
+  /bin/echo "${reporterName} ${reporterVersion}"
+  exit 0
+elif test ${help} = 'yes'; then
+  if test ${verbose} = 0; then
+    /bin/cat << ENDHELP
+NAME:
+  ${reporterName}
+DESCRIPTION:
+  ${reporterDescription}
+URL:
+  ${reporterUrl}
+SYNOPSIS:
+  ${reporterName} -help=no -log=0 -verbose=1 -version=no
+ENDHELP
+    exit 0
+  fi
+  helpXml="\
+  <help>
+    <ID>help</ID>
+    <name>${reporterName}</name>
+    <version>${reporterVersion}</version>
+    <description>${reporterDescription}</description>
+    <url>${reporterUrl}</url>
+    <argDescription>
+      <ID>help</ID>
+      <accepted>no|yes</accepted>
+      <description>display usage information (no|yes)</description>
+      <default>no</default>
+    </argDescription>
+    <argDescription>
+      <ID>log</ID>
+      <accepted>[01234]|debug|error|info|system|warn</accepted>
+      <description>log message types included in report</description>
+      <default>0</default>
+    </argDescription>
+    <argDescription>
+      <ID>verbose</ID>
+      <accepted>[012]</accepted>
+      <description>verbosity level (0|1|2)</description>
+      <default>1</default>
+    </argDescription>
+    <argDescription>
+      <ID>version</ID>
+      <accepted>no|yes</accepted>
+      <description>show reporter version (no|yes)</description>
+      <default>no</default>
+    </argDescription>
+  </help>\
+"
+fi
+
+# determine host name and gmt for XML
+hostname=`hostname`
+datestr=''
+for w in `date -u | sed 's/:/ /g'`; do
+  case $w in
+    Jan)w=1;; Feb)w=2;; Mar)w=3;; Apr)w=4;; May)w=5;; Jun)w=6;;
+    Jul)w=7;; Aug)w=8;; Sep)w=9;; Oct)w=10;; Nov)w=11;; Dec)w=12;;
+  esac
+  datestr="${datestr}${w} "
+done
+gmt=`echo ${datestr} | awk ' {printf "%04d-%02d-%02dT%02d:%02d:%02dZ", $8, $2, $3, $4, $5, $6}'`
+
+if test -x /bin/bash; then
+  completed=true
+  version=`bash --version | grep version | sed 's/.*version //' | sed 's/ .*//'`
+  bodyXml="<body><package><ID>bash</ID><version>${version}</version></package></body>"
+  messageXml=''
+else
+  completed=false
+  bodyXml='<body/>'
+  message='bash not installed'
+  messageXml="<fail_message>${message}</fail_message>"
+fi
+
+if test ${verbose} -gt 0; then
+  /bin/echo "<?xml version='1.0'?>
+<rep:report xmlns:rep='http://inca.sdsc.edu/dataModel/report_2.1'>
+  <gmt>${gmt}</gmt>
+  <hostname>${hostname}</hostname>
+  <name>${reporterName}</name>
+  <version>${reporterVersion}</version>
+  <workingDir>`pwd`</workingDir>
+  <reporterPath>$0</reporterPath>
+  <args>
+    <arg>
+      <name>help</name>
+      <value>${help}</value>
+    </arg>
+    <arg>
+      <name>log</name>
+      <value>${log}</value>
+    </arg>
+    <arg>
+      <name>verbose</name>
+      <value>${verbose}</value>
+    </arg>
+    <arg>
+      <name>version</name>
+      <value>${version}</value>
+    </arg>
+  </args>
+  ${bodyXml}
+  <exitStatus>
+    <completed>${completed}</completed>
+    ${messageXml}
+  </exitStatus>
+${helpXml}
+</rep:report>
+" | grep -v '^ *$'
+elif test "${completed}" = "true"; then
+  /bin/echo 'completed'
+else
+  /bin/echo "failed: ${message}"
+fi

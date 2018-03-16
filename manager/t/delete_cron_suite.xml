@@ -1,0 +1,38 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<st:suite xmlns:st = "http://inca.sdsc.edu/dataModel/suite_2.0" xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" >
+  <seriesConfigs>
+	<seriesConfig>
+		<series>
+			<name>cluster.compiler.gcc.version</name>
+      <version>1</version>
+			<args>
+				<arg>
+					<name>verbose</name>
+					<value>1</value>
+				</arg>
+				<arg>
+					<name>help</name>
+					<value>no</value>
+				</arg>
+			</args>
+			<limits>
+				<wallClockTime>300</wallClockTime>
+			</limits>
+			<context>cluster.compiler.gcc.version -verbose="1" -help="no"</context>
+		</series>
+    <resourceSetName>localhost</resourceSetName>
+		<schedule>
+			<cron>
+        <min>0-59/1</min>
+        <hour>*</hour>
+        <mday>*</mday>
+        <wday>*</wday>
+        <month>*</month>
+			</cron>
+		</schedule>
+	  <action>delete</action>
+	  </seriesConfig>
+
+  </seriesConfigs>
+  <guid>incas://localhost:6323/cronSuite</guid>
+</st:suite>

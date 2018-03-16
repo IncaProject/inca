@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import re
+import sys
+
+from inca.PerformanceReporter import PerformanceReporter
+
+reporter = PerformanceReporter(
+  name = 'cluster.uptime.performance',
+  version = 1,
+  description = 'Reports the 1, 5, and 15 minute load averages',
+  url = 'http://inca.ucsd.edu',
+  measurement_name = 'load average'
+)
+reporter.processArgv(sys.argv[1:])
+(status, output) = reporter.loggedCommandStatusOutput('uptime')
+if status != 0:
+  reporter.setResult(0, output)
+else:
+  found = \
+    re.search(r'load averages?:\s*([\d\.]+)\s*([\d\.]+)\s*([\d\.]+)', output)
+  if not found:
+    reporter.setResult(0, output)
+  else:
+    reporter.setResult(1)
+    benchmark = reporter.addNewBenchmark('load average')
+    benchmark.setStatistic('one minute', found.group(1), 'fraction')
+    benchmark.setStatistic('five minute', found.group(2), 'fraction')
+    benchmark.setStatistic('fifteen minute', found.group(3), 'fraction')
+reporter.printReport()

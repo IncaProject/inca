@@ -1,0 +1,6 @@
+name: XML::XPath
+version: 1.13
+description: A set of modules for parsing and evaluating XPath statements
+url: http://search.cpan.org/~msergeant/XML-XPath-1.13/
+file: XML-XPath-1.13.tar.gz
+dependencies:

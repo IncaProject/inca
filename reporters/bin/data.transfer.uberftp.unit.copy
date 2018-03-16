@@ -1,0 +1,95 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $BYTES = 7;
+
+# Args:
+#   source- Local file to transfer. Created if it doesn't exist.
+#   remote- Name of intermediate file on remote host
+#   host- Remote host
+#   dest- Local final destination of file
+#
+# Example:
+#   data.transfer.uberftp.unit.copy \
+#     -host=mss.ncsa.uiuc.edu -source=/etc/passwd -remote=/tmp/passwd \
+#     -dest=/tmp/passwd
+#
+# Note: uberftp must be in your path. You must have a valid GSI proxy.
+#
+# This test attempts to transfer localhost:source to host:remote and back to
+# localhost:dest.  source is created if it doesn't already exist. remote and
+# dest should both be paths within directories to which the process has write
+# access.  remote and dest are deleted before the test completes, as is source
+# iff this process created it.
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.transfer.uberftp.unit.copy',
+  version => 13,
+  description => 'Verifies that uberftp can transfer source to host and back again',
+  url => 'http://dims.ncsa.uiuc.edu/set/uberftp/',
+  unit_name => 'uberftp_test'
+);
+$reporter->addDependency( 'Inca::Reporter::GridProxy' );
+$reporter->addArg('dest', 'local destination file path', '');
+$reporter->addArg('host', 'remote host');
+$reporter->addArg('remote', 'remote file path', '');
+$reporter->addArg('source', 'local source file path', '');
+$reporter->addArg('timeout', 'max num of seconds to wait for uberftp call to complete', 60, '[\d\.]+');
+$reporter->processArgv(@ARGV);
+my $dest = $reporter->argValue('dest');
+my $host = $reporter->argValue('host');
+my $remote = $reporter->argValue('remote');
+my $source = $reporter->argValue('source');
+my $timeout = $reporter->argValue('timeout');
+my $dirPre = $ENV{'HOME'} . "/uberftp.";
+my $dir = $dirPre.$$;
+my $faildir = $dirPre."PID";
+if ($dest eq '' | $remote eq '' | $source eq ''){
+  $reporter->failPrintAndExit("mkdir $faildir failed")
+    if !mkdir($dir);
+}
+$reporter->tempFile($dir);
+if ($dest eq ''){
+  $dest = "$dir/uberdest.$$";
+}
+if ($remote eq ''){
+  $remote = "$dir/uberremote.$$";
+}
+if ($source eq ''){
+  $source = "$dir/ubersource.$$";
+}
+
+my $tempSource;
+if(! -e $source) {
+  $tempSource = $source;
+  $reporter->failPrintAndExit("Unable to create temp source file")
+    if !open(SRC, ">$tempSource");
+  print SRC "test";
+  close SRC;
+}
+
+my $command = "uberftp $host 'put $source $remote; get $remote $dest; rm $remote'";
+my $output = $reporter->loggedCommand($command, $timeout);
+if($?) {
+  $reporter->unitFailure("call to uberftp failed: $output $!");
+} elsif (! -f $dest) {
+  $reporter->unitFailure("call to uberftp returned success but $dest does not exist");
+} else {
+	$output = $reporter->loggedCommand("diff $source $dest");
+  if($?) {
+    my @sourceProps = stat( $source );
+    my @destProps = stat( $dest );
+    my $errorMsg = "uberftp call completed but file copy ";
+    $errorMsg .= "($destProps[$BYTES] bytes) " if defined $destProps[$BYTES];
+    $errorMsg .= "does not match original";
+    $errorMsg .= "($sourceProps[$BYTES] bytes)" if defined $sourceProps[$BYTES];
+    $errorMsg .= "; diff output is '$output'";
+    $reporter->unitFailure( $errorMsg );
+  } else {
+    $reporter->unitSuccess();
+  }
+}
+$reporter->print();

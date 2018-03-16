@@ -1,0 +1,70 @@
+#!/usr/bin/env perl
+
+#
+# This test checks that it can run a helloworld job through the local
+# gatekeeper.  Because some cases may involve submitting through a batch
+# interface, we associate a timeout value.  If the job does not return within
+# the specified timeout value (e.g., one hour), we consider it to be an error
+# (even though it may be just because the queue is super busy; we'll work on a
+# more robust version later)
+# 
+
+use strict;
+use warnings;
+use Inca::Reporter::GlobusUnit;
+
+my $reporter = new Inca::Reporter::GlobusUnit(
+  name => 'grid.middleware.globus.unit.helloworld',
+  version => 2,
+  description =>
+    'Verifies that a helloworld C program can be compiled and run on the ' .
+    'specified resource',
+  url => 'http://www.globus.org',
+  unit_name => 'globusHelloWorldTest'
+);
+$reporter->addArg('count', 'host_count parameter to rsl', '', '\d+');
+$reporter->addArg('flavor', 'build the program with specific flavor', '');
+$reporter->addArg('host', 'hostname where gatekeeper is running', '');
+$reporter->addArg('mpi', 'build and run as a mpi program', '', 'no|yes');
+$reporter->addArg('service', 'the name of the jobmanager', '', '.+'); 
+$reporter->addArg
+  ('timeout', 'kill the job after this many minutes', '60', '\d+');
+$reporter->processArgv(@ARGV);
+my $count = $reporter->argValue('count');
+$count = undef if $count eq '';
+my $flavor = $reporter->argValue('flavor');
+$flavor = undef if $flavor eq '';
+my $host = $reporter->argValue('host');
+$host = undef if $host eq '';
+my $mpi = $reporter->argValue('mpi');
+$mpi = undef if $mpi eq '';
+my $service = $reporter->argValue('service');
+$service = undef if $service eq '';
+my $timeout = $reporter->argValue('timeout');
+
+my $source = '
+#include <globus_duroc_runtime.h>
+int main(int argc, char **argv) {
+#if defined(GLOBUS_CALLBACK_GLOBAL_SPACE)
+  globus_module_set_args(&argc, &argv);
+#endif
+  globus_module_activate(GLOBUS_DUROC_RUNTIME_MODULE);
+  globus_duroc_runtime_barrier();
+  globus_module_deactivate(GLOBUS_DUROC_RUNTIME_MODULE);
+  printf("hello, world\\n");
+  return 0;
+}
+';
+
+my ($out, $err) = $reporter->submitCSource
+  (code => $source, flavor => $flavor, service => $service, duroc => 1,
+   host => $host, count => $count, mpi => $mpi, timeout => $timeout);
+if(!defined($out) || $out eq '') {
+  $reporter->unitFailure('test failed' . (defined($err) ? ": $err" : ''));
+} elsif($out !~ m/hello, world/) {
+  $reporter->unitFailure
+    ("msg not returned: $out" . defined($err) ? ": $err" : '');
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

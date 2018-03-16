@@ -1,0 +1,215 @@
+#!/usr/bin/perl
+
+###############################################################################
+
+=head1 NAME
+
+inca-ping-client - Ping an Inca server
+
+=head1 SYNOPSIS
+
+inca-ping-client [options] 
+
+=head1 DESCRIPTION
+
+Contact an Inca server using a SSL connection and communicate using the 
+Inca ping protocol.
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<-c|--cert>
+
+A path to a valid certificate file [default: none]
+
+=item B<-k|--key>
+
+A path to a valid key file [default: none]
+
+=item B<-P|--passphrase>
+
+Read a passphrase for key from stdin 
+
+=item B<-t|--trusted>
+
+A path to either a directory or file of trusted certificates [default: none]
+
+=item B<-u|--uri>
+
+A string containing the URI of the Inca server to ping: inca[s]://<host>:<port>
+[default: incas://localhost:6323]
+
+=back
+
+=begin testing
+
+  use Inca::IO;
+  use Socket qw(:crlf);
+
+  my $port = 7833;
+  my $server = Inca::IO->_startServer( $port, "ca1", "t/certs/trusted" );
+
+  my @tries = ( "bin/inca-ping-client --uri=incas://localhost:$port --trusted=t/certs/trusted --cert=t/certs/client_ca1cert.pem --key=t/certs/client_ca1keynoenc.pem",
+                "echo test | bin/inca-ping-client --uri=incas://localhost:$port --trusted=t/certs/trusted --cert=t/certs/client_ca1cert.pem --key=t/certs/client_ca1key.pem --passphrase" );
+  my $pid;
+  for ( my $i = 0; $i <= $#tries; $i++ ) {
+    print STDERR $tries[$i], "\n";
+    if ( $pid = fork() ) {
+      my $server_sock = $server->accept();
+      is( <$server_sock>, "PING hi there$CRLF", "ping to server worked" );
+      print $server_sock "OK hi there$CRLF";
+      close $server_sock;
+      waitpid( $pid, 0 );
+      is( $?, 0, "$i client successfully received response" );
+    } else {
+      exec $tries[$i];
+    }
+  }
+
+  close $server;
+
+=end testing
+
+=cut
+###############################################################################
+
+#=============================================================================#
+# Usage
+#=============================================================================#
+
+# pragmas
+use strict;
+use warnings;
+
+# Inca
+use Inca::IO;
+use Inca::Net::Protocol::Statement;
+
+# Perl standard
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
+
+# CPAN
+use Pod::Usage;
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+our ( $VERSION ) = '$Revision: 1.5 $' =~ 'Revision: (.*) ';
+
+my %DEFAULT_ARGS = ( uri => 'incas://localhost:6323' );
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#-----------------------------------------------------------------------------#
+# connectToPingServer( %args )
+#
+# Read in arguments from command-line and attempt to connect to server
+#
+# Arguments:
+#
+# args   A hash to an array of command-line arguments
+#
+# Returns:
+#
+# An object of type IO::Socket::SSL or dies if unable to connect.
+#-----------------------------------------------------------------------------#
+sub connectToPingServer {
+  my %args = @_;
+
+  my $passphrase = undef;
+  if ( exists $args{"passphrase"} && $args{"passphrase"} ) {
+    $passphrase = <STDIN>;
+    chomp( $passphrase );
+    $args{"passphrase"} = $passphrase;
+  } else {
+    $args{"passphrase"} = undef;
+  }
+
+  my $io = new Inca::IO( $args{uri}, %args );
+  if ( ! defined $io ) {
+    die "Error contacting Inca server '" . $args{uri} . "'"; 
+  }
+
+  return $io;
+}
+
+#-----------------------------------------------------------------------------#
+# sendPing( $socket )
+#
+# Send a ping statement to the open socket.
+#
+# Arguments:
+#
+# socket   An object of type IO::Socket::SSL
+#-----------------------------------------------------------------------------#
+sub sendPing {
+  my $socket = shift;
+  
+  my $ping = new Inca::Net::Protocol::Statement( cmd => "PING", 
+                                                 data => "hi there");
+  print $socket $ping->toString();
+}
+
+#-----------------------------------------------------------------------------#
+# gotServerAck( $socket )
+#
+# Wait for a OK from the server and return status.
+#
+# Returns:
+#
+# Returns 1 if it received a correct ack from the server; otherwise 0
+#-----------------------------------------------------------------------------#
+sub gotServerAck {
+  my $socket = shift;
+  
+  my $pingack = new Inca::Net::Protocol::Statement( cmd => "OK", 
+                                                    data => "hi there");
+  my $server_ack = <$socket>;
+  my $ack_ok = 0; 
+  if( $server_ack ne $pingack->toString() ) {
+    $ack_ok = 1;
+    warn "Server response '$server_ack' does not match " . $pingack->toString();
+  } 
+  return $ack_ok;
+}
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+my %args = %DEFAULT_ARGS;
+GetOptions( \%args, "cert|c=s", "key|k=s", "trusted|t=s", "uri|u=s", "help|h",
+                    "passphrase|P!" ) || pod2usage(1);
+
+if ( exists $args{help} ) {
+  pod2usage(1);
+}
+
+my %logConfig = ( 
+  'log4perl.rootLogger' => 'ERROR, Screen',
+  'log4perl.appender.Screen' => 'Log::Log4perl::Appender::Screen',
+  'log4perl.appender.Screen.stderr' => 1,
+  'log4perl.appender.Screen.layout' => 'Log::Log4perl::Layout::SimpleLayout'
+);
+Inca::Logger::init( \%logConfig );
+
+my $io = connectToPingServer( %args );
+sendPing( $io );
+my $exit_status = gotServerAck( $io );
+close $io;
+
+exit $exit_status;
+
+
+__END__
+
+=head1 AUTHOR
+
+Shava Smallen <ssmallen@sdsc.edu>
+
+=cut
+

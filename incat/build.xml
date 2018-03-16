@@ -1,0 +1,26 @@
+<!DOCTYPE project [
+	<!ENTITY inca-common-build SYSTEM "etc/common/build-common.xml">
+]>
+
+<!-- =======================================================================
+Build file for the Inca Administration Tool Source Code
+
+Notes:
+This is a build file for use with the Jakarta Ant build tool.
+
+Prerequisites:
+
+jakarta-ant from http://jakarta.apache.org
+
+Build Instructions:
+Invoke "ant"
+
+============================================================================ -->
+
+<project name="incat" default="help">
+
+  <property name="package.name" value="incat"/>
+  <property name="jar.name" value="incat"/>
+	&inca-common-build;
+
+</project>

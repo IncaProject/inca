@@ -1,0 +1,47 @@
+<?xml version = "1.0"?>
+<st:suite xmlns:st = "http://inca.sdsc.edu/dataModel/suite_2.0" xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" >
+  <seriesConfigs>
+
+    <seriesConfig>
+      <series>
+        <name>cluster.compiler.gcc.version</name>
+          <args>
+           <arg>
+               <name>help</name>
+               <value>no</value>
+             </arg>
+             <arg>
+               <name>log</name>
+               <value>0</value>
+             </arg>
+             <arg>
+               <name>verbose</name>
+               <value>@verbose@</value>
+             </arg>
+             <arg>
+               <name>version</name>
+               <value>$NO</value>
+             </arg>
+          </args>
+          <limits>
+            <cpuTime>60</cpuTime>
+          </limits>
+          <context>tcsh -c 'setenv NO no;  @@'</context>
+      </series>
+      <resourceSetName>localhost</resourceSetName>
+      <schedule>
+        <cron>
+          <min>*</min>
+          <hour>*</hour>
+          <mday>*</mday>
+          <wday>*</wday>
+          <month>*</month>
+        </cron>
+      </schedule>
+      <action>delete</action>
+    </seriesConfig>
+
+  </seriesConfigs>
+  <name>TestSuiteLocal</name>
+  <guid>edu.sdsc.inca.testsuiteLocal</guid>
+</st:suite>

@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'data.filtering.datacutter.version',
+  version => 2,
+  description => 'Reports the version of DataCutter',
+  url => 'http://www.datacutter.org',
+  package_name => 'datacutter'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable('dird -version', '(\w+)');
+$reporter->print();

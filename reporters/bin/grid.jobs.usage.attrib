@@ -1,0 +1,17 @@
+arguments: 
+  begin |.* 
+  end |.* 
+  gatekeeperlog |.* 
+  help no|yes no
+  log [012345]|debug|error|info|system|warn 0
+  plaintext .* 0
+  verbose [012] 1
+  version no|yes no
+dependencies: 
+  inca.Reporter
+  inca.UsageReporter
+  dateutil
+description: gathers information about DN usage
+file: bin/grid.jobs.usage
+name: grid.jobs.usage
+version: 8

@@ -1,0 +1,119 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'summary.successpct.performance',
+  version => 6,
+  description =>
+    'Reports the pct of a set of series that succeeded on their last run',
+  url => 'http://inca.ucsd.edu',
+  measurement_name => 'successpct'
+);
+$reporter->addArg
+  ('agent', 'host[:port] of Inca agent (for default consumer selector)', '');
+$reporter->addArg('filter', 'series nickname filter pattern', '.');
+$reporter->addArg('selector', 'query name (consumer)/WHERE clause (ws)', '');
+$reporter->addArg('server', 'host[:port] of Inca consumer/web service');
+$reporter->addArg
+  ('suite', 'suite name (for default consumer selector)', 'sampleSuite');
+$reporter->addArg('type', 'server type', 'consumer', 'consumer|ws');
+$reporter->addArg('restId', 'rest id for consumer URL', 'rest');
+$reporter->addArg('wgetArgs', 'arguments for wget', '--no-check-certificate');
+$reporter->addArg('ignoreErr', 'error message pattern for unknown results', 'DOWNTIME:|NOT_AT_FAULT:|Inca error');
+$reporter->processArgv(@ARGV);
+
+# Pick up args and compute default values for some of them
+my $agent = $reporter->argValue('agent');
+my $filter = $reporter->argValue('filter');
+my $ignoreErr = $reporter->argValue('ignoreErr');
+my $selector = $reporter->argValue('selector');
+my $server = $reporter->argValue('server');
+my $suite = $reporter->argValue('suite');
+my $wgetArgs = $reporter->argValue('wgetArgs');
+my $isConsumer = $reporter->argValue('type') eq 'consumer';
+my $restId = $reporter->argValue('restId');
+if($agent eq '') {
+  ($agent) = $server =~ /^([^:]*)/;
+}
+$agent .= ':6323' if $agent !~ /:\d+$/;
+if($selector eq '') {
+  $selector = $isConsumer ? $suite : '1=1';
+}
+$server .= $isConsumer ? ':8080' : ':8001' if $server !~ /:\d+$/;
+
+my @xmls;
+if($isConsumer) {
+  # encode selector string for URL
+  my $output = $reporter->loggedCommand("wget $wgetArgs -q -O - 'http://$server/inca/XML/$restId/$selector'");
+  $reporter->log("debug", "wget output:\n$output\n");
+  if($?) {
+    $reporter->failPrintAndExit("Unable to contact $server");
+  }
+  @xmls = ($output =~ m#<reportSummary.*?</reportSummary>#sg);
+} else {
+  eval 'use SOAP::Lite';
+  if($@) {
+    $reporter->failPrintAndExit("SOAP::Lite not available");
+  }
+  my $wsClient = SOAP::Lite->uri('urn:IncaWebService')->proxy("http://$server");
+  my $response;
+  eval {
+    $response = $wsClient->queryLatest($selector);
+  };
+  if(!defined($response)) {
+    $reporter->failPrintAndExit("Unable to contact $server");
+  } elsif($response->fault) {
+    $reporter->failPrintAndExit
+      ($response->faultcode() . ': ' . $response->faultstring());
+  }
+  my $result = $response->result();
+  if(!ref($result) || ref($result) ne 'ARRAY') {
+    $reporter->failPrintAndExit
+      ("Unrecognized return value '$result' from $server");
+  }
+  @xmls = @{$result};
+}
+
+my %failures;
+my %successes;
+foreach my $xml(@xmls) {
+  my ($nickname) = $xml =~ m#<nickname[^>]*>(.*)</nickname>#;
+  next if !defined $nickname || $nickname !~ /$filter/;
+  $failures{$nickname} = 0 if !defined($failures{$nickname});
+  $successes{$nickname} = 0 if !defined($successes{$nickname});
+  if($xml !~ m#<body#) {
+    # Hasn't executed yet
+  } elsif($xml =~ m#<errorMessage[^>]*>$ignoreErr#) {
+    # Not considered a failure
+  } elsif($xml =~ m#<comparisonResult[^>]*>Success#) {
+    $successes{$nickname}++;
+  } elsif($xml =~ m#<comparisonResult[^>]*>Fail#) {
+    $failures{$nickname}++;
+  } elsif($xml =~ m#<body[^>]*(/>|>\s*</body>)#) {
+    $failures{$nickname}++;  # Empty body
+  } else {
+    $successes{$nickname}++; # Body w/content
+  }
+}
+
+my $benchmark = $reporter->addNewBenchmark('successpct');
+$benchmark->setParameter('filter', $filter);
+$benchmark->setParameter('selector', $selector);
+$benchmark->setParameter('server', $server);
+foreach my $nickname(keys %failures) {
+  my $failCount = $failures{$nickname};
+  my $successCount = $successes{$nickname};
+  my $totalCount = $failCount + $successCount;
+  my $fraction = 0;
+  if ($totalCount != 0){
+    $fraction = ($successCount * 1.0) / (($failCount + $successCount) * 1.0);
+  }
+  $benchmark->setStatistic("$nickname-fail", $failCount);
+  $benchmark->setStatistic("$nickname-success", $successCount);
+  $benchmark->setStatistic("$nickname-pct", int($fraction * 100));
+}
+$reporter->setResult(1);
+$reporter->print();

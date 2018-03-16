@@ -1,0 +1,47 @@
+<?xml version = "1.0"?>
+<st:suite xmlns:st = "http://inca.sdsc.edu/dataModel/suite_2.0" xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" >
+  <seriesConfigs>
+
+    <seriesConfig>
+      <series>
+        <name>grid.middleware.globus.unit.proxy</name>
+          <args>
+            <arg>
+               <name>help</name>
+               <value>no</value>
+             </arg>
+             <arg>
+               <name>log</name>
+               <value>info,system</value>
+             </arg>
+             <arg>
+               <name>version</name>
+               <value>no</value>
+             </arg>
+             <arg>
+               <name>verbose</name>
+               <value>1</value>
+             </arg>
+          </args>
+          <limits>
+            <cpuTime>60</cpuTime>
+          </limits>
+          <context>@pre@@@@post@</context>
+      </series>
+      <resourceSetName>localhost</resourceSetName>
+      <schedule>
+        <cron>
+          <min>*</min>
+          <hour>*</hour>
+          <mday>*</mday>
+          <wday>*</wday>
+          <month>*</month>
+        </cron>
+      </schedule>
+      <action>add</action>
+    </seriesConfig>
+
+  </seriesConfigs>
+  <name>GridSuite</name>
+  <guid>GridSuite</guid>
+</st:suite>

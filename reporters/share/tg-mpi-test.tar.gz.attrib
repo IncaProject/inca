@@ -1,0 +1,5 @@
+name: tg-mpi-test
+version: 1.0
+description: programs for the 7 step globus test
+url: http://inca.sdsc.edu
+dependencies:

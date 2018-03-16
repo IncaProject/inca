@@ -1,0 +1,36 @@
+#!/usr/bin/env perl
+#   $Id: cluster.admin.pvfs.version,v 1.4 2004/11/03 19:16:08 kericson Exp $
+#   Brian Elliott Finley <finley@mcs.anl.gov>
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.admin.pvfs.version',
+  version => 2,
+  description => 'Reports the version of PVFS',
+  url  => 'http://www.pvfs.org',
+  package_name => 'pvfs'
+);
+$reporter->addArg('dir', 'pvfs installation dir', '');
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue('dir');
+if($dir eq '') {
+  foreach my $place($ENV{PVFS_LOCATION}, $ENV{PVFS_HOME},
+                    glob('/usr/local/apps/pvfs*'), glob('/opt/pvfs*'),
+                    glob('/usr/local/pvfs*')) {
+    $dir = $place and last if defined($place) && -d $place;
+  }
+}
+$reporter->failPrintAndExit('Cannot locate PVFS installation; use -dir')
+  if $dir eq '';
+
+if($reporter->setVersionByFileContents
+    ("$dir/include/pvfs_config.h", '#define\s+PVFS_RELEASE_NR\s+(\d\d\d\d\d)')){
+  # Separate the parts of the version number with periods.
+  my $version = $reporter->getPackageVersion();
+  $version =~ s/(\d)(\d\d)(\d\d)/$1.$2.$3/;
+  $reporter->setPackageVersion($version);
+}
+$reporter->print();

@@ -1,0 +1,5 @@
+name: tg-mpiring-test
+version: 1.0
+description: MPI Ring program for testing MPICH G2 libraries
+url: http://inca.sdsc.edu
+dependencies:

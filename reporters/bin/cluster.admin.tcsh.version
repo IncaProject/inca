@@ -1,0 +1,10 @@
+use Inca::Reporter::Version;
+my $reporter = new Inca::Reporter::Version(
+  version => 1,
+  description => 'Reports the version of tcsh',
+  package_name => 'tcsh'
+);
+$reporter->processArgv(@ARGV);
+$reporter->setVersionByExecutable
+  ('tcsh -c \'echo $version\'', '^tcsh ([\d\.]+)');
+$reporter->print();

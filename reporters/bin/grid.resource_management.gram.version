@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'grid.resource_management.gram.version',
+  version => 2,
+  description => 'Reports locally installed GRAM package versions',
+  url => 'http://www.globus.org/gram',
+  package_name => 'gram'
+);
+$reporter->processArgv(@ARGV);
+
+my @packages = qw(
+  globus_gram_client_tools
+  globus_gram_job_manager
+  globus_gram_job_manager_setup
+  globus_gram_job_manager_setup_fork
+  globus_gram_protocol
+);
+$reporter->setVersionByGptQuery(@packages);
+$reporter->print();

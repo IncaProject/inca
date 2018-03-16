@@ -1,0 +1,32 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use POSIX 'EINTR';
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.transfer.gridftp.unit.auth',
+  version => 5,
+  description => 'Verifies gridftp authentication using the
+	"globus-url-copy -len 1280 file:///dev/zero gsiftp://$dest//dev/null" command',
+  unit_name => 'gridftp_auth'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('dest', 'gridftp endpoint');
+$reporter->processArgv(@ARGV);
+my $dest = $reporter->argValue('dest');
+
+# transfer 10KB of the /dev/zero file to /dev/null
+my $guc = "globus-url-copy -len 1280 file:///dev/zero gsiftp://$dest//dev/null";
+my $output = $reporter->loggedCommand($guc, 300);
+$reporter->failPrintAndExit("call to globus-url-copy exceeded 5 minutes")
+  if $? != 0 && $! == EINTR;
+if($?) {
+  my $err = "$guc failed: $output $!";
+  $err =~ s/inca\.rm\..[^\s]*/inca\.rm\.PID/g;
+  $reporter->unitFailure($err);
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

@@ -1,0 +1,5 @@
+name: Inca::Reporter::SimpleUnit
+version: 1.0
+description: Inca reporter API class for unit test reporters
+url: http://inca.sdsc.edu
+dependencies: Inca::Reporter

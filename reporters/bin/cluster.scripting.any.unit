@@ -1,0 +1,85 @@
+#!/usr/bin/env perl
+
+#-----------------------------------------------------------------------------#
+
+=head2 compiledProgramOutput(%params)
+
+A convenience; compiles and runs a program and returns its output (stdout and
+stderr) after removing the source and exec files.  Recognized params:
+
+=over 13
+
+=item code
+
+the code to compile; required
+
+=item language
+
+the language to invoke; defaults to perl
+
+=item timeout
+
+max seconds compilation/execution may take; returns undef on time-out
+
+=back
+
+=cut
+
+#-----------------------------------------------------------------------------#
+## Author: Arvind Gopu (agopu [at] cs.indiana.edu)
+## First Edited Date: March 12 2004
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.scripting.any.unit',
+  version => 3,
+  description => 'Tests that a specified interpreter can run hello world',
+  url => 'http://inca.sdsc.edu'
+);
+$reporter->addArg
+  ('interpreter', 'Language to test', 'perl', 'perl|python|ruby|tcl');
+$reporter->processArgv(@ARGV);
+my $language = $reporter->argValue('interpreter');
+$reporter->{unit_name} = $language;
+
+my %progs = (
+ 'perl' => 'print "Hello World\n";',
+ 'python' => 'print "Hello World"',
+ 'ruby' => 'puts "Hello World"',
+ 'tcl' => 'puts "Hello World"'
+);
+
+my $output = compiledProgramOutput($reporter, language => $language, code => $progs{$language} );
+if($?) {
+  $reporter->failPrintAndExit("$language failed: $output $!");
+} elsif($output !~ /Hello World/) {
+  $reporter->failPrintAndExit("Program produced bad output: $output");
+} else {
+  $reporter->unitSuccess();
+  $reporter->print();
+}
+
+sub compiledProgramOutput {
+  my ($reporter, %params) = @_;
+  my $code = $params{code};
+  my $language = $params{language} || 'perl';
+  my $interpreter =
+    $language eq 'ruby' ? 'irb' : $language eq 'tcl' ? 'tclsh' : $language;
+  my $extension = $interpreter eq 'perl' ? 'pl' : 
+                  $interpreter eq 'python' ? 'py' :
+                  $interpreter eq 'ruby' ? 'rb' :
+                  $interpreter eq 'tclsh' ? 'tcl' : 'pl';
+  my $prefix = "src$$";
+  my $timeout = $params{timeout} || 30;
+  my $path = "$prefix.$extension";
+  return if !open(OUTPUT, ">$path");
+  print OUTPUT $code;
+  close OUTPUT;
+  $reporter->tempFile($path);
+  my $cmd = "$interpreter $path";
+  my $output = $reporter->loggedCommand($cmd, $timeout);
+  return $output;
+}

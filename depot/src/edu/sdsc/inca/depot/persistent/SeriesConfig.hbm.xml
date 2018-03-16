@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="SeriesConfig" table="INCASERIESCONFIG" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long" >
+      <generator class="native"/>
+    </id>
+
+    <!-- properties -->
+    <property name="activated" column="incaactivated" type="timestamp"/>
+    <property name="deactivated" column="incadeactivated" type="timestamp"/>
+    <property name="nickname" column="incanickname" type="string"/>
+    <component name="limits" class="Limits" insert="true" update="true"
+               access="property">
+      <property name="wallClockTime" column="incawallClockTime" type="float"/>
+      <property name="cpuTime" column="incacpuTime" type="float"/>
+      <property name="memory" column="incamemory" type="float"/>
+    </component>
+    <component name="acceptedOutput" class="AcceptedOutput" insert="true"
+               update="true" >
+      <property name="comparitor" column="incacomparitor" type="string"/>
+      <property name="comparison" column="incacomparison" type="string"
+                length="4000"/>
+      <component name="notification" class="Notification" insert="true"
+                 update="true">
+        <property name="notifier" column="incanotifier" type="string"/>
+        <property name="target" column="incatarget" type="string"/>
+      </component>
+    </component>
+    <component name="schedule" class="Schedule" insert="true" update="true"
+               access="property">
+      <property name="type" column="incatype" type="string" not-null="true"/>
+      <property name="minute" column="incaminute" type="string"
+                not-null="true"/>
+      <property name="hour" column="incahour" type="string" not-null="true"/>
+      <property name="month" column="incamonth" type="string" not-null="true"/>
+      <property name="mday" column="incamday" type="string" not-null="true"/>
+      <property name="wday" column="incawday" type="string" not-null="true"/>
+      <property name="numOccurs" column="incanumOccurs" type="integer"/>
+      <property name="suspended" column="incasuspended" type="boolean"/>
+    </component>
+
+    <!-- relations to other tables -->
+    <set name="suites" table="INCASUITESSERIESCONFIGS" inverse="true" lazy="true">
+      <key column="incaseriesconfig_id"/>
+      <many-to-many column="incasuite_id" class="edu.sdsc.inca.depot.persistent.Suite"/>
+    </set>
+
+    <many-to-one name="series"
+                 column="incaseries_id"
+                 class="edu.sdsc.inca.depot.persistent.Series"/>
+
+    <set name="tags" table="INCASERIESCONFIGTAGS" lazy="false" cascade="delete">
+      <key column="incaseriesconfig_id"/>
+      <element column="tag" type="string" not-null="true"/>
+    </set>
+
+    <!--
+    There's no advantage to adding indexes to these two cross-table references;
+    the number of series configs in the DB will be relatively small, and it's
+    unlikely that SCs will be queried by either of these columns.
+    -->
+    <property name="latestInstanceId" column="incalatestInstanceId" type="long"
+              not-null="true"/>
+    <property name="latestComparisonId" column="incalatestComparisonId"
+              type="long" not-null="true"/>
+
+  </class>
+</hibernate-mapping>

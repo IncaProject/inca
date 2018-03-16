@@ -1,0 +1,40 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+	name => 'grid.middleware.genesisii.ls.unit',
+	version => 1,
+	description => 'Check listing of GFFS directories',
+	unit_name => 'gffs_ls'
+);
+$reporter->addArg( 'dirs', 'Comma separated list of directories to list', '/users/xsede.org,/home/xsede.org,/resources/xsede.org' );
+$reporter->processArgv( @ARGV );
+my $dirs = $reporter->argValue( 'dirs' );
+
+# Get a list of the directories to list
+my @dirs = split( /,/, $dirs );
+if ( @dirs == 0 ) 
+{ 
+	$reporter->failPrintAndExit( 'No directories to list.'); 
+}
+
+my $error = '';
+foreach my $dir ( @dirs ) 
+{
+	my $output = $reporter->loggedCommand( 'grid ls ' . $dir );
+	if ( $? )
+	{
+		$error .= ( "\n Couldn't list $dir: $! $output\n" );
+	}
+}
+
+if ( $error ne '' ) 
+{ 
+	$reporter->failPrintAndExit( $error );
+}
+$reporter->unitSuccess();
+$reporter->print();
+exit;

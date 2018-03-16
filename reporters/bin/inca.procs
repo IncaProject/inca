@@ -1,0 +1,73 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'inca.procs',
+  description => 'Reports process count for user account and kills any old defunct processes',
+  version => 13,
+  measurement_name => 'inca'
+);
+
+$reporter->addArg( "procRegex", "patterns to categorize processes", "reporter-manager ,Schedule::Cron Main,reporter-instance-manager,sshd,defunct" );
+$reporter->addArg( "sleep", "wait specified time before running ps command", "10" );
+$reporter->processArgv(@ARGV);
+my $procRegex = $reporter->argValue( "procRegex" );
+my $sleep = $reporter->argValue( "sleep" );
+
+# wait a few seconds for launching processes for reporters executing at the same
+# time to dissipate
+sleep( $sleep ) if $sleep > 0;
+
+my %categories;
+my @procRegexes = split( /,/, $procRegex);
+for my $regex ( @procRegexes ) {
+  $categories{$regex} = 0;
+}
+
+my $psCmd = "ps x -o pid,ppid,stime,etime,stat,cmd";
+my @output = $reporter->loggedCommand( $psCmd );
+$reporter->log( 'debug', join( "", @output ) );
+$reporter->failPrintAndExit("$psCmd failed: @output $!") if $?;
+
+shift @output; # pull off the header
+my $numProcs = scalar(@output);
+for my $ps (@output){
+  if ( $ps =~ /$0/ || $ps =~ /$psCmd/ ) {
+    $numProcs--;
+    next;
+  }
+  if ( $ps =~ /defunct/ ) {
+    my ($ppid, $etime) = $ps =~ /\d+\s+(\d+)\s+[\w+:]+\s+([\d:]+)/;
+    if ( $etime =~ /\d?\d?:?\d[1-9]+:\d\d/ ) {
+      my $parent = `ps -p $ppid -o cmd | grep -v CMD`;
+      chomp($parent);
+      $reporter->log( 'info', "killed $parent" );
+      $reporter->loggedCommand("kill $ppid"); 
+    }
+  }
+  for my $regex ( @procRegexes ) {
+    if ( $ps =~ /$regex/ ) {
+      $categories{$regex}++;
+      last;
+    }
+  }
+}
+
+my $benchmark = $reporter->addNewBenchmark( "procs" );
+my $totalKnown = 0;
+for my $regex ( @procRegexes ) {
+  my $regexDisplay = $regex;
+  $regexDisplay =~ s/ /_/;
+  $regexDisplay =~ s/://g;
+  $regexDisplay =~ s/\./_/g;
+  $regexDisplay =~ s/\///g;
+  $benchmark->setStatistic( $regexDisplay, $categories{$regex} ); 
+  $totalKnown += $categories{$regex};
+}
+$benchmark->setStatistic( "Total", $numProcs ); 
+$benchmark->setStatistic( "Misc", $numProcs - $totalKnown); 
+$reporter->setResult(1);
+$reporter->print();

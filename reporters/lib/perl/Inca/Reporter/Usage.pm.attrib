@@ -1,0 +1,5 @@
+name: Inca::Reporter::Usage
+version: 2.0
+description: Inca reporter API class for usage reporters
+url: http://inca.sdsc.edu
+dependencies: Inca::Reporter

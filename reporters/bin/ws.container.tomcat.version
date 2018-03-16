@@ -1,0 +1,46 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+use File::Temp qw(tempfile);
+
+my $VERSION_REGEX = "Apache Tomcat\\/([\\w\\.]+)";
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'ws.container.tomcat.version',
+  version => 5,
+  description => 'Reports the version of Jakarta Tomcat',
+  package_name => 'tomcat'
+);
+
+$reporter->addArg( 'url', 'url to Tomcat installation', 'http://localhost:8080' );
+$reporter->addArg('wgetArgs', 'wget arguments (e.g. --no-check-certificate)', '');
+$reporter->processArgv(@ARGV);
+my $url = $reporter->argValue( 'url' );
+my $args = $reporter->argValue('wgetArgs');
+
+my ( $fh, $tempfile ) = tempfile();
+$reporter->tempFile($tempfile);
+my $wgetCmd = "wget $args -O $tempfile $url";
+my $output = $reporter->loggedCommand($wgetCmd);
+if ( $? || -z $tempfile || ($output !~ /([\d.]+) \wB\/s/)) {
+  my $err = "wget command failed: $output $!";
+  $err =~ s/--\d{2}:\d{2}:\d{2}--/--xx:xx:xx--/g;
+  $err =~ s/$tempfile/temp_filename/g;
+  $reporter->failPrintAndExit($err);
+}
+my $version = undef;
+open( FD, "<$tempfile" );
+while( <FD> ) {
+  if ( /$VERSION_REGEX/ ) {
+    ($version) = $_ =~ /$VERSION_REGEX/; 
+    last;
+  }
+}
+close FD;
+if ( ! defined $version ) {
+  $reporter->failPrintAndExit( "Cannot find version regex $VERSION_REGEX in page" );
+}
+$reporter->setPackageVersion( $version );
+$reporter->print( );

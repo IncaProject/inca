@@ -1,0 +1,91 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Time::Local;
+
+sub getDataTimestamp {
+  my ($reporter, $endpoint, $query, $objectname, $secs, $numtries, $waitsecs) = @_;
+
+  my $auth = $endpoint =~ /Secure/ ? "" : "-a"; #anon
+  my $cmd = "wsrf-query $auth -s $endpoint \"$query\"";
+  my $output;
+  if ( $numtries > 1 ) {
+    $output = $reporter->loggedCommandWithRetries($cmd, undef, $numtries, $waitsecs, undef, $objectname);
+  } else {
+    $output = $reporter->loggedCommand($cmd);
+  }
+
+  $reporter->failPrintAndExit("$cmd failed: $output $!") if $? != 0;
+  $reporter->failPrintAndExit("$cmd failed: $output") if $output !~ /$objectname/;
+
+  $reporter->log("debug", "Running query '$objectname'" );
+  my ($timestamp) = $output =~ m/.*<$objectname.[^>]*imestamp="(.[^"]*)/;
+  ($timestamp) = $output =~ /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)/ if ! defined $timestamp;;
+  my ($hostname) = $output =~ m/.*<$objectname.[^>]*hostname="(.[^"]*)/;
+  $reporter->failPrintAndExit( "Unable to get timestamp from $objectname" ) if ! defined $timestamp;
+
+  $timestamp =~ s/Z$//;
+  my ($ymd, $hms) = split (/T/, $timestamp);
+  my ($year, $mon, $day) = split (/-/, $ymd);
+  my ($hour, $min, $sec) = split(/:/, $hms);
+  $mon -= 1;  #months need to be zero indexed for timegm, so decrement
+  my $datatime = timegm($sec,$min,$hour,$day,$mon,$year);
+  my $localtime = time;
+  my $timediff = $localtime-$datatime;
+  $reporter->log("debug", "local time: $localtime, " .
+                          "object time: $datatime,  " .
+                          "age: $timediff" );
+  if ($timediff > $secs) {
+    $reporter->failPrintAndExit("Stale data '$objectname' found on $endpoint, data is more than $secs seconds old");
+  }
+  if ($timediff < -10) { #allow 10 secs into future 
+    $reporter->failPrintAndExit( "Invalid timestamp, data from the future" );
+  }
+  return ($datatime, $hostname);
+}
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.securemds',
+  version => 19,
+  description => 'Queries a local service and optionally a remote service and checks that the timestamps are not stale',
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('localEndpoint', 'url to local service', 'https://localhost:8443/wsrf/services/DefaultIndexService' );
+$reporter->addArg('remoteEndpoint', 'url to central service', '' );
+$reporter->addArg('objectname', 'objectname containing timestamp', '.*');
+$reporter->addArg('expire', 'number of seconds before data is considered expired', '1800');
+$reporter->addArg('query', 'query for data', "/*");
+$reporter->addArg('retry', 'retry wsrf-query command if it fails (numretries:waitsecs)', "0:0", '\d+:\d+');
+$reporter->processArgv(@ARGV);
+my $localEndpoint = $reporter->argValue('localEndpoint');
+my $remoteEndpoint = $reporter->argValue('remoteEndpoint');
+my $objectname = $reporter->argValue('objectname');
+my $secs = $reporter->argValue('expire');
+my $query = $reporter->argValue('query');
+my $retryspec = $reporter->argValue('retry');
+my ($numretries,$waitsecs) = $retryspec =~ /(\d+):(\d+)/;
+
+for my $endpoint ( ($localEndpoint, $remoteEndpoint) ){
+  next if ! defined $endpoint || $endpoint eq "";
+  my ($host, $port) = $endpoint =~ /https:\/\/([^:]+):([\d]+)/;
+  # check for DNS problems 
+  my $hostout = $reporter->loggedCommand( "host $host 2>&1" );
+  $reporter->failPrintAndExit( "host command failed: $hostout $!" ) if $? != 0; 
+}
+
+$ENV{'GLOBUS_OPTIONS'} = "-Xmx256M";
+my ($localTimestamp, $hostname) = getDataTimestamp( $reporter, $localEndpoint, $query, $objectname, $secs, $numretries, $waitsecs );
+if ( $remoteEndpoint ne "" ) {
+	# add the hostname to the criteria in order to find it in remote mds
+  $query .= "[\@hostname='$hostname']"; 
+  my ($remoteTimestamp, $otherHostname) = getDataTimestamp( $reporter, $remoteEndpoint, $query, $objectname, $secs, $numretries, $waitsecs);
+  my $timediff = $localTimestamp-$remoteTimestamp;
+  $reporter->log("debug", "age difference between timestamps: $timediff");
+  if ($timediff > $secs) {
+    $reporter->failPrintAndExit("Stale cache data '$objectname' found on $remoteEndpoint, data is more than $secs seconds older than registration on $localEndpoint");
+  }
+}
+$reporter->unitSuccess();
+$reporter->print();

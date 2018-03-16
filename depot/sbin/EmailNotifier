@@ -1,0 +1,71 @@
+#! /usr/bin/perl -w
+
+################################################################################
+
+=head1 NAME
+
+EmailNotifier -- an Inca Depot notifier that sends email
+
+=head1 SYNOPSIS
+
+  perl EmailNotifier target [...]
+
+=head1 DESCRIPTION
+
+  This is an Inca Depot notifier that uses either sendmail or mailx to send
+  email to one or more addresses when the results of a series comparison
+  change.  Each target argument to the script is an email address, optionally
+  preceded by a "Pass:" or "Fail:" prefix.  Those addresses with a prefix only
+  receive emails for passing or failing comparisons; those with no prefix
+  receive both.  The format of the email subject and body can be modified by
+  changing the values of the $subject and $body variables defined below.
+
+=cut
+
+################################################################################
+
+use strict;
+use warnings;
+
+exit if ( scalar(@ARGV) < 1 );
+
+exit if $ENV{incaschedule} =~ /immediate/;
+
+my $name = $ENV{incanickname} || $ENV{incareporter};
+my $resource = defined $ENV{incatargetHostname} && $ENV{incatargetHostname} =~ /\w/ ?
+  "to $ENV{incatargetHostname}" : "on $ENV{incaresource}";
+my $target = defined $ENV{incatargetHostname} && $ENV{incatargetHostname} =~ /\w/ ?
+  "&target=$ENV{incatargetHostname}" : "";
+my $subject =
+  "Inca Notification: $name $resource $ENV{incaresult}";
+my $body =
+  "The following Inca test has $ENV{incaresult}ED:\n\n" .
+  "RAN AT:  $ENV{incacollected}\n\n" .
+  "RAN ON:  $ENV{incahostname}\n\n" .
+  "RAN TO:  $ENV{incatargetHostname}\n\n" .
+  "TEST:  $ENV{incareporter}\n\n" .
+  "INPUT PARAMETERS:  $ENV{incaargs}\n\n" .
+  (defined($ENV{incalog}) ? "LOGGED COMMANDS: $ENV{incalog}\n\n" : "") .
+  (defined($ENV{incaerrorMessage}) ?
+           "ERROR MESSAGE: $ENV{incaerrorMessage}\n\n" : '') .
+  (defined($ENV{incastderr}) ? "STANDARD ERROR: $ENV{incastderr}\n\n" : "") .
+  "\n\n" .
+  "details at http://localhost:8080/inca/jsp/instance.jsp?xsl=instance.xsl" .
+  "&nickname=$ENV{incanickname}&resource=$ENV{incaresource}$target&collected=$ENV{incacollected}\n\n";
+my $mailPath = "/usr/sbin/sendmail"; # or my $mailPath = `which mailx`;
+my $subjectPrefix = 'Subject:'; # or my $subjectPrefix = '~s';
+ 
+my $failed = defined($ENV{incacomparisonResult}) &&
+             $ENV{incacomparisonResult} =~ /^Failure/;
+foreach my $email(split(/[\s,;]+/, join(' ', @ARGV))) {
+  my @pieces = split(/:/, $email);
+  if(scalar(@pieces) == 1 || 
+     ($failed && $pieces[0] =~ /^Fail/) ||
+     (!$failed && $pieces[0] !~ /^Fail/)) {
+     open(MAIL, "|$mailPath $pieces[$#pieces]");
+     print MAIL "$subjectPrefix$subject\n";
+     print MAIL "To:$pieces[$#pieces]\n" if $mailPath =~ /sendmail/;
+     print MAIL $body;
+     close(MAIL);
+  }
+}

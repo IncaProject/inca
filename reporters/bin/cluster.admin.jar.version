@@ -1,0 +1,20 @@
+use Inca::Reporter::Version;
+my $reporter = new Inca::Reporter::Version
+  (version => 1, description => 'Reports jar file versions');
+$reporter->addArg('dir', 'directory path');
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue('dir');
+my $manifest = 'META-INF/MANIFEST.MF';
+$reporter->tempFile('META-INF');
+foreach my $jar(glob "$dir/*.jar") {
+  $reporter->loggedCommand("jar xf $jar $manifest");
+  next if $? != 0;
+  my $output = $reporter->loggedCommand
+    ("grep 'Implementation-Version:' $manifest");
+  next if !defined($output) || $output !~ /Implementation-Version:\s*(\S+)/;
+  my $version = $1;
+  my ($subpackage) = $jar =~ m#.*/(.*)#;
+  $reporter->setSubpackageVersion($subpackage, $version);
+}
+$reporter->setResult(1);
+$reporter->print();

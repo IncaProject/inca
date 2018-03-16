@@ -1,0 +1,43 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'grid.benchmark.performance.ping',
+  version => 2,
+  description => 'Reports the ping time to a given host',
+  url => 'http://inca.ucsd.edu',
+  measurement_name => 'ping',
+  short => 1
+);
+$reporter->addArg('host', 'target host');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+
+if(!open(INPUT, "ping $host|")) {
+  $reporter->setResult(0, 'ping not available');
+} else {
+  my $line = <INPUT>;
+  if($line =~ /is alive/) {
+    # SysV ping
+    close(INPUT);
+    if(open(INPUT, "ping -s $host|")) {
+      $line = <INPUT>;
+    }
+  }
+  $line = <INPUT>;
+  close(INPUT);
+  if($line !~ /time *= *([\d.]+) *(\S*)/) {
+    $reporter->setResult(0, 'Unknown format for ping');
+  } else {
+    my $time = $1;
+    my $units = $2;
+    my $benchmark = $reporter->addNewBenchmark('ping');
+    $benchmark->setParameter('host', $host);
+    $benchmark->setStatistic('roundtrip', $time, $units);
+    $reporter->setResult(1);
+  }
+}
+$reporter->print();

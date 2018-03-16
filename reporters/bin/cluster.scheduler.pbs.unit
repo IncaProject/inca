@@ -1,0 +1,65 @@
+#!/usr/bin/env perl
+
+## Author: Arvind Gopu (agopu [at] cs.indiana.edu)
+## First Edited Date: May 17 2004
+
+use strict;
+use warnings;
+use Cwd;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.scheduler.pbs.unit',
+  version => 4,
+  description =>
+    'Verifies that PBS is installed properly and can run a sample job',
+  url => 'http://biokdd.informatics.indiana.edu/~agopu/docs/inca_reporters/cluster.scheduler.pbs.unit',
+  unit_name => 'PBS scheduler'
+);
+$reporter->addArg('dir', 'Reporter working directory', '');
+$reporter->addArg
+  ('sleep', 'Seconds to wait before checking status of submitted sample job',
+   '10', '\d+');
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue('dir');
+$dir = getcwd() if $dir eq '';
+my $sleep = $reporter->argValue('sleep');
+
+my $goodRunOutput = 'Sample job run successful';
+my $prefix = "$dir/cluster.scheduler.pbs.unit.$$";
+my $runOutputPath = "$prefix.pbs_out";
+my $submitPath = "$prefix.submit";
+$reporter->failPrintAndExit("cd to $dir failed") if !chdir($dir);
+$reporter->failPrintAndExit('Unable to create qsub submission file')
+  if !open(SUBMITFILE, ">$submitPath");
+print SUBMITFILE "echo $goodRunOutput > $runOutputPath\n";
+close(SUBMITFILE);
+
+my $pbsOutput = $reporter->loggedCommand("qsub $submitPath");
+if($pbsOutput !~ /^(\d+)/m) {
+  $reporter->unitFailure("qsub failed: $pbsOutput $!");
+} else {
+  my $jobId = $1;
+  sleep($sleep) if $sleep > 0;
+  if(-e $runOutputPath) {
+    my $runOutput = `cat $runOutputPath 2>& 1`;
+    chomp($runOutput);
+    if($runOutput eq $goodRunOutput) {
+      $reporter->unitSuccess();
+    } else {
+      $reporter->unitFailure("Expected '$goodRunOutput'; got '$runOutput'");
+    }
+  } else {
+    $pbsOutput = $reporter->loggedCommand("qstat $jobId");
+    if($?) {
+      $reporter->unitFailure("qstat failed: $pbsOutput $!");
+    } elsif($pbsOutput =~ /$jobId/) {
+      $reporter->unitSuccess();  # Still queued; assume o.k.
+    } else {
+      $reporter->unitFailure("Unexpected output from qstat: '$pbsOutput'");
+    }
+    $reporter->loggedCommand("qdel $jobId");
+  }
+}
+$reporter->loggedCommand("/bin/rm -f $prefix.*");
+$reporter->print();

@@ -1,0 +1,22 @@
+<summaries>
+  <summary>
+    <title>this week</title>
+    <beginIndex>1</beginIndex>
+    <endIndex>1</endIndex>
+  </summary>
+  <summary>
+    <title>last week</title>
+    <beginIndex>2</beginIndex>
+    <endIndex>2</endIndex>
+  </summary>
+  <summary>
+    <title>past 4 weeks</title>
+    <beginIndex>4</beginIndex>
+    <endIndex>1</endIndex>
+  </summary>
+  <summary>
+    <title>past 12 weeks</title>
+    <beginIndex>12</beginIndex>
+    <endIndex>1</endIndex>
+  </summary>
+</summaries>

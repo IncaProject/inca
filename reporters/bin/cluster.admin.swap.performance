@@ -1,0 +1,28 @@
+use Inca::Reporter::Performance;
+my $reporter = new Inca::Reporter::Performance(
+  version => 1,
+  description => 'Reports page swap activity',
+  url => 'http://inca.ucsd.edu',
+  measurement_name => 'swap'
+);
+$reporter->addArg('interval', 'interval over which to measure', 30, '\d+');
+$reporter->processArgv(@ARGV);
+my $interval = $reporter->argValue('interval');
+my $output = $reporter->loggedCommand("sar -g $interval 1");
+if($? != 0) {
+  $output = $reporter->loggedCommand("sar -B $interval 1");
+}
+if(!defined($output)) {
+  $reporter->setResult(0, "sar command failed: $!");
+} elsif($? || $output !~ /^Average:\s*([\d\.]+)(\s*([\d\.]+))?/m) {
+  $reporter->setResult(0, "sar command failed: $output");
+} else {
+  my $pgIn = defined($3) ? $1 : undef;
+  my $pgOut = defined($3) ? $3 : $1;
+  my $benchmark = $reporter->addNewBenchmark('swap');
+  $benchmark->setParameter('interval', $interval);
+  $benchmark->setStatistic('pagesout', $pgOut);
+  $benchmark->setStatistic('pagesin', $pgIn) if defined($pgIn);
+  $reporter->setResult(1);
+}
+$reporter->print();

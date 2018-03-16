@@ -1,0 +1,6 @@
+name: inca-java-amqp
+version: 2.0
+description: Java client to connect to AMQP server
+url: http://inca.sdsc.edu
+file: inca-amqp-2.0.tar.gz
+dependencies:

@@ -1,0 +1,34 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<inca:inca xmlns:inca="http://inca.sdsc.edu/dataModel/inca_2.0">
+    <suites>
+    <suite>
+  <guid>incas://localhost:6323/testSuite</guid>
+	<seriesConfigs>
+	  <seriesConfig>
+		<series>
+			<name>grid.middleware.globus.unit.proxy</name>
+      <version>1.5</version>
+			<args>
+				<arg>
+					<name>verbose</name>
+					<value>0</value>
+				</arg>
+				<arg>
+					<name>help</name>
+					<value>no</value>
+				</arg>
+			</args>
+			<limits>
+				<wallClockTime>300</wallClockTime>
+			</limits>
+			<context>env PATH=${PATH}:${GLOBUS_LOCATION}/bin grid.middleware.globus.unit.proxy -verbose="1" -help="no"</context>
+		</series>
+    <nickname>proxy_test</nickname>
+    <resourceSetName>localhost</resourceSetName>
+		<schedule/>
+	  <action>add</action>
+	</seriesConfig>
+	</seriesConfigs>
+</suite>
+</suites>
+</inca:inca>

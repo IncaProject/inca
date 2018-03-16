@@ -1,0 +1,14 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::Version;
+my $reporter = new Inca::Reporter::Version( 
+  name => "cluster.accounting.commsh.version",
+  url => "http://security.ncsa.uiuc.edu/research/commaccts/docs/commshman.php",
+  version => 1,
+  description => "Reports the version of commsh in the user's path."
+);
+$reporter->processArgv( @ARGV );
+$reporter->setPackageName( "commsh" );
+$reporter->setVersionByExecutable( "commsh --version", "Community Shell \\(commsh\\) ([\\d\\.]+)" );
+
+$reporter->print();

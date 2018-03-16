@@ -1,0 +1,77 @@
+#menu {
+  behavior: url(js/csshover.htc);
+  font-size: 100%;
+  /* 12em per top level label */
+  width: 48em;
+  background: #ddd;
+  float: right;
+}
+
+#menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 12em;
+  float: right;
+}
+
+#menu a, #menu h2 {
+  display: block;
+  font-size: 13px;
+  margin: 0;
+  padding: 2px 3px;
+}
+
+/* top-level */
+#menu h2 {
+  color: #504D6A;
+  background: #ddd;
+  text-transform: uppercase;
+  text-align: center;
+  border-left: 1px solid #888;
+}
+
+#menu a {
+  color: #504D6A;
+  background: #C6CDE1;
+  text-decoration: none;
+  border-width: 1px;
+  border-style: solid;
+  /* colors: top, right, bottom, left */
+  border-color: #ccc #bbb #555 #bbb;
+}
+
+/* sub-level links */
+#menu a:hover {
+  color: #845939;
+  background: #DDE5FC;
+}
+
+#menu li {
+  top: 1px;
+  position: relative;
+}
+
+#menu ul ul {
+  position: absolute;
+  z-index: 500;
+}
+
+#menu ul ul ul {
+  position: absolute;
+  top: 0;
+  right: 100%;
+}
+
+div#menu ul ul,
+div#menu ul li:hover ul ul,
+div#menu ul ul li:hover ul ul
+{display: none;}
+
+div#menu ul li:hover ul,
+div#menu ul ul li:hover ul,
+div#menu ul ul ul li:hover ul
+{display: block;}
+
+#menu ul li {float: right; width: 100%;}
+#menu ul li a {height: 1%;}

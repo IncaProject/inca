@@ -1,0 +1,10 @@
+#!/bin/sh
+
+for file1 in $1/*
+do
+echo $file1
+file2=$2/"`basename $file1`"
+echo $file2 
+diff $file1 $file2
+done
+echo "done"

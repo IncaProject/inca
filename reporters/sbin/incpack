@@ -1,0 +1,217 @@
+#!/usr/bin/perl
+
+###############################################################################
+
+=head1 NAME
+
+incpack
+
+=head1 DESCRIPTION
+
+incpack is a convenience tool for producing or updating a catalog for an Inca
+reporter repository.  incpack runs each listed reporter with -help and
+extracts the information needed for the catalog.  Packages other than
+reporters (e.g., library files, RPM packages) can be included in the catalog by
+listing the catalog attributes in a separate file with the same name as the
+package file and a .attrib extension.
+
+=head1 SYNOPSIS
+
+incpack [-h] [-I path] [-V] [-X] path [[-X] path] ...
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<-h>
+
+print program help
+
+=item B<-I>
+
+a library include path to use when running the reporters
+
+=item B<-V>
+
+print program version
+
+=item B<-X> path
+
+exclude the listed path from the catalog
+
+=item path
+
+include the listed path from the catalog
+
+=back
+
+=head1 EXAMPLES
+
+=cut
+###############################################################################
+
+# pragmas
+use strict;
+use warnings;
+
+my $gzip = 1;
+my $perl = 'perl';
+my $python = 'python';
+my $wd = `pwd`;
+chomp($wd);
+my $USAGE = "incpack [-h] [-I path] [-V] [-X] path [[-X] path] ...\n\n" .
+            "-h display this help message\n" .
+            "-I path to include when running reporters\n" .
+            "-V display version\n" .
+            "-X exclude the path that follows from the catalog";
+my $VERSION = 1.2;
+
+my %pathAction; # 'X' or 'I' for each path specified on command line
+my %packageAttributes; # Hash of hash references, indexed by file name
+
+while($#ARGV >= 0) {
+  my $arg = shift;
+  if($arg eq '-h') {
+    print "${USAGE}\n";
+    exit(0);
+  } elsif($arg eq '-I') {
+    my $dir = shift;
+    $perl .= " -I $dir";
+    $ENV{PYTHONPATH} =
+      defined($ENV{PYTHONPATH}) ? "$ENV{PYTHONPATH}:$dir" : $dir;
+  } elsif($arg eq '-V') {
+    print "incpack version ${VERSION}\n";
+    exit(0);
+  } elsif($arg eq '-X') {
+    my $path = shift;
+    $pathAction{$path} = 'X';
+  } else {
+    $pathAction{$arg} = 'I';
+  }
+}
+
+# check that at least one path specified
+if(scalar(keys %pathAction) == 0) {
+  print STDERR "${USAGE}\n";
+  exit(1);
+}
+
+
+# Add the hash reference #attr# to %packageReferences, warning the user if
+# we replace an existing package.
+sub addPackageAttributes {
+  my($attrs) = @_;
+  my $file = $attrs->{file};
+  return if !defined($file);
+  print "Note: replacing entry in catalog for file $file\n"
+    if exists $packageAttributes{$file};
+  $packageAttributes{$file} = $attrs;
+}
+
+# Translate an array of lines with the form attr: value into a hash and return
+# a reference to that hash.  Supports multi-line attribute values where
+# subsequent lines begin with a space.
+sub parsePackageLines {
+  my $attrs = {};
+  my $lastAttr = '';
+  foreach my $line(@_) {
+    if($line =~ /^(\w+)\s*:\s*(.*)$/) {
+      $lastAttr = $1;
+      $attrs->{$lastAttr} = $2;
+    } elsif($line =~ /^(\s+)(.+)$/) {
+      $attrs->{$lastAttr} .= "\n$1$2";
+    }
+  }
+  return $attrs;
+}
+
+if(-e 'Packages.gz') {
+  print "Note: Appending to existing Packages.gz file\n";
+  system('gunzip Packages.gz');
+} elsif(-e 'Packages') {
+  print "Note: Appending to existing Packages file\n";
+  $gzip = 0;
+} else {
+  print "Note: Creating new Packages.gz file\n";
+}
+
+# Append to any existing Packages file.
+if(open(PACKAGES, '<Packages')) {
+  my @lines = <PACKAGES>;
+  close(PACKAGES);
+  my @packages = split(/^$/m, join('', @lines));
+  foreach my $pack(@packages) {
+    my $attrs = &parsePackageLines(split(/\n/, $pack));
+    my $path = $attrs->{file};
+    next if !defined($path);
+    &addPackageAttributes($attrs)
+      if !defined($pathAction{$path}) || $pathAction{$path} ne 'X';
+  }
+}
+
+my @toProcess = keys %pathAction;
+while(@toProcess) {
+  my $path = shift @toProcess;
+  next if defined($pathAction{$path}) && $pathAction{$path} eq 'X';
+  print "$path\n";
+  print STDERR "Error: No such file $path\n" and next if ! -e $path;
+  $path =~ s#^$wd/##;
+  print STDERR "Error: Absolute file path $path not supported\n" and next
+    if $path =~ m#^/#;
+  if(open(ATTRIB, "<${path}.attrib")) {
+    # use .attrib file in preference to trying to run the file
+    my @lines = <ATTRIB>;
+    @lines = split(/\n/, join('', @lines));
+    close(ATTRIB);
+    push(@lines, "file: $path");
+    &addPackageAttributes(&parsePackageLines(@lines));
+  } elsif(-d $path) {
+    # directory: recursively add the contents to the list of files to process
+    foreach my $child(glob("$path/*")) {
+      push(@toProcess, $child) if $child !~ /\.attrib$/;
+    }
+  } else {
+    my $attrs = {};
+    # try direct execution first, then w/perl && w/python
+    my $exec = $path =~ m#^/# ? $path : "./$path";
+    my $xml = `$exec -help=yes -verbose=1 2>&1`;
+    $xml = `$perl $path -help=yes -verbose=1 2>&1` if $?;
+    $xml = `$python $path -help=yes -verbose=1 2>&1` if $?;
+    print STDERR "Error: Execution of $path failed\n" and next if $?;
+    print STDERR "Error: Unrecognized output from $path \n" and next
+      if $xml !~ /<.*report.*>/;
+    # parse attributes from XML output
+    $attrs->{name} = $1 if $xml =~ m#<name>([^<]+)</name>#;
+    $attrs->{version} = $1 if $xml =~ m#<version>([^<]+)</version>#;
+    my @args;
+    while($xml =~ s#<argDescription>(.*?)</argDescription>##s) {
+      my $arg = $1;
+      next if $arg !~ m#<ID>(.*)</ID>.*<accepted>(.*)</accepted>(.*<default>(.*)</default>)?#s;
+      push(@args, "$1 $2" . (defined($4) ? " $4" : ""));
+    }
+    $attrs->{arguments} = "\n  " . join("\n  ", @args) if $#args >= 0;
+    if($xml =~ m#<description>([^<]+)</description>#) {
+      $attrs->{description} = $1;
+    }
+    $attrs->{url} = $1 if $xml =~ m#<url>([^<]+)</url>#;
+    my @depends;
+    while($xml =~ s#<dependency>(.*?)</dependency>##s) {
+      my $depend = $1;
+      push(@depends, $1) if $depend =~ m#<ID>(.*)</ID>#;
+    }
+    $attrs->{dependencies} = "\n  " . join("\n  ", @depends) if $#depends >= 0;
+    $attrs->{file} = $path;
+    &addPackageAttributes($attrs);
+  }
+}
+
+open(PACKAGES, ">Packages");
+foreach my $file(sort keys %packageAttributes) {
+  foreach my $attr(sort keys %{$packageAttributes{$file}}) {
+    my $value = $packageAttributes{$file}->{$attr};
+    print PACKAGES "$attr: $value\n";
+  }
+  print PACKAGES "\n";
+}
+close(PACKAGES);
+system('gzip Packages') if $gzip;

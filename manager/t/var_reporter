@@ -1,0 +1,42 @@
+#!/bin/sh
+
+cat <<+
+<?xml version='1.0'?>
+<rep:report xmlns:rep='http://inca.sdsc.edu/dataModel/report_2.1'>
+  <gmt>2006-02-02T03:28:11Z</gmt>
+  <hostname>rocks-97.sdsc.edu</hostname>
+  <name>cluster.compiler.gcc.version</name>
+  <version>1.5</version>
+  <args>
+    <arg>
+      <name>help</name>
+      <value>no</value>
+    </arg>
+    <arg>
+      <name>log</name>
+      <value>0</value>
+    </arg>
+    <arg>
+      <name>verbose</name>
+      <value>1</value>
+    </arg>
+    <arg>
+      <name>version</name>
+      <value>no</value>
+    </arg>
+    <arg>
+      <name>args</name>
+      <value>$*</value>
+    </arg>
+  </args>
+  <body>
+    <package>
+      <ID>gcc</ID>
+      <version>3.4.4</version>
+    </package>
+  </body>
+  <exitStatus>
+    <completed>true</completed>
+  </exitStatus>
+</rep:report>
++

@@ -1,0 +1,121 @@
+<!-- ==================================================================== -->
+<!-- Configuration file for the Inca Google map status display            -->
+<!-- ==================================================================== -->
+
+<google>
+  <!-- The size of the map graphic (in pixels) that will be generated -->
+  <width>800</width>
+  <height>500</height>
+
+  <!-- The center of the map in latitude/longitude coordinates -->
+  <center>
+    <latitude>37</latitude>
+    <longitude>982</longitude>
+  </center>
+
+  <!-- Type of map to display
+       google.maps.MapTypeId.ROADMAP - the default road map view
+       google.maps.MapTypeId.SATELLITE - Google Earth satellite images
+       google.maps.MapTypeId.HYBRID - a mixture of roadmap and satellite views
+       google.maps.MapTypeId.TERRAIN - physical map based on terrain info -->
+  <mapType>google.maps.MapTypeId.TERRAIN</mapType>
+
+  <!-- The initial zoom level of the map (higher is closer up) -->
+  <magnificationLevel>4</magnificationLevel>
+
+  <!-- The distance in between resource markers at a site.  The default 
+       markerDist is based on the default magnificationLevel.  -->
+  <markerDist>1.00</markerDist>
+
+  <!-- The maximum number of errors to display in the info window -->
+  <maxErrors>15</maxErrors>
+
+  <!-- For cross-site tests, a line will be displayed in between the 2 sites to
+       indicate the test status.  Customize the colors for pass fail below. -->
+  <line>
+    <pass>#228B22</pass>
+    <fail>#FF0000</fail>
+  </line>
+
+  <!-- Customize the look of the icon marker used to represent a resource
+       on the map.  -->
+  <marker>
+    <!-- size of icon (in pixels) -->
+    <iconWidth>12</iconWidth>
+    <iconHeight>20</iconHeight>
+    
+    <!-- the coordinates of point inside the icon to be used for the anchor -->
+    <iconAnchorCoord>6, 20</iconAnchorCoord>
+
+    <!-- where the anchor point for the info window should appear inside the
+         icon -->
+    <iconInfoWindowAnchorCoord>5, 1</iconInfoWindowAnchorCoord>
+
+    <!-- We expect a set of 3 icons to indicate the different resource status:
+    pass/fail/warn based on the number of tests the resource passes.  The url
+    for the 3 different images should have the same url pattern.  I.e., the url
+    for the images is constructed by concatenating <iconUrlPrefix>,
+    <iconStatus>/<fail|pass|warn>, and <iconUrlSuffix>.  -->
+    <iconUrlPrefix>http://labs.google.com/ridefinder/images/mm_20_</iconUrlPrefix>
+    <iconStatus>
+      <fail>red</fail>
+      <pass>green</pass>
+      <warn>orange</warn>
+    </iconStatus>
+    <iconUrlSuffix>.png</iconUrlSuffix>
+
+    <!-- Url of a icon to use for the shadow of the resource icon -->
+    <shadowIconUrl>http://labs.google.com/ridefinder/images/mm_20_shadow.png</shadowIconUrl>
+
+    <!-- the size of the shadow icon -->
+    <shadowIconWidth>22</shadowIconWidth>
+    <shadowIconHeight>20</shadowIconHeight>
+  </marker>
+
+  <!-- List the cross site tests you want to have buttons for to toggle
+       status lines on and off the map  -->
+  <crossSite>
+    <test name="testname">Insert regex here</test>
+  </crossSite>
+
+  <!-- The information about where to place resources in a site -->
+  <sites>
+    <!-- Each site has its own section -->
+    <site>
+      <name>localSite</name>
+      
+       <!-- location of site in latitude/longitude -->
+       <latitude>37</latitude>
+       <longitude>982</longitude>
+ 
+      <!-- Display a site's logo (optional).  Can specify more than one
+           logo/icon by repeating the <logo> tag.  -->
+      <logo>
+        <url>http://inca.sdsc.edu/www/images/logo-powered-by-sm.jpg</url>
+        <!-- size of logo -->
+        <width>125</width>
+        <height>47</height>
+
+        <!-- Logo placement relative to the latitude/longitude.  Angle is the
+             degrees from the site center (latitude/longitude).  For example,
+	     an angle of 0 will place the logo to the right of the resources, 
+             180 to the left, 90 to the top, and 270 to the bottom.  logoAnchorX
+             and logoAnchorY are used to indicate the coordinates relative
+             to the image that should be placed on the map. For example, 
+             if your image is 12x12, using logoAnchorX=6 and logoAnchorY=6
+             will place the image in the center -->
+        <angle>180</angle> 
+        <logoAnchorX>125</logoAnchorX>
+        <logoAnchorY>33</logoAnchorY>
+      </logo>
+      <!-- list all resources here that you want to be members if this site -->
+      <resources>
+        <resource>localResource</resource>
+      </resources>
+    </site>
+  </sites>
+
+  <!-- For development purposes.  Will print out some log messages in a 
+       javascript window if greater than 0 -->
+  <debug>0</debug>
+</google>

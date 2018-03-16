@@ -1,0 +1,28 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'viz.lib.mesa.version',
+  version => 2,
+  url => 'http://www.mesa3d.org/',
+  description => 'Reports the version of the Mesa OpenGL libraries',
+  package_name => 'Mesa'
+);
+$reporter->addArg('dir', 'path to mesa installation', '');
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue('dir');
+if($dir eq '') {
+  foreach my $place($ENV{MESA_LOCATION}, $ENV{MESA_HOME},
+                    glob('/usr/local/apps/mesa*'), glob('/opt/mesa*'),
+                    glob('/usr/local/mesa*')) {
+    $dir = $place and last if defined($place) && -d $place;
+  }
+}
+$reporter->failPrintAndExit('Cannot locate MESA installation; use -dir')
+  if $dir eq '';
+
+$reporter->setVersionByFileContents("$dir/version", '(\S+)');
+$reporter->print();

@@ -1,0 +1,34 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'metascheduling.glue.unit',
+  version => 4,
+  description => 'Checks that a GLUE service returns a value',
+  unit_name => 'glue'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('host', 'glue host');
+$reporter->addArg('port', 'glue port', '8443');
+$reporter->addArg('service', 'glue service', 'DefaultIndexService');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+my $port = $reporter->argValue('port');
+my $service = $reporter->argValue('service');
+
+my $tgwhereami = `tgwhereami`;
+$tgwhereami =~ s/\n//g;
+my $grep = "<ResourceID xmlns=\"\">$tgwhereami</ResourceID>";
+my $cmd = "wsrf-query -a -s https://$host:$port/wsrf/services/$service \"//*[local-name()='V4glue2RP']/glue2/ResourceID\"";
+my $output = $reporter->loggedCommand($cmd);
+if($?) {
+  $reporter->failPrintAndExit("$cmd failed: $output $!");
+} elsif($output !~ /$grep/){
+  $reporter->failPrintAndExit("$cmd didn't match $grep: $output");
+} else {
+  $reporter->unitSuccess();
+  $reporter->print();
+}

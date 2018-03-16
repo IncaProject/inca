@@ -1,0 +1,58 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter;
+
+my $reporter = new Inca::Reporter(
+  name => 'grid.security.gridshib.unit',
+  version => 1,
+  description => 'Checks that up-to-date mappings exists between all science'
+             . ' gateways\'s entityID (SAML assertion issuer name) and their'
+             . ' X.509 Distinguished Names (DN).  The default location for'
+             . ' the mapping file (provided by a GridShib for GT install) is'
+             . ' /etc/grid-security/metadata/tg-gateway-entity-map.txt'
+);
+$reporter->addArg('trustsite', 'trusted site', 'https://info.teragrid.org/gateways');
+$reporter->addArg('trustfile', 'trusted file', 'tg-gateway-entity-map.txt');
+$reporter->addArg('metapath', 'metadata path', '/etc/grid-security/metadata');
+$reporter->processArgv(@ARGV);
+my $TRUSTSITE = $reporter->argValue('trustsite');
+my $TRUSTFILE = $reporter->argValue('trustfile');
+my $metadataPath = $reporter->argValue('metapath');
+my $localFile = "$metadataPath/$TRUSTFILE";
+my $remoteFile = "$TRUSTSITE/$TRUSTFILE";
+
+if (! -e $localFile) {
+  my $errorMsg = "$localFile does not exist.  ";
+  $errorMsg .= "$metadataPath does not exist.  " if (! -d $metadataPath);
+  failClean($errorMsg . "Cannot map a science gateway's entityID to DN");
+}
+
+my $scratchDir = "/tmp/gs4gt.metadata.check.$$";
+if (! mkdir($scratchDir)) {
+  failClean("Cannot mkdir $scratchDir")
+}
+$reporter->tempFile($scratchDir);
+if (! chdir($scratchDir)) {
+  failClean("Cannot cd to $scratchDir");
+}
+
+my $scratchFile = "$scratchDir/$TRUSTFILE";
+my $wgetOut = $reporter->loggedCommand("wget -t 5 -T 5 -w 5"
+  . " --no-check-certificate -O $scratchFile $remoteFile");
+failClean("Cannot wget $remoteFile") if ($?);
+my $diffOut = $reporter->loggedCommand("diff -Nu $localFile .");
+if ($diffOut ne "") {
+  failClean("Differences found between $remoteFile and $localFile\n"
+          . "Check $remoteFile for current science gateway metadata\n"
+          . "$diffOut");
+}
+$reporter->setCompleted(1);
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  $err =~ s/$$/PID/g;
+  $reporter->failPrintAndExit($err);
+}

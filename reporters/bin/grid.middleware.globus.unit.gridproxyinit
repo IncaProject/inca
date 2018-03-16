@@ -1,0 +1,223 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit( 
+  name => 'grid.middleware.globus.unit.gridproxyinit',
+  version => 9,
+  description => 'look for bug in grid-proxy-init', 
+); 
+$reporter->processArgv( @ARGV );
+
+################
+##  Global Vars
+################
+my $GRID_PROXY_INIT_FOUND = 0;
+my $VER_MATCH = 1;
+my $ERROR = "";
+my $SETUP = "bash -c 'set -a; cp ~/.soft ~/.soft.$$ && soft-msc ~/.soft.$$ &&
+source ~/.soft.$$.cache.sh && eval \"`soft-dec sh add ";
+my $CLEANUP = "; rm -f ~/.soft.$$'";
+
+################
+##  Functions
+################
+
+#########################################
+## Compare a string with output from gpt-query
+## to a regular expression
+#########################################
+sub matchPackageVersions {
+ my $parse = shift;
+ my $match = shift;
+	
+  my $pass = 1;
+  foreach (@{$parse}) {
+    my ($package, $version) = split(/: /, $_);
+    if ( (defined($version)) && ($version ne "") ){
+      chomp($version);
+      if (($version !~ m/$match/)&&($version !~ "No packages were found")) { 
+        $VER_MATCH = 0; 
+        $pass = 0;
+      }
+    }  
+  }  
+  return $pass;
+}
+
+#########################################
+## Execute the appropriate gpt-query commands for a 
+## 4.0.x or 3.2.x grid-proxy-init and compare
+## to the expected package versions
+#########################################
+sub checkVer {
+  my $reporter = shift;
+  my $bash = shift;
+  my $gt4 = shift;
+  my $key = shift;
+  my $gpi = shift;
+
+  my ($globus_location, $init) = $gpi =~ m/(.*)(\/bin\/grid-proxy-init)/;
+  my $query = $globus_location . "/sbin/gpt-query -pkgtype=pgm";
+  my $util_cmd = "$query | grep globus_gsi_cert_utils";
+  my $sys_cmd = "$query | grep globus_gsi_sysconfig";
+  my $cred_cmd = "$query | grep globus_gsi_credential";
+  my $util_read = ">= 2.6.1";
+  my $util_match = "(^2\.[6-9]\.[1-9].*)|(^2\.[1-9][0-9]+.*)|(^[3-9].*)";
+  my $sys_read = ">= 1.20.0";
+  my $sys_match = "(^1\.[2-9][0-9]\.[0-9].*)|(^[2-9].*)";
+  my $cred_read;
+  my $cred_match;
+  if (!$gt4){
+    $util_read = ">= 1.8";
+    $util_match = "(^1\.[8-9].*)|(^[2-9].*)";
+    $sys_read = ">= 1.14";
+    $sys_match = "(^1\.[1-9][4-9].*)|(^[2-9].*)";
+    $cred_read = ">= 1.4";
+    $cred_match = "(^1\.[4-9].*)|(^[2-9].*)";
+  }
+  my @utils = $reporter->loggedCommand( "$bash $util_cmd $CLEANUP");
+  my @syss = $reporter->loggedCommand( "$bash $sys_cmd $CLEANUP");
+  my $util_pass = matchPackageVersions (\@utils, $util_match);
+  my $sys_pass = matchPackageVersions (\@syss, $sys_match);
+  my $cred_pass = 1;
+  my @creds;
+  if (!$gt4){
+    @creds = $reporter->loggedCommand( "$bash $cred_cmd $CLEANUP");
+    $cred_pass = matchPackageVersions (\@creds, $cred_match);
+  }
+  my $err = ""; 
+  if (!$util_pass | !$sys_pass | !$cred_pass){
+    $err .="\nPROBLEM WITH: " . $gpi . " after adding " . $key . "\n";
+  }
+  if (!$util_pass){
+    $err .="\nGLOBUS_GSI_CERT_UTILS: expecting $util_read, found @utils";
+  } 
+  if (!$sys_pass){
+    $err .="\nGLOBUS_GSI_SYSCONFIG: expecting $sys_read, found @syss";
+  } 
+  if (!$cred_pass){
+    $err .="\nGLOBUS_GSI_CREDENTIAL: expecting $cred_read, found @creds\n";
+  }
+  $ERROR .= $err;
+}
+
+#########################################
+## Given the location of grid-proxy-init 
+## determine whether it is a script or not
+#########################################
+sub isScript {
+  my $gpi = shift;
+  
+  my $isScript = 0;
+  my $type = $reporter->loggedCommand( "file $gpi");
+  if ($type =~ m/(perl|shell) script/){
+    $isScript = 1;
+  }
+  my $add = "\n\nFILE: $type";
+  $reporter->log('debug', $add);
+  return $isScript;
+}
+
+#########################################
+## Get the location of grid-proxy-init 
+#########################################
+sub getGPI {
+  my $reporter = shift;
+  my $bash = shift;
+  
+  my $which_gpi = "which grid-proxy-init";
+  my $gpi = $reporter->loggedCommand( "$bash $which_gpi $CLEANUP");
+  my $found_gpi = "none";
+  $gpi =~ s/\n//g;
+  if (($gpi !~ "which: no grid-proxy")&&(-e $gpi)&&(-x $gpi)){
+    $GRID_PROXY_INIT_FOUND = 1;
+    $found_gpi = $gpi;
+  }
+  my $add = "\n\nGRID-PROXY-INIT: $gpi";
+  $reporter->log('debug', $add);
+  return $found_gpi;
+}
+
+################
+##  Main  
+################
+
+#########################################
+## CTSSv2: 
+## find grid-proxy-init by adding +globus key 
+## find whether grid-proxy-init is a script or binary
+#########################################
+$reporter->log('debug', 'CHECKING CTSSv2 BY ADDING +globus');
+my $v2 = $reporter->loggedCommand( "softenv | grep \"+globus \"");
+chomp($v2);
+my ($v2_rm, $v2_key, $v2_rm2) = $v2 =~ /(^.[^\@|\+]*)(.[^\s]*)(.*)/;
+my $v2_bash = $SETUP . "+globus `\" &&";
+my $v2_found_gpi = getGPI($reporter, $v2_bash);
+my $v2_script = isScript($v2_found_gpi);
+
+#########################################
+## if we find an executable binary 3.2.x|4.0.x grid-proxy-init check package versions, 
+## otherwise fail since we've found an unpatched version of grid-proxy-init
+#########################################
+if ( ($v2_found_gpi ne "none")&&(!$v2_script) ) {
+  ## 4.0.x grid-proxy-init
+  if (($v2_rm2 =~ "Globus Toolkit 4\.0")||($v2_found_gpi =~ "globus-4\.0")) {
+    checkVer($reporter, $v2_bash, 1, '+globus', $v2_found_gpi);
+  ## 3.2.x grid-proxy-init
+  }elsif (($v2_rm2 =~ "Globus Toolkit 3\.2")||($v2_found_gpi =~ "globus-3\.2")) {
+    checkVer($reporter, $v2_bash, 0, '+globus', $v2_found_gpi);
+  ## probable 2.4.3 grid-proxy-init
+  } else {
+    $reporter->failPrintAndExit(
+      "ctssv2 grid-proxy-init is not a script and is not 4.0.x or 3.2.x: $v2_found_gpi ($v2_rm2)"
+    );
+  }
+}
+
+#########################################
+## CTSSv3: 
+## find grid-proxy-init by adding @globus-4.0 key 
+## find whether grid-proxy-init is a script or binary
+## if found and is a binary, check package versions
+#########################################
+my $text = 'CHECKING CTSSv3 BY ADDING @globus-4.0';
+$reporter->log('debug', $text);
+my $v3 = $reporter->loggedCommand( "softenv | grep \"\@globus-4.0 \"");
+my ($v3_rm, $v3_key, $v3_rm2) = $v3 =~ /(^.[^\@|\+]*)(.[^\s]*)(.*)/;
+my $v3_bash = $SETUP . "\@globus-4.0 `\" &&";
+my $v3_found_gpi = getGPI($reporter, $v3_bash);
+my $v3_script = isScript($v3_found_gpi);
+if ( $v3_script && (($v3_rm2 !~ "Globus Toolkit 2\.4")&&($v3_found_gpi !~ "globus-2\.4"))) {
+  dieNice($reporter, "ctssv3 grid-proxy-init is a script: $v3_found_gpi ($v3_rm2)");
+}
+if ( $v3_found_gpi ne "none" ) {
+  checkVer($reporter, $v3_bash, 1, '@globus-4.0', $v3_found_gpi);
+}
+
+#########################################
+##  Do an existence check on all grid-proxy-inits  
+##  If NONE exist, immediately PASS the test.
+#########################################
+if (!$GRID_PROXY_INIT_FOUND){
+  $reporter->loggedCommand( "no grid-proxy-init command" );
+  $reporter->unitSuccess();
+  $reporter->print();
+  exit;
+}
+
+#########################################
+## If grid-proxy-inits do exist, verify that they have  
+## patched package versions.  If they are patched, PASS the test  
+#########################################
+if ($VER_MATCH){
+  $reporter->unitSuccess();
+  $reporter->print();
+  exit;
+} else{
+  $reporter->failPrintAndExit($ERROR);
+}
+

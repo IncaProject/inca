@@ -1,0 +1,90 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use File::Path;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.wsgram',
+  version => 18,
+  description => "Uses globusrun-ws to submit an executable to a supplied job host",
+  url => "http://www.globus.org/toolkit/docs/4.0/execution/wsgram/rn01re01.html",
+  unit_name => "wsgram"
+);
+$reporter->addDependency('sampleGridJob');
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('host', 'job host', 'localhost', '.*');
+$reporter->addArg('scheduler', 'scheduler', '', '|.*');
+$reporter->addArg('maxMem', 'max memory', '2048', '[0-9]+');
+$reporter->addArg('nodes', 'node count', '1', '[0-9]+');
+$reporter->addArg('nodeTag', 'rsl tag for node count', 'hostCount', '.*');
+$reporter->addArg('project', 'charge project', '', '|.*');
+$reporter->addArg('queue', 'job queue', '', '|.*');
+$reporter->addArg('exe', 'job executable', '');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+my $scheduler = $reporter->argValue('scheduler');
+my $mem = $reporter->argValue('maxMem');
+my $nodes = $reporter->argValue('nodes');
+my $nodeTag = $reporter->argValue('nodeTag');
+my $project = $reporter->argValue('project');
+my $queue = $reporter->argValue('queue');
+my $exe = $reporter->argValue('exe');
+
+my $workdir = cwd();
+if ($exe eq ""){
+  $exe="$workdir/var/reporter-packages/build/sampleGridJob";
+}
+my $tmpdir = "/tmp/grid.middleware.globus.unit.wsgram." . $$;
+if ( ! mkpath( "$tmpdir" ) ) {
+  failClean( "Unable to create temporary file, $tmpdir" );
+}
+$reporter->tempFile($tmpdir);
+my $job = "<job>
+  <executable>$exe</executable>
+  <$nodeTag>$nodes</$nodeTag>
+";
+if ($project ne ""){
+  $job .= "  <project>$project</project>";
+}
+if ($queue ne ""){
+  $job .= "  <queue>$queue</queue>";
+}
+$job .= "  <maxTime>5</maxTime>
+  <maxMemory>$mem</maxMemory>
+</job>";
+$reporter->log('debug', "gt4.rsl contents:" );
+$reporter->log('debug', $job );
+my $rsl = "$tmpdir/gt4.rsl";
+if ( open R, ">$rsl" ) {
+  print R $job;
+  close R;
+} else {
+  failClean( "Unable to create temporary file, $rsl" );
+}
+
+my $cmd = "globusrun-ws";
+if ($scheduler ne ""){
+  $cmd .= " -Ft $scheduler";
+}
+$cmd .= " -F https://" .$host. " -submit -s -f $rsl";
+my $output = $reporter->loggedCommand($cmd);
+if($?) {
+  failClean("globusrun-ws failed: $output $!");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  $err =~ s/$$/PID/g;
+  $err =~ s/Job ID: .[^\n]+/Job ID: xxxx/g;
+  $err =~ s/Termination time: .[^\n]+/Termination time: xxxx/g;
+  $err =~ s/inca\.rm\..[^\s\n]*/inca\.rm\.xxx/g;
+  my $uptime = $reporter->loggedCommand("uptime");
+  $reporter->log("info", "Uptime: $uptime");
+  $reporter->failPrintAndExit($err);
+}

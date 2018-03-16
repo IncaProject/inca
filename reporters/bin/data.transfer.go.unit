@@ -1,0 +1,228 @@
+#!/usr/bin/env perl
+
+################################################################################
+
+=head1 NAME
+
+data.transfer.go.unit -- Utlizes the cli.globusonline.org service to test
+GlobusOnline data transfers.
+
+=head1 SYNOPSIS
+
+  data.transfer.go.unit <opts> -dest="<endpoint>"
+
+=head1 DESCRIPTION
+
+  Verifies GlobusOnline (GO) data transfers to a specified destination endpoint.
+  Randomly chooses up to numTries (default: 2) sources in the specified 
+  namespace (default: xsede) to attempt data transfers to the destination
+  endpoint.  The first time a source endpoint is chosen, a random data file is
+  created (default size : 100MB) on the local machine and copied over to the
+  source using a globus-url-copy command where it will remain to be used for
+  this and future tests.  By default, data transfers are tested to the home
+  directory of the destination and can be changed with the -dir.  Recognized
+  options:
+
+=over 5
+
+=item -dest
+
+endpoint destination to test transfers to
+
+=item -dirs
+
+list of directories (space delimited) to test transfers to (default: ~)
+
+=item -goHost
+
+hostname of cli globus online host (default: cli.globusonline.org)
+
+=item -help
+
+display usage information (no|yes)
+
+=item -log
+
+log message types included in report
+
+=item -namespace
+
+namespace for desired endpoints (default: xsede)
+
+=item  -numTries
+
+number of source endpoints to try
+
+=item -opts
+
+options to transfer command (default: --verify-checksum)
+
+=item -size
+
+size of file to transfer in megabytes
+
+=item -ssh
+
+gsissh client to use
+
+=item  -timeout
+
+timeout the transfer (>= 5 minutes)
+
+=item  -verbose
+
+verbosity level (0|1|2)
+
+=item -version
+
+show reporter version (no|yes)
+
+=back
+
+=head1 EXAMPLES
+
+  data.transfer.go.unit -dest="xsede#ranger"
+
+=cut
+
+################################################################################
+
+use strict;
+use warnings;
+use Inca::Reporter;
+use File::Spec::Functions;
+use Data::Dumper;
+
+# In order to show the dirs that transfers were tested to in the summary view,
+# the dirs need to appear in the body.  We choose to use the performance
+# schema so that we can plot the history of individual transfers to a
+# directory.  If a transfer succeeds, we report the transfer time otherwise
+# we report -1 indicating the transfer failed to the dir
+my $reporter = new Inca::Reporter(
+  name => "data.transfer.go.unit",
+  version => 12,
+  description => "Simple test of the GO transfer service",
+  url => "http://www.globusonline.org",
+);
+$reporter->addDependency("Inca::Reporter::GridProxy");
+$reporter->addArg("dest", "endpoint destination to test transfers to" );
+$reporter->addArg("dirs", "list of directories to test transfers to (default: home)", "~" );
+$reporter->addArg("goHost", "hostname of cli globus online host", "cli.globusonline.org");
+$reporter->addArg("namespace", "namespace for desired endpoints", "xsede" );
+$reporter->addArg("numTries", "number of source endpoints to try", "2" );
+$reporter->addArg("opts", "options to transfer command", "--verify-checksum");
+$reporter->addArg("size", "size of file to transfer in megabytes", "100", "\\d+");
+$reporter->addArg("ssh", "gsissh client to use", "gsissh");
+$reporter->addArg("timeout", "timeout the transfer (>= 5 minutes)", "5", "\\d+");
+$reporter->processArgv(@ARGV);
+my $dest = $reporter->argValue("dest");
+my @dirs = split( /,* +/, $reporter->argValue("dirs") );
+my $goHost = $reporter->argValue("goHost");
+my $namespace = $reporter->argValue("namespace");
+my $numTries = $reporter->argValue("numTries");
+my $opts = $reporter->argValue("opts");
+my $sizeMB = $reporter->argValue("size"); 
+my $size = $sizeMB * 1024 * 1024; #MBs to bytes
+my $ssh = $reporter->argValue("ssh");
+my $timeout = $reporter->argValue("timeout"); 
+$reporter->failPrintAndExit("timeout must be at least 5 mins") if $timeout < 5;
+my $timeoutSecs = $timeout * 60;
+$opts .= " -d $timeout" . "m";
+
+# set up body
+my @transfers;
+
+# list available xsede hosts, pick max hosts to try
+my @out = $reporter->loggedCommand("$ssh $goHost endpoint-activate -g $namespace#*");
+my @resources = map( $_ =~ /($namespace#[^']+)/, @out );
+$reporter->failPrintAndExit("Unable to fetch available endpoints: @out") if scalar(@resources)<1;
+$reporter->failPrintAndExit("Destination endpoint $dest not found") if ! grep( /^$dest$/, @resources);
+
+my @triedHosts;
+my %dirResults;
+my $numSourceErrors = 0;
+my $numErrors = 0;
+# attempt transfers from numTries sources
+for( my $i = 0; $i < $numTries; $i++ ) {
+  # pick a different random source host 
+  my $source = "";
+  do {
+    my $idx = int(rand(scalar(@resources)));
+    if  ( $resources[$idx] ne $dest && ! grep( /$resources[$idx]/, @triedHosts ) ) {
+      $source = $resources[$idx];
+      push( @triedHosts, $source );
+    } 
+  } while ( $source eq "" );
+
+  # check that random data file exists or create it
+  my $file = "inca-go-file-$size";
+  my $lsout = $reporter->loggedCommand("$ssh $goHost ls $source/~/$file");
+  if ( $lsout =~ /Could not connect to server|No such endpoint/ ) {
+    $reporter->log( "error", "Bad source endpoint $source: $lsout" );
+    $numSourceErrors++;
+    next; 
+  }
+  if ( $lsout =~ /No such file or directory/ ) {
+    my $info = $reporter->loggedCommand("$ssh $goHost endpoint-list -v $source");
+    my ($gridftpHost) = $info =~ /(gsiftp:\/\/[^:]+:\d+)/ms;
+    my $tmpfile = catfile( $ENV{HOME}, "inca-go-file-$size" );
+    $reporter->loggedCommand("dd if=/dev/urandom of=$tmpfile bs=$size count=1");
+    $reporter->tempFile( $tmpfile );
+    $reporter->loggedCommand("globus-url-copy file://$tmpfile $gridftpHost/~/$file");
+    $lsout = $reporter->loggedCommand("$ssh $goHost ls $source/~/$file", $timeoutSecs);
+    if ( $lsout =~ /No such file or directory/ ) {
+      $reporter->log( "error", "Unable to copy source file to endpoint $source" );
+      $numErrors++;
+      next; 
+    }
+  }
+
+  # copy file to all dirs
+  my $copyfile = "$file-copy-" . time();
+  for my $dir ( @dirs ) {
+    # skip if previously succeeded
+    next if exists $dirResults{$dir} && $dirResults{$dir} eq "success"; 
+    # attemp transfer
+    my $scpout = $reporter->loggedCommand
+      ("$ssh $goHost scp $opts $source:/~/$file $dest:/$dir/$copyfile");
+    $scpout =~ s/^[^\w].*$//m; # strip out wierd progress chars 
+    $reporter->log( "debug", substr($scpout, 0, 1024) );
+    # verify it exists
+    $lsout = $reporter->loggedCommand
+      ("$ssh $goHost ls -l $dest/$dir/$copyfile", $timeoutSecs);
+    if ( $lsout =~ /\d+:\d+\s+\/?$dir\/$copyfile/ ) {
+      $dirResults{$dir} = $source;
+      $reporter->log("debug", $lsout);
+      $reporter->loggedCommand("$ssh $goHost rm $dest/$dir/$copyfile");
+    } else {
+      $dirResults{$dir} = "$source error";
+      my $error = "File failed to transfer from $source to $dest/$dir: "                          . substr($scpout, 0, 512);
+      $reporter->log( "error", $error );
+    }
+  }
+  last if ! grep( /error/, values(%dirResults) );  # we are done if no failures
+}
+
+$reporter->failPrintAndExit("Invalid source endpoints") 
+  if $numSourceErrors == $numTries;
+
+for my $host ( @triedHosts ) {
+  push( @transfers, $reporter->xmlElement("source", 1, $host) );
+}
+
+for my $dir ( @dirs ) {
+  if ( $dirResults{$dir} !~ /error/ ) {
+    my $tranAttrs = { source=>$dirResults{$dir}, dest=>$dest, result=>1 };
+    push( @transfers, $reporter->xmlElement("transfer", 1, $tranAttrs, $dir) );
+  } else {
+    my ($source) = $dirResults{$dir} =~ /^(\S+)/;
+    my $tranAttrs = { source=>$source, dest=>$dest, result=>0 };
+    push( @transfers, $reporter->xmlElement("transfer", 1, $tranAttrs, $dir) );
+    $numErrors++;
+  }
+}
+my $attrs = {warnings=>$numSourceErrors, errors=>$numErrors};
+$reporter->setBody( $reporter->xmlElement("transfers", 0, $attrs, @transfers) );
+
+$reporter->setResult(1);
+$reporter->print();

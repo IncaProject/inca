@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.accounting.tgusage.version',
+  version => 4,
+  description => 'Reports the version of tgusage',
+  url => 'http://www.teragrid.org',
+  package_name => 'tgusage'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable('tgusage -v', 'version ([\d\.]+)');
+$reporter->print();

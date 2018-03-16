@@ -1,0 +1,602 @@
+#!/usr/bin/perl -w
+
+###############################################################################
+
+=head1 NAME
+
+inca-approve-changes [opts]
+
+=head1 DESCRIPTION
+
+This is an Inca administration tool that allows the user to approve or reject
+each of a set of series configuration changes.
+
+=head1 SYNOPSIS
+
+inca-approve-changes [opts]
+
+=head1 OPTIONS
+
+=over 5
+
+=item <-a|--agent>=uri
+
+The [scheme://]host[:port] specification of the Inca agent to contact.
+
+=item <A|--auth>=yes/no
+
+Indicates whether or not the connection to the agent should use
+certificate-based authentication.  The default is yes.
+
+=item <-c|--cert>=path
+
+The path to the certificate file.  Required for authenticated connections.
+
+=item <--color>=color[,color[,color]]
+
+The colors to use for showing change details.  Unchanged attribute values are
+shown in the first color, replaced values in the second, and new values in the
+third.  The default is magenta,magenta,green.  Possibilities are black, red,
+green, yellow, blue, magenta, cyan, and white.  On terminals that support
+redefining colors, the format #rrggbb, where rr gg and bb are each hexidecimal
+values, may be used.
+
+=item <-h|--help>
+
+Print program help text, then exit.  The default is no.
+
+=item <-i|--id>=text
+
+The resource id for this host.
+
+=item <-k|--key>=path
+
+The path to the private key file.  Required for authenticated connections.
+
+=item <-P|--password>=text
+
+Specify how to obtain an encryption password.  Required for authenticated
+connections.
+
+=item <-t|--trusted>=path
+
+The path to the trusted ca certificate file.  Required for authenticated
+connections.
+
+=item <-v|--version>=yes/no
+
+Print program version, then exit.  The default is no.
+
+=back
+
+=cut
+###############################################################################
+use strict;
+use warnings;
+
+use Curses;
+use Curses::UI;
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
+use Inca::Logger;
+use Inca::Net::Client;
+use Pod::Usage;
+use XML::Simple qw(:strict);
+
+# for net client lib
+Inca::Logger->screen_init( "WARN" );
+
+# NOTE: Remove devel references once Agent supports GETPROPOSED/APPROVE commands
+my %config = (
+  auth => 'yes',
+  devel => 'no'
+);
+GetOptions(\%config,
+           'agent|a=s',
+           'auth|A=s',
+           'cert|c=s',
+           'color=s',
+           'devel=s',
+           'help|h',
+           'id|i=s',
+           'init=s',
+           'key|k=s',
+           'password|P=s',
+           'trusted|t=s',
+           'version|v=s') or die pod2usage(1);
+if(defined($config{help}) && $config{help} ne 'no') {
+  pod2usage( -exitval => 0 );
+} elsif(defined($config{version}) && $config{version} ne 'no') {
+  print "inca-approve-changes version 1.0\n";
+  exit(0);
+}
+
+if(defined($config{init})) {
+  # TODO pick up config settings from init file
+}
+
+# Check for missing config settings
+if(!defined($config{agent})) {
+  print STDERR "agent uri required\n";
+  exit(1);
+}
+if(!defined($config{id})) {
+  print STDERR "resource id required\n";
+  exit(1);
+}
+
+# Massage config settings into format expected by modules
+$config{auth} = $config{auth} ne 'no';
+$config{devel} = $config{devel} ne 'no';
+if(defined($config{password})) {
+  if($config{password} =~ /^no|false$/) {
+    $config{password} = undef;
+  } elsif($config{password} =~ s/^pass://) {
+    # empty
+  } else {
+    print $config{password} if $config{password} =~ s/^stdin://;
+    $config{password} = <STDIN>;
+    chomp($config{password}) if defined($config{password});
+    # inca script redirects stdin to transmit password to this script; reopen
+    # STDIN to allow tty input
+    open(STDIN, "</dev/tty");
+  }
+}
+if($config{agent} !~ m#^\w+:#) {
+  $config{agent} = ($config{auth} ? 'incas://' : 'inca://') . $config{agent};
+}
+$config{passphrase} = $config{password};
+
+my ($cmd, $xml);
+if($config{agent} =~ m#^file:/#) {
+  # Read XML from file for testing purposes
+  my ($path) = $config{agent} =~ m#^file:(.*)#;
+  local $/;
+  open(PROPOSED, "<$path") or die "Can't read $path";
+  $xml = <PROPOSED>;
+  close(PROPOSED);
+} else {
+  # Connect to the agent and grab the proposed changes
+  my $client = new Inca::Net::Client($config{agent}, %config);
+  if(!defined($client)) {
+    print STDERR "Unable to connect to agent\n";
+    exit(1);
+  }
+  if($config{devel}) {
+    $client->writeStatement('GETCONFIG', '');
+  } else {
+    $client->writeStatement('GETPROPOSED', $config{id});
+  }
+  ($cmd, $xml) = $client->readStatement();
+  $client->close();
+}
+# Trim leading and trailing whitespace from text content.  Such whitespace is
+# rarely (never?) significant, and its presence makes it difficult to test for
+# 'add' and 'delete' actions, readably combine reporter name and version, etc.
+$xml =~ s/>\s+([^<\s])/>$1/g;
+$xml =~ s/([^>\s])\s+</$1</g;
+
+# Parse the received Inca XML
+my $inca = eval {
+  XMLin($xml, ForceArray => ['suite', 'seriesConfig', 'arg', 'notification'],
+        KeepRoot => 0, KeyAttr => { }, NoAttr => 1, SuppressEmpty => undef);
+};
+if($@) {
+  print STDERR "inca-approve-changes: XML parse error: $@\n";
+  exit(1);
+}
+if(!defined($inca->{suites}) || !defined($inca->{suites}->{suite})) {
+  print STDERR "inca-approve-changes: No series changes found\n";
+  exit(0);
+}
+
+my @suites;
+for(my $i = 0; $i < scalar(@{$inca->{suites}->{suite}}); $i++) {
+
+  # Create an array of hashes that represent the proposed SC changes.
+  # delete/add SC pairs are combined into user-friendly 'update' changes; this
+  # also prevents the user from, e.g., okaying a delete but not the paired add.
+  my $suite = $inca->{suites}->{suite}[$i];
+  my $name = $suite->{name};
+  next if !defined($suite->{seriesConfigs}) ||
+          !defined($suite->{seriesConfigs}->{seriesConfig});
+  my @scs = @{$suite->{seriesConfigs}->{seriesConfig}};
+  my %changes;
+
+  for(my $scIndex = 0; $scIndex < scalar(@scs); $scIndex++) {
+    my $sc = $scs[$scIndex];
+    my $action = $sc->{action};
+    my $nickname = $sc->{nickname};
+    my $change = $changes{$nickname};
+    if(!defined($change)) {
+      $change =
+        {action => $action, nickname => $nickname, sc => $sc, approved => 1};
+     } elsif($action eq 'add' && $change->{action} ne 'add') {
+       # add after delete/update == update
+       $change->{action} = 'update';
+       $change->{updated} = $sc;
+     } elsif($action eq 'add') {
+       # add after add? assume the latter takes priority
+       $change->{sc} = $sc;
+     } elsif($change->{action} ne 'add') {
+       # delete after update/delete == delete
+       $change->{action} = 'delete';
+       $change->{sc} = $sc;
+       delete $change->{updated} if defined $change->{updated}
+    } else {
+      # delete after add; no need to ask approval
+      delete $changes{$nickname};
+      next;
+    }
+    $changes{$nickname} = $change;
+  }
+
+  my @changes;
+  foreach my $nickname(sort keys %changes) {
+    push(@changes, $changes{$nickname});
+  }
+  push(@suites, {name => $name, changes => \@changes});
+
+}
+
+if(scalar(@suites) == 0) {
+  print STDERR "No series changes found\n";
+  exit(0);
+}
+
+# Create the UI and a window within it, then a help label, suite label, and
+# suite sc listbox within the window
+# NOTE: on a Mac, mouse support only works under X
+my @colors = ('magenta', 'magenta', 'green'); # unchanged, old, new
+if(defined($config{color})) {
+  my @configColors = split(',', $config{color}, scalar(@colors));
+  my %colorValues = (
+    black => COLOR_BLACK,
+    red => COLOR_RED, 
+    green => COLOR_GREEN, 
+    yellow => COLOR_YELLOW, 
+    blue => COLOR_BLUE, 
+    magenta => COLOR_MAGENTA, 
+    cyan => COLOR_CYAN, 
+    white => COLOR_WHITE
+  );
+  my $customColorUsed = 0;
+  for(my $i = 0; $i < scalar(@configColors); $i++) {
+    next if $configColors[$i] eq '';
+    if($configColors[$i] =~ /^#([\dabcdef]{6})/i) {
+      $customColorUsed = 1;
+    } elsif(!defined($colorValues{$configColors[$i]})) {
+      print STDERR "Unknown color $configColors[$i]\n";
+      exit(1);
+    } else {
+      $colors[$i] = $configColors[$i];
+    }
+  }
+  if($customColorUsed && initscr() && can_change_color()) {
+    for(my $i = 0; $i < scalar(@colors); $i++) {
+      delete $colorValues{$colors[$i]}; # don't redefine a color we're using
+    }
+    my @colorsAvailable = keys %colorValues;
+    for(my $i = 0; $i < scalar(@configColors); $i++) {
+      next if $configColors[$i] !~ /^#([\dabcdef]{6})/i;
+      my @digits = split('', $1);
+      $colors[$i] = shift(@colorsAvailable);
+      init_color($colorValues{$colors[$i]},
+                 hex("0x$digits[0]$digits[1]") * 3,
+                 hex("0x$digits[2]$digits[3]") * 3,
+                 hex("0x$digits[4]$digits[5]") * 3);
+    }
+  }
+}
+my $ui = new Curses::UI(-color_support => 1, -mouse_support => 1);
+$ui->set_binding(\&quit, "\cC");
+$ui->set_binding(\&quit, "\cQ");
+my @legend = (
+  "space: toggle selection   ^Y: show details   ^S: save/quit   ^Q: quit",
+  "         arrow-up, k: move up   arrow-down, j: move down",
+  "       arrow-left: previous suite   arrow-right: next suite"
+);
+my $win = $ui->add
+  ('win', 'Window', -border => 1, -y => 1,
+   -title => 'Proposed changes to Inca deployment');
+$win->add(undef, 'Window',
+  -border => 1,
+  -y      => -1,
+  -height => 5,
+)->add(undef, 'Label',
+  -text => join("\n", @legend),
+  -x => 2
+);
+my $topLabel =
+  $win->add('label', 'Label', -x => 2, -y => 2, -width => -1, -text => '');
+my $topList = $win->add('list', 'Listbox', -x => 2, -y => 3, -padbottom => 5,
+                        -multi => 1, -wraparound => 1, -values => []);
+# Override some key bindings that have unpleasant behaviors ...
+$topList->set_binding('option-next', "\t");
+$topList->set_binding(\&ignore, 'h');
+$topList->set_binding(\&ignore, 'l');
+# ... and add a few of our own
+$topList->set_binding(\&showChangeDetails, "\cY");
+$topList->set_binding('option-select', 'x');
+$topList->set_binding('option-select', 'X');
+$topList->set_binding(sub {storeApprovals(); commitAndQuit();}, "\cS");
+showSuite(0);
+$ui->mainloop();
+
+# Copies the approval status of the changes in the # #index#th suite from the
+# @suites array to the display.
+sub showSuite {
+  my ($index) = @_;
+  $index = 0 if $index > $#suites; # Handle wrapping ...
+  $index = $#suites if $index < 0; # ... in both directions
+
+  # Construct Listbox value, label, and selected settings using info for the
+  # #index#th suite 
+  my $suite = $suites[$index];
+  my $name = $suite->{name};
+  my $changes = $suite->{changes};
+  my (@values, %labels, %selected);
+  for(my $i = 0; $i < scalar(@$changes); $i++) {
+    my $change = $changes->[$i];
+    push(@values, $i);
+    $labels{$i} = "$change->{action} $change->{nickname}";
+    $selected{$i} = 1 if $change->{approved};
+  }
+
+  # Replace the contents of UI label and listbox
+  my $labelText = "Suite $name";
+  $labelText .= ' (#' . ($index + 1) . ' of ' . scalar(@suites) . ' suites)'
+    if scalar(@suites) > 1;
+  $topLabel->text($labelText);
+  $topList->values(\@values);
+  $topList->labels(\%labels);
+  $topList->set_selection(sort keys %selected);
+  $topList->userdata($changes);
+  $topList->set_binding
+    (sub { storeApprovals(); showSuite($index - 1); }, KEY_LEFT());
+  $topList->set_binding
+    (sub { storeApprovals(); showSuite($index + 1); }, KEY_RIGHT());
+  $topList->focus();
+
+}
+
+# Copies the user's dis/approvals of the currently-displayed suite scs from
+# the display to the @suites array.
+sub storeApprovals {
+  my $changes = $topList->userdata();
+  for(my $i = 0; $i < scalar(@$changes); $i++) {
+    $changes->[$i]->{approved} = 0;
+  }
+  foreach my $i($topList->id()) {
+    $changes->[$i]->{approved} = 1;
+  }
+}
+
+# Extracts the significant tag/value pairs from an SC hash into a readable,
+# single level (no nested hashes) hash.
+sub getProperties {
+  my ($hash) = @_;
+  my $result = { };
+  foreach my $tag(keys %$hash) {
+    if(ref($hash->{$tag}) eq 'HASH') {
+      my $subtags = getProperties($hash->{$tag});
+      map { $result->{$_} = $subtags->{$_} } keys %$subtags;
+    } elsif($tag eq 'arg' && ref($hash->{$tag}) eq 'ARRAY') {
+      my @args = @{$hash->{arg}};
+      for(my $i = 0; $i < scalar(@args); $i++) {
+        my $arg = $args[$i];
+        next if ref($arg) ne 'HASH';
+        my $name = defined($arg->{name}) ? $arg->{name} : '';
+        my $value = defined($arg->{value}) ? $arg->{value} : '';
+        if(defined($result->{"--$name"})) {
+          $result->{"--$name"} .= ",$value";
+        } else {
+          $result->{"--$name"} = "$value";
+        }
+      }
+    } elsif($tag eq 'name') {
+      # Reporter name from series subtag
+      $result->{reporter} = defined($hash->{$tag}) ? $hash->{$tag} : '';
+      $result->{reporter} .= " v$hash->{version}" if defined $hash->{version};
+    } elsif($tag =~ /^(action|comparitor|uri)$/) {
+      # Ignored
+    } elsif($tag =~ /^(comparison|context|cpuTime|crontime|memory|nice|nickname|wallClockTime)$/) {
+      $result->{$tag} = $hash->{$tag};
+    } elsif($tag =~ /^(hour|mday|min|month|wday)$/) {
+      next if defined($result->{crontime});
+      $result->{crontime} = '';
+      foreach my $period(('min', 'hour', 'mday', 'month', 'wday')) {
+        $result->{crontime} .= "$hash->{$period} " if defined($hash->{$period});
+      }
+    } elsif($tag eq 'notifier') {
+      $result->{'notify'} = $hash->{$tag};
+      $result->{'notify'} .= " $hash->{target}" if defined($hash->{target});
+    } elsif($tag =~ /^resource/) {
+      $result->{resource} = $hash->{$tag};
+    } elsif($tag =~ /^(target|version)$/) {
+      # Handled elsewhere
+    } else {
+      # Unexpected tag
+      $result->{"$tag?"} = $hash->{$tag};
+    }
+  }
+  return $result;
+}
+
+# Displays the series config values affected by the currently-selected proposed
+# change.
+sub showChangeDetails {
+
+  my ($list) = @_;
+  my $change = $list->userdata()->[$list->get_active_id()];
+  my $action = $change->{action};
+  my $sc = getProperties($change->{sc});
+  my $updated =
+    defined($change->{updated}) ? getProperties($change->{updated}) : { };
+  # Add empty values to $sc for any tags added by $updated
+  foreach my $tag(keys %$updated) {
+    $sc->{$tag} = '' if !defined($sc->{$tag});
+  }
+
+  my @lines;
+  my @lineColors;
+  my $widthAvailable = $win->width() - 4;
+  foreach my $tag(sort keys %$sc) {
+    my $old = defined($sc->{$tag}) ? $sc->{$tag} : '';
+    my $new = defined($updated->{$tag}) ? $updated->{$tag} : '';
+    my $changed = $action eq 'update' && $new ne $old;
+    my $label = "$tag: ";
+    my $line = "$label$old";
+    if(length($line) > $widthAvailable) {
+      push(@lines, "$label");
+      push(@lineColors, $colors[$changed ? 1 : 0]);
+      $line = "  $old";
+      while(length($line) > $widthAvailable) {
+        push(@lines, substr($line, 0, $widthAvailable));
+        push(@lineColors, $colors[$changed ? 1 : 0]);
+        $line = '  ' . substr($line, $widthAvailable);
+      }
+    }
+    push(@lines, $line);
+    push(@lineColors, $colors[$changed ? 1 : 0]);
+    if($changed) {
+      $line = " => $new";
+      if(length($lines[$#lines]) + length($line) > $widthAvailable) {
+#        push(@lines, sprintf('%' . length($label) . 's', '=> '));
+        push(@lines, '=> ');
+        push(@lineColors, $colors[2]);
+        $line = "  $new";
+        while(length($line) > $widthAvailable) {
+          push(@lines, substr($line, 0, $widthAvailable));
+          push(@lineColors, $colors[2]);
+          $line = '  ' . substr($line, $widthAvailable);
+        }
+        push(@lines, '');
+      }
+      $lines[$#lines] .= $line;
+      $lineColors[$#lines] = $colors[2];
+    }
+  }
+  my $details = $win->add
+    ('details', 'Window', -border => 1, -y => 3, -height => scalar(@lines) + 4,
+     -title => 'Details');
+  for(my $i = 0; $i < scalar(@lines); $i++) {
+    my $line = $lines[$i];
+    my $lineColor = $lineColors[$i];
+    my $x = 0;
+    if($line =~ s/^([^\s:]+:)//) {
+      $details->add(undef, 'Label', -text => $1, -y => $i);
+      $x += length($1);
+    }
+    if($line =~ s/^(.*)(=>)//) {
+      $details->add
+        (undef, 'Label', -text => $1, -x => $x, -y => $i, -fg => $colors[1])
+        if length($1) > 0;
+      $x += length($1);
+      $details->add(undef, 'Label', -text => $2, -x => $x, -y => $i);
+      $x += length($2);
+    }
+    $details->add
+      (undef, 'Label', -text => $line, -x => $x, -y => $i, -fg => $lineColor);
+  }
+  my $ok = $details->add
+    (undef, 'Buttonbox', -y => scalar(@lines) + 1, -buttons => ['ok']);
+  $ok->set_routine('press-button', sub {
+    $win->delete('details');
+    $win->focus();
+  });
+  $ok->focus();
+
+}
+
+# Transmits approval status to the Agent, then exits.
+sub commitAndQuit {
+
+  my $totalCount = 0;
+  my $approvedCount = 0;
+  for(my $i = 0; $i < scalar(@suites); $i++) {
+    my $suite = $suites[$i];
+    $totalCount += scalar(@{$suite->{changes}});
+    foreach my $change(@{$suite->{changes}}) {
+      $approvedCount++ if $change->{approved};
+    }
+  }
+  return if !$ui->dialog(
+    -title   => 'Are you sure?',
+    -buttons => ['yes', 'no'],
+    -message => "Approve $approvedCount of $totalCount changes?"
+  );
+
+  # Because XMLSimple doesn't preserve the order of subtags, we can't use it to
+  # write valid XML.  However, since all this program does is allow the user to
+  # dis/approve specific seriesConfig tags in the suite, it's straightforward
+  # to edit the source XML.
+
+  # Split XML into series config pieces.  Each piece will have leading text
+  # (e.g., the element for the first series config in each suite will contain
+  # the <suite> tag), and the final element will contain only text that trails
+  # the final series config.
+  my @approved = split(/<\/seriesConfig>/, $xml);
+  for(my $i = 0; $i < $#approved; $i++) {
+    $approved[$i] .= '</seriesConfig>';
+  }
+  
+  # Remove disapproved series config from the approved list
+  for(my $i = 0; $i < scalar(@suites); $i++) {
+    my $suite = $suites[$i];
+    foreach my $change(@{$suite->{changes}}) {
+      next if $change->{approved};
+      my $nickname = $change->{nickname} || 'huh?';
+      my $comment = "<!-- removed $change->{action} $nickname -->";
+      for(my $j = 0; $j < scalar(@approved); $j++) {
+        next if $approved[$j] !~ m#<nickname>\s*$nickname\s*</nickname>#;
+        $approved[$j] =~ s/<seriesConfig\b.*/$comment/s;
+      }
+    }
+  }
+
+  my $approvedXml = join("\n", @approved);
+  if($config{agent} =~ m#^file:/#) {
+    my ($path) = $config{agent} =~ m#^file:(.*)#;
+    if(!open(APPROVED, ">$path.approved")) {
+      $ui->dialog("Can't write $path.approved");
+      exit(1);
+    }
+    print(APPROVED $approvedXml);
+    close(APPROVED);
+  } else {
+    my $client = new Inca::Net::Client($config{agent}, %config);
+    if(!defined($client)) {
+      $ui->dialog(-title => 'Fail', -message => 'Unable to connect to agent');
+      exit(1);
+    }
+    if($config{devel}) {
+      $client->writeStatement('PING', $approvedXml);
+    } else {
+      $client->writeStatement('APPROVE', "$config{id} $approvedXml" );
+    }
+    my ($response, $data) = $client->readStatement();
+    $client->close();
+    if(!defined($response)) {
+      $ui->dialog(-title => 'Fail', -message => 'Connection to agent failed');
+      exit(1);
+    } elsif($response ne 'OK') {
+      $data = '' if !defined($data);
+      $ui->dialog(-title => 'Fail', -message => "Commit failed: $data");
+      exit(1);
+    }
+  }
+  exit(0);
+
+}
+
+# Do-nothing routine for overridden key bindings.
+sub ignore {}
+
+# Exits w/out committing to the Agent.
+sub quit {
+  exit(0) if $ui->dialog(
+    -title     => "Are you sure?",
+    -buttons   => ['yes', 'no'],
+    -message => "Quit without saving?"
+  );
+}

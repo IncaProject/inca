@@ -1,0 +1,23 @@
+#!/usr/bin/env perl
+ 
+use strict; 
+use warnings; 
+use Inca::Reporter::Version; 
+ 
+my $reporter = new Inca::Reporter::Version(
+  name => 'data.transfer.gridftp.version',
+  version => 10,
+  description => 'Reports GridFTP version',
+  package_name => 'gridftp',
+);
+$reporter->addArg('host', 'gridftp host');
+$reporter->addArg('port', 'gridftp port', '2811');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+my $port = $reporter->argValue('port');
+
+my $output = $reporter->loggedCommand("echo exit | sleep 5 | telnet $host $port");
+my ($ctrl, $gridftp_ver, $globus_ver) = $output =~ /GridFTP (Control |)?Server (.[^\s]*).*\[Globus Toolkit ([^\]]+)\]/ms;
+$reporter->setSubpackageVersion("globus", $globus_ver);
+$reporter->setSubpackageVersion("server", $gridftp_ver);
+$reporter->print();

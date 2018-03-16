@@ -1,0 +1,59 @@
+<?xml version = "1.0"?>
+<st:suite xmlns:st = "http://inca.sdsc.edu/dataModel/suite_2.0" xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" >
+  <seriesConfigs>
+
+    <seriesConfig>
+      <series>
+        <name>user.search.output.unit</name>
+          <args>
+            <arg>
+               <name>help</name>
+               <value>no</value>
+             </arg>
+             <arg>
+               <name>log</name>
+               <value>3</value>
+             </arg>
+             <arg>
+               <name>version</name>
+               <value>no</value>
+             </arg>
+             <arg>
+               <name>verbose</name>
+               <value>1</value>
+             </arg>
+             <arg>
+               <name>com</name>
+               <value>ls var/reporter-packages/include</value>
+             </arg>
+             <arg>
+               <name>search</name>
+               <value>somefile</value>
+             </arg>
+             <arg>
+               <name>delim</name>
+               <value>|</value>
+             </arg>
+          </args>
+          <limits>
+            <cpuTime>60</cpuTime>
+          </limits>
+          <context>@@</context>
+      </series>
+      <resourceSetName>localhost</resourceSetName>
+      <schedule>
+        <cron>
+          <min>*</min>
+          <hour>*</hour>
+          <mday>*</mday>
+          <wday>*</wday>
+          <month>*</month>
+        </cron>
+      </schedule>
+      <action>add</action>
+    </seriesConfig>
+
+  </seriesConfigs>
+  <name>TestSuiteLocal2</name>
+  <guid>TestSuiteLocal2</guid>
+</st:suite>

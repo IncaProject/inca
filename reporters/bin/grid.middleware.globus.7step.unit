@@ -1,0 +1,230 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Cwd;
+use Inca::Reporter::SimpleUnit;
+
+my $GLOBUS_LOCATION = $ENV{'GLOBUS_LOCATION'};
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.7step.unit',
+  version => 13,
+  description => 'TeraGrid Globus MPI flavor installation test',
+  unit_name => '7step_mpich_test'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addDependency('tg-mpi-test');
+$reporter->addArg( "contact", "The globus-style contact string <machine/scheduler> indicating the target of the job", 
+				"tg-login1.sdsc.teragrid.org/jobmanager-pbs" ); 
+$reporter->addArg( "env", "Path to env command", "/usr/bin/env" );
+$reporter->addArg( "date", "Path to date command", "/bin/date" );
+$reporter->addArg( "extraRsl", "Extra RSL", "", "|.*" );
+$reporter->addArg( "extraEnv", "Extra Env", "", "|.*" );
+$reporter->addArg( "project", "Charge Project ID", "", "|.*");
+$reporter->addArg( "queue", "Batch Queue Name", "", "|.*");
+$reporter->addArg( "hostCount", "Host Count", "1" );
+$reporter->addArg( "softenvKey", "The softenv key for this MPICH G2 install", "" );
+
+$reporter->processArgv( @ARGV );
+my $contact = $reporter->argValue( "contact" );
+my $env = $reporter->argValue( "env" );
+my $date = $reporter->argValue( "date" );
+my $extraRsl = $reporter->argValue( "extraRsl" );
+my $extraEnv = $reporter->argValue( "extraEnv" );
+my $hostCount = $reporter->argValue( "hostCount" );
+my $project = $reporter->argValue( "project" );
+my $queue = $reporter->argValue( "queue" );
+my $softenvKey = $reporter->argValue( "softenvKey" );
+
+if (!defined($GLOBUS_LOCATION)){
+  failClean("GLOBUS_LOCATION is not set.  Please set GLOBUS_LOCATION to an installation containing your flavor to test.");
+}
+if (! exists $ENV{MPICH_G2_GLOBUS_LOCATION} ){
+  failClean("MPICH_G2_GLOBUS_LOCATION is not set.  TG mpich-g2 installations should have this variable set.");
+}
+
+my $OLDGL=$GLOBUS_LOCATION;
+$ENV{'GLOBUS_LOCATION'} = $ENV{MPICH_G2_GLOBUS_LOCATION};
+$GLOBUS_LOCATION = $ENV{'GLOBUS_LOCATION'};
+
+# figure out the mpi flavor to build against by checking
+# $MPICH_G2_GLOBUS_LOCATION/etc/globus_core and
+# $MPICH_G2_GLOBUS_LOCATION/lib 
+my @etc_mpi_gpt_files = glob( "$ENV{MPICH_G2_GLOBUS_LOCATION}/etc/globus_core/*mpi*.gpt" );
+my @etc_mpi_flavors;
+for ( @etc_mpi_gpt_files ) {
+  my ($flavor) = /(mpi\w?cc\w+)/;
+	push( @etc_mpi_flavors, $flavor );
+}
+my @mpi_libs = glob( "$ENV{MPICH_G2_GLOBUS_LOCATION}/lib/*mpi*" );
+my %uniq_mpi_lib_flavors;
+for ( @mpi_libs ) {
+  my ($flavor) = /(mpi\w?cc\w+)/;
+	$uniq_mpi_lib_flavors{$flavor} = 1;
+}
+my @lib_mpi_flavors = keys %uniq_mpi_lib_flavors;
+# how many flavors in both etc and lib
+my @uniq_mpi_flavors;
+for my $flavor ( @etc_mpi_flavors ) {
+  push( @uniq_mpi_flavors, $flavor ) if ( grep(/^$flavor$/, @lib_mpi_flavors) );
+}
+# if there is more than one, the difference might be dbg versus no dbg.  we
+# check the value of the softenv key to see which to use
+if ( scalar(@uniq_mpi_flavors) > 1 ) {
+  if ( $softenvKey ne "" ) {
+    if ( $softenvKey =~ /dbg/ ) {
+      my @dbg_mpi_flavors;
+      for ( @uniq_mpi_flavors ) {
+        push( @dbg_mpi_flavors, $_ ) if /dbg/;
+      }
+      @uniq_mpi_flavors = @dbg_mpi_flavors;
+    } else {
+      my @nondbg_mpi_flavors;
+      for ( @uniq_mpi_flavors ) {
+        push( @nondbg_mpi_flavors, $_ ) if !/dbg/;
+      }
+      @uniq_mpi_flavors = @nondbg_mpi_flavors;
+    }
+  } 
+}
+if ( scalar(@uniq_mpi_flavors) > 1 ) {
+  failClean("Found multiple mpi flavors (" . join(" ", @uniq_mpi_flavors) . ") -- not sure which to use");
+}
+my $flavor = $uniq_mpi_flavors[0];
+
+# dependency tg-mpi-test.tar in Inca reporter packages build directory
+my $incadir = exists $ENV{INSTALL_DIR} ? $ENV{INSTALL_DIR} : 
+                                         cwd() .  "/var/reporter-packages";
+if ( ! -f "$incadir/build/tg-mpi-test.tar" &&
+     ! -f "$incadir/build/tg-mpi-test.tar.gz" ) {
+  failClean( "Unable to locate tg-mpi-test.tar* in $incadir");
+}
+if ( ! exists $ENV{TG_CLUSTER_SCRATCH} ) {
+  failClean( "Unable to find global scratch dir \$TG_CLUSTER_SCRATCH");
+}
+my $SRC = "$ENV{TG_CLUSTER_SCRATCH}/7step.$$";
+failClean("mkdir $SRC failed") if (!mkdir($SRC));
+$reporter->tempFile($SRC);
+if (!chdir($SRC)){
+  failClean("chdir $SRC failed");
+}
+$reporter->loggedCommand("cp $incadir/build/tg-mpi-test.tar* .");
+if ( -f "tg-mpi-test.tar.gz" ) {
+  $reporter->loggedCommand("gunzip -f tg-mpi-test.tar.gz");
+}
+$reporter->loggedCommand("tar xvf tg-mpi-test.tar");
+my $tmp = $SRC . "/tg-mpi-test";
+if (!chdir($tmp)){
+  failClean("chdir $SRC/tg-mpi-test failed");
+}
+my $header = $reporter->loggedCommand("$ENV{MPICH_G2_GLOBUS_LOCATION}/bin/globus-makefile-header --flavor=$flavor > makefile_header.$flavor");
+if($?) {
+  failClean("Error during globus-makefile-header using GLOBUS_LOCATION of $GLOBUS_LOCATION: $header");
+}
+$reporter->loggedCommand("sed -e \"s/\@FLAVOR\@/$flavor/\" Makefile.in > Makefile.$flavor");
+if($?) {
+  failClean("Error substituting $flavor into the Makefile");
+}
+
+# Turn @DMPI@ into -DMPI if the flavor contains "mpi"
+if ($flavor =~ m/mpi/){
+  $reporter->loggedCommand("sed -e \"s/\@DMPI\@/-DMPI/\" Makefile.$flavor > Makefile");
+  if($?) {
+    failClean("Error substituting -DMPI into the Makefile");
+  }
+}else{
+  $reporter->loggedCommand("sed -e \"s/\@DMPI\@//\" Makefile.$flavor > Makefile");
+  if($?) {
+    failClean("Error substituting -DMPI into the Makefile");
+  }
+}
+   
+my $make = $reporter->loggedCommand("make > make.out");
+if($?) {
+  failClean("Error compiling the test programs: $make");
+}
+my $softenvAliases = $ENV{SOFTENV_ALIASES};
+$softenvAliases =~ s/csh/sh/;
+my $runShContent = 'echo "source ' . $softenvAliases . '; soft add @teragrid-basic; soft add @globus-4.0; soft add @' . $softenvKey . '; \$1" > run.sh'; 
+my $runSh = $reporter->loggedCommand( $runShContent );
+if( $? != 0 ) {
+  failClean("Error writing run.sh script: $! $runSh");
+}
+
+$ENV{'GLOBUS_LOCATION'} = $OLDGL;
+
+# from submit.sh script
+
+my $gr = `which globusrun`;
+$gr =~ s/\n//g;
+my $grCmd = "$gr -a -r \"$contact\"";
+my $globusrun = $reporter->loggedCommand("$grCmd");
+if($?) {
+  failClean("Error executing \"$grCmd\": $!\n$globusrun");
+}
+my $dateRsl = makeRsl( $date, "", "" );
+my $envRsl = makeRsl( $env, "(FOO bar)$extraEnv", "" );
+my $ghRsl = makeRsl( "$tmp/gh.$flavor", "(FOO bar)$extraEnv", "" );
+my $geRsl = makeRsl( "$tmp/ge.$flavor", "(FOO bar)$extraEnv", "mpi" );
+my $helloRsl = makeRsl( "$tmp/hello.$flavor", "", "mpi" );
+runJob($dateRsl, '^\w{3} \w{3} (\s|\d)\d \d{2}:\d{2}:\d{2}.* \w{3} \d{4}$' );
+runJob($envRsl, 'FOO=bar' );
+runJob($ghRsl, 'globus_libc_gethostname >\S+\.\S+.*<' );
+runJob($geRsl, 'FOO\s*=\s*bar' );
+runJob($helloRsl, 'hello, world: globus_libc_gethostname >\S+\.\S+.*<' );
+
+$reporter->unitSuccess();
+unlink($SRC);
+$reporter->print();
+exit;
+
+sub makeRsl{
+  my $exe = shift;
+  my $env = shift;
+  my $type = shift;
+
+  my $rsl = "&(count=1)(host_count=\"$hostCount\")";
+  if ($project ne ""){
+    $rsl .= "(project=\"$project\")";
+  }
+  if ($queue ne ""){
+    $rsl .= "(queue=\"$queue\")";
+  }
+  if ($env ne ""){
+    $rsl .= "(environment=$env)";
+  }
+  if ($type ne ""){
+    $rsl .= "(jobtype=$type)";
+  }
+  $rsl .= "(executable=/bin/sh)(arguments=$tmp/run.sh $exe)(maxwalltime=1)$extraRsl";
+  return $rsl;
+}
+
+sub runJob{
+  my $rsl = shift;
+  my $regex = shift;
+
+  my $cmd = "$gr -o -r $contact '$rsl'";
+  my $output = $reporter->loggedCommand("$cmd");
+  if($?) {
+    failClean("Error executing \"$cmd\":\n $!\n $output");
+  }
+  my @outputLines = split( /\n/, $output );
+  my @matchedLines = grep( /$regex/, @outputLines );
+  if ( scalar(@matchedLines) < 1 ) {
+    failClean("Unable to find regex '$regex' in output '$output'");
+  }
+  $reporter->log("info", "Line from globusrun output '$matchedLines[0]' matches regex '$regex'");
+}
+
+sub failClean {
+  my $err = shift;
+  unlink($SRC);
+  $err =~ s/$$/PID/g;
+  $err =~ s/Begin PBS Prologue .[^\n]+/Begin PBS Prologue xxxx/g;
+  $err =~ s/Job ID: .[^\n]+/Job ID: xxxx/g;
+  $err =~ s/Nodes: .[^\n]+/Nodes: xxxx/g;
+  $reporter->failPrintAndExit($err);
+}
+

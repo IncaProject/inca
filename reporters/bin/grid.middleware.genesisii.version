@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+	name => 'grid.middleware.genesisii.version',
+	version => 1,
+	description => 'Reports the version of Genesis II',
+	url => 'http://genesis2.virginia.edu',
+	package_name => 'Genesis II'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByFileContents( "$ENV{'GENII_INSTALL_DIR'}/RELEASE", 'Genesis II (.*)');
+$reporter->print();

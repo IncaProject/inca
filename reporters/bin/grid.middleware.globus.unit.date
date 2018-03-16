@@ -1,0 +1,47 @@
+#!/usr/bin/env perl
+
+# This test checks that it can run a /bin/date job through the specified 
+# local gatekeeper service.  Because some cases may involve submitting through
+# a batch interface, we associate a timeout value.  If the job does not return
+# within the specified timeout value (e.g., one hour), we consider the test
+# successful.
+
+use strict;
+use warnings;
+use Inca::Reporter::GlobusUnit;
+
+my $reporter = new Inca::Reporter::GlobusUnit(
+  name => 'grid.middleware.globus.unit.date',
+  version => 2,
+  description => 'Verifies the submission of a /bin/date job through the ' .
+                 'specified local gatekeeper service',
+  url => 'http://www.globus.org',
+  unit_name => 'globus date'
+);
+$reporter->addArg('count', 'host_count parameter of rsl', '', '\d+');
+$reporter->addArg('host', 'hostname where gatekeeper is running', '');
+$reporter->addArg('service', 'the name of the jobmanager', '');
+$reporter->addArg
+  ('timeout', 'kill the job after this many minutes', '60', '\d+');
+$reporter->processArgv(@ARGV);
+my $count = $reporter->argValue('count');
+$count = undef if $count eq '';
+my $host = $reporter->argValue('host');
+$host = undef if $host eq '';
+my $service = $reporter->argValue('service');
+$service = undef if $service eq '';
+my $timeout = $reporter->argValue('timeout');
+
+my ($date, $err) = $reporter->submitJob
+  (executable => '/bin/date', service => $service, host => $host,
+   count => $count, timeout => $timeout, remote => 1);
+
+my $VALID_DATE = '\w{3} \w{3} (\s|\d)\d \d{2}:\d{2}:\d{2}.* \w{3} \d{4}';
+if(!defined($date) || $date eq '') {
+  $reporter->unitFailure("test failed" . (defined($err) ? ": $err" : ''));
+} elsif($date !~ /$VALID_DATE/) {
+  $reporter->unitFailure("job completed but result is suspect: $date");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

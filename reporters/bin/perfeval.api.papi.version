@@ -1,0 +1,42 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'perfeval.api.papi.version',
+  description => 'This test returns the PAPI version number',
+  version => 2,
+  url => 'http://icl.cs.utk.edu/projects/papi/software/',
+  package_name => 'PAPI'
+);
+$reporter->addArg('cc', 'path to C compiler', 'cc');
+$reporter->addArg('dir', 'path to papi installation dir', '');
+$reporter->processArgv(@ARGV);
+my $cc = $reporter->argValue('cc');
+my $dir = $reporter->argValue('dir');
+if($dir eq '') {
+  foreach my $place($ENV{PAPI_LOCATION}, $ENV{PAPI_HOME},
+                    glob('/usr/local/apps/papi*'), glob('/opt/papi*'),
+                    glob('/usr/local/papi*')) {
+    $dir = $place and last if defined($place) && -d $place;
+  }
+}
+$reporter->failPrintAndExit('Cannot locate PAPI installation; use -dir')
+  if $dir eq '';
+
+my $code = '
+#include <papi.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+  if(PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT)
+    return 1;
+  printf("PAPI VERSION %d\n", PAPI_VER_CURRENT);
+  return 0;
+}
+';
+$reporter->setVersionByCompiledProgramOutput
+  (compiler => $cc, code => $code, pattern => 'PAPI VERSION (\d+)',
+   switches => "-I$dir/include -L$dir/lib -lpapi");
+$reporter->print();

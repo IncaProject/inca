@@ -1,0 +1,40 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::Performance;
+use strict;
+use warnings;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'grid.middleware.globus.unit.ssldepth',
+  version => 6,
+  description => 'checks ssl depth',
+  measurement_name => 'ssl_depth'
+);
+$reporter->processArgv(@ARGV);
+
+my $cmd = "openssl x509 -in \${HOME}/.globus/userproxy.pem -text"; 
+my @output = $reporter->loggedCommand($cmd);
+if ( $? ) {
+  my $err = "";
+  for my $line ( @output ) {
+    if ( $line =~ /fopen|BIO/ ) {
+      my ($num) = $line =~ /^(\d+)/;
+      $line =~ s/^$num/xxxxx/;
+    }
+    $err .= $line;
+  }
+  $reporter->failPrintAndExit( "openssl failed: $err $!" );
+}
+my ($subject) = grep( /Subject:/, @output );
+if ( ! defined $subject ) {
+  $reporter->failPrintAndExit( "Unable to find Subject line in output" );
+}
+my $depth = $subject =~ /(CN=[^,]+)/;
+if ( $depth < 1 ) {
+  $reporter->failPrintAndExit( "Unable to find 'CN=' in output" );
+}
+my $benchmark = $reporter->addNewBenchmark('ssl_depth');
+$benchmark->setStatistic('depth', $depth, 'proxy_depth');
+$reporter->setResult(1);
+$reporter->print();
+

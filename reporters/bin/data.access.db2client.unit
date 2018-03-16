@@ -1,0 +1,32 @@
+#!/usr/bin/env perl
+
+# This reporter checks to see if connection to a remote database is possible.
+# We are using GSI enabled SSH to submit "db2 connect" job. This is because
+# DB2 requires login and password in order to connect and we did not want to
+# hard code these values into the script. Hence, we use ssh to submit remote
+# command and since it is GSI enabled, no additional password is required.
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.access.db2client.unit',
+  description => 'Tries to connect to db2 database',
+  version => 5,
+  url => 'http://www.ibm.com/db2',
+  unit_name => 'db2 connect'
+);
+$reporter->addArg('db', 'name of database to connect to');
+$reporter->processArgv(@ARGV);
+my $db = $reporter->argValue('db');
+
+my $output = $reporter->loggedCommand("db2 connect to $db");
+if($?) {
+  $reporter->unitFailure("ssh failed: $output $!");
+} elsif($output !~ /Database Connection Information/) {
+  $reporter->unitFailure($output);
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

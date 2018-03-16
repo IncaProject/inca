@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+#
+# $Id: data.access.oracleClient.version,v 1.1 2004/09/20 23:37:11 veytser Exp $
+# Vladimir Veytser <veytser@sdsc.edu>
+#
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'data.access.oracleClient.version',
+  version => 2,
+  description => 'Reports oracle client version',
+  url =>
+    'http://www.oracle.com/technology/software/products/oracle9i/index.html',
+  package_name => 'oracle-client'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable('sqlplus -V', 'Release\s+(\S+)');
+$reporter->print();

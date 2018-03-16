@@ -1,0 +1,5 @@
+name: mcpTestSuite
+version: 2.0
+description: Test scripts for MCP
+url: http://www.sdsc.edu/scheduler/mcp/mcp.html
+dependencies:

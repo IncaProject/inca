@@ -1,0 +1,67 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use JSON qw( decode_json );
+use Data::Dumper;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+	name => 'data.amqp.adminnodes.unit',
+	version => 1,
+	description => 'Verifies Rabbit MQ nodes are running via the admin interface',
+	unit_name => 'adminnodes'
+);
+
+$reporter->addDependency( 'JSON' );
+$reporter->addArg( 'url', 'URL to fetch', 'https://info1.dyn.xsede.org:15671/api/nodes' );
+$reporter->addArg( 'cparam', 'Params to pass to cURL', '-sn' );
+$reporter->addArg( 'nodes', 'Space separated list of nodes to check', 'rabbit@info1 rabbit@info2' );
+$reporter->processArgv(@ARGV);
+my $url = $reporter->argValue( 'url' );
+my $cparam = $reporter->argValue( 'cparam' );
+my $nodes = $reporter->argValue( 'nodes' );
+
+my $out = $reporter->loggedCommand( "curl $cparam '$url'" );
+if ( $? != 0 || $out !~ /{/ )
+{
+	$reporter->failPrintAndExit( 'cURL command failed: ' . $! . $out );
+}
+
+my $data = decode_json( $out );
+if ( $? != 0 )
+{
+	$reporter->failPrintAndExit( 'Could not decode as JSON data: ' . $! . $out );
+}
+
+my $dump = Dumper( $data );
+$reporter->log( 'debug', "JSON output: $dump" );
+
+my @nodes = split( / /, $nodes );
+foreach my $node ( @nodes )
+{
+	my $match = 0;
+	my $isrunning = 0;
+	foreach my $vh( @{$data} )
+	{
+		if ( defined $vh->{name} && $vh->{name} eq $node )
+		{
+			$match = 1;
+			if ( defined $vh->{running} )
+			{
+				$isrunning = $vh->{running};
+			}
+		}
+	}
+	if ( $match == 0 )
+	{
+		$reporter->failPrintAndExit( "Expected node $node is undefined" );
+	}
+	if ( $isrunning == 0 )
+	{
+		$reporter->failPrintAndExit( "Expected node $node is not running" );
+	}
+}
+
+$reporter->unitSuccess();
+$reporter->print();

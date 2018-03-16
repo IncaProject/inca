@@ -1,0 +1,76 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'network.telnet.unit',
+  version => 4,
+  description => 'Verifies a machine is reachable from source host using telnet'
+);
+$reporter->addArg('host', 'endpoint host');
+$reporter->addArg('port', 'endpoint port', '');
+$reporter->addArg( "timeout", "timeout the ping command (secs)", 10 );
+$reporter->addArg("sleep", "amount of time (s) to wait before retrying telnet", 30 );
+$reporter->addArg("retries", "number of retry attempts after a detected failure", 5 );
+$reporter->addArg("verify", "list of hosts used to verify general network connectivity", "");
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+my $port = $reporter->argValue('port');
+my $timeout = $reporter->argValue( "timeout" );
+my $numtries = $reporter->argValue( "retries" );
+my $sleep = $reporter->argValue( "sleep" );
+my @verifiers = split(/\s+/, $reporter->argValue( "verify" ));
+
+my $telnetOutput = $reporter->loggedCommandWithRetries( "sleep 5 | telnet $host $port", $timeout, $numtries, $sleep );
+$reporter->log("debug", "telnet output: " . $telnetOutput);
+if ($telnetOutput !~ /^Trying .*^Connected to .*^Connection closed .*/ms) {
+  my $errno = $!;
+
+  if (verifyConnectivity(\@verifiers)) {
+    my $err = "telnet command failed: $telnetOutput $errno";
+    $err =~ s/--\d{2}:\d{2}:\d{2}--/--xx:xx:xx--/g;
+    $reporter->failPrintAndExit($err);
+  }
+  else {
+    $reporter->failPrintAndExit("Inca error: network connectivity problem detected on source host");
+  }
+}
+$reporter->unitSuccess();
+$reporter->print();
+
+
+sub verifyConnectivity {
+  my @verifiers = @{$_[0]};
+  my $numVerifiers = scalar(@verifiers);
+
+  if ($numVerifiers == 0) {
+    return 1;
+  }
+
+  my $pingOpts = "-q -c 5";
+  my $pingOutput = $reporter->loggedCommand("ping $pingOpts $verifiers[0]", 60);
+
+  if ($? != 0 && $pingOutput =~ /Bad option/) {
+    $pingOpts = "-n 5";
+
+    $reporter->loggedCommand("ping $pingOpts $verifiers[0]", 60);
+  }
+
+  my $index = 0;
+
+  while (1) {
+    if ($? == 0) {
+      return 1;
+    }
+
+    if (++$index >= $numVerifiers) {
+      last;
+    }
+
+    $reporter->loggedCommand("ping $pingOpts $verifiers[$index]", 60);
+  }
+
+  return 0;
+}

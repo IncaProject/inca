@@ -1,0 +1,38 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use warnings;
+use strict;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.interactive_access.myproxy.stored.unit',
+  unit_name => 'myproxy_server',
+  url => 'http://grid.ncsa.uiuc.edu/myproxy/',
+  version => 1,
+  description => 'Test that proxy stored on myproxy server has specified number of days life.'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('mindays', 'minimum days left', '14', '\d+');
+$reporter->addArg('server', 'myproxy server hostname', 'myproxy.teragrid.org');
+$reporter->addArg('port', 'myproxy server port', '7512');
+$reporter->addArg('user', 'myproxy username', 'inca');
+$reporter->processArgv( @ARGV );
+my $mindays = $reporter->argValue('mindays');
+my $server = $reporter->argValue('server');
+my $port = $reporter->argValue('port');
+my $user = $reporter->argValue('user');
+
+my $cmd = "myproxy-info -s $server -p $port -l $user";
+my $output = $reporter->loggedCommand($cmd);
+if($? || ($output !~ /timeleft: .[^\n\r]* \([\d.]+ days\)/)) {
+  $reporter->failPrintAndExit("Problem getting proxy: $output $!");
+} 
+my ($daysleft) = $output =~ m/.*timeleft: .[^\n\r]* \(([\d.]+) days\)/;
+if ($daysleft < $mindays){
+  my $txt = "days";
+  if ($daysleft == 1){ $txt = "day"; }
+  $reporter->failPrintAndExit("Proxy will expire in $daysleft $txt");
+} else {
+  $reporter->unitSuccess();
+  $reporter->print();
+}

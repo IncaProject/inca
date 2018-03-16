@@ -1,0 +1,5 @@
+name: Inca::Reporter::Performance
+version: 1.3
+description: Inca reporter API class for performance reporters
+url: http://inca.sdsc.edu
+dependencies: Inca::Reporter::Performance::Benchmark;Inca::Reporter

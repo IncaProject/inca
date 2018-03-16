@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.communication.vmi.unit',
+  version => 3,
+  description => 'check if vmi-crm is up on a host',
+  url => 'http://www',
+  unit_name => 'vmi-test'
+);
+$reporter->addArg('host', 'remote host running vmi-crm');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+
+my $output = $reporter->loggedCommand
+  ("./open/vmi/grid_vmi -gnp 1 -crm $host -key test " .
+   "-drv ./open/vmi/myprotocols.dat ./open/vmi/pic.ex");
+if($?) {
+  $reporter->unitFailure("grid_vmi failed: $output $!");
+} elsif($output !~ /3\.141592/) {
+  $reporter->unitFailure
+    ("Could not run vmi job successfully from the crm server at $host");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

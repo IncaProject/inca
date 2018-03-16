@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.proxy',
+  version => 4,
+  description => 'Verifies that user has valid proxy',
+  url => 'http://www.globus.org/security/proxy.html',
+  unit_name => 'validproxy'
+);
+$reporter->addDependency( "Inca::Reporter::GridProxy" );
+$reporter->processArgv(@ARGV);
+
+# check to see if proxy has enough time left
+$reporter->log( 'info', "X509_USER_PROXY=$ENV{X509_USER_PROXY}" );
+my $output = $reporter->loggedCommand('grid-proxy-info -exists -hours 4');
+if( $? ) {
+  $reporter->unitFailure("grid-proxy-info failed: $output $!");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

@@ -1,0 +1,60 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<st:suite xmlns:st = "http://inca.sdsc.edu/dataModel/suite_2.0" xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" >
+	<seriesConfigs>
+	  <seriesConfig>
+		<series>
+			<name>grid.middleware.globus.unit.proxy</name>
+      <version>1.5</version>
+			<args>
+				<arg>
+					<name>verbose</name>
+					<value>0</value>
+				</arg>
+				<arg>
+					<name>help</name>
+					<value>no</value>
+				</arg>
+			</args>
+			<limits>
+				<wallClockTime>300</wallClockTime>
+			</limits>
+			<context>grid.middleware.globus.unit.proxy -verbose="1" -help="no"</context>
+		</series>
+    <resourceSetName>localhost</resourceSetName>
+		<schedule/>
+	  <action>add</action>
+	</seriesConfig>
+	<seriesConfig>
+		<series>
+			<name>grid.middleware.globus.unit.proxy</name>
+      <version>1.5</version>
+			<args>
+				<arg>
+					<name>verbose</name>
+					<value>0</value>
+				</arg>
+				<arg>
+					<name>help</name>
+					<value>no</value>
+				</arg>
+			</args>
+			<limits>
+				<wallClockTime>300</wallClockTime>
+			</limits>
+			<context>grid.middleware.globus.unit.proxy -verbose="1" -help="no"</context>
+		</series>
+    <resourceSetName>localhost</resourceSetName>
+    <schedule>
+      <cron>
+        <min>0-59/1</min>
+        <hour>*</hour>
+        <mday>*</mday>
+        <wday>*</wday>
+        <month>*</month>
+      </cron>
+    </schedule>
+	  <action>add</action>
+	</seriesConfig>
+	</seriesConfigs>
+  <guid>incas://localhost:6323/gridSuite</guid>
+</st:suite>

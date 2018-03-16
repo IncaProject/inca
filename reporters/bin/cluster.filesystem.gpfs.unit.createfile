@@ -1,0 +1,48 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.filesystem.gpfs.unit.createfile',
+  version => 2,
+  description =>
+    'This test verifies that we can create a small test file on gpfs',
+  url => 'http://www.almaden.ibm.com/cs/gpfs.html',
+  unit_name => 'gpfs_file'
+);
+$reporter->addArg('gpfs', 'gpfs file system path', '');
+$reporter->processArgv(@ARGV);
+my $gpfs = $reporter->argValue('gpfs');
+if($gpfs eq '') {
+  foreach my $env(keys %ENV) {
+    $gpfs = $ENV{$env} if $env =~ /GPFS/;
+  }
+  $reporter->failPrintAndExit('No GPFS environment variable found; use -gpfs')
+    if $gpfs eq '';
+}
+
+my $testFilePath = "$gpfs/test.$$";
+if(!open(TEST, ">$testFilePath")) {
+  $reporter->failPrintAndExit("Unable to create $testFilePath");
+}
+print TEST "$$\n";
+close(TEST);
+if(!open(TEST, "<$testFilePath")) {
+  unlink($testFilePath);
+  $reporter->failPrintAndExit("Unable to read $testFilePath");
+}
+my $contents = '';
+$contents .= $_ while($_ = <TEST>);
+close(TEST);
+chomp($contents);
+if($contents eq '') {
+  $reporter->unitFailure('test file empty');
+} elsif($contents ne $$) {
+  $reporter->unitFailure('test file garbled');
+} else {
+  $reporter->unitSuccess();
+}
+unlink($testFilePath);
+$reporter->print();

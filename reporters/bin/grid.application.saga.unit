@@ -1,0 +1,28 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+ name => 'grid.application.saga.unit',
+ version => 1,
+ description => 'Verifies the SAGA GRAM job submission',
+ url => 'http://saga.cct.lsu.edu./',
+ unit_name => 'saga_test'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('host', 'gatekeeper host');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+
+my $cmd = "saga-job submit gram://$host /bin/date";
+my @output = $reporter->loggedCommand($cmd);
+my $output = join("", @output);
+if (!$output || $output!~/Job ID/) {
+ my $err = "Executed \"$cmd\". Error: $!\n$output";
+ $reporter->unitFailure($err);
+} else {
+ $reporter->unitSuccess();
+}
+$reporter->print(); 

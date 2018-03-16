@@ -1,0 +1,36 @@
+#!/bin/sh
+
+###############################################################################
+#
+# NAME: updateExternals
+#
+# DESCRIPTION
+# checks out the url passed in to a tmp dir, updates the svn:externals based
+# on the propfile sent in and then commits and removes the tmp dir.
+# 
+#
+# SYNOPSIS
+# updateExternals svnURL propertyfile
+#
+###############################################################################
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+# check the inca installation and find the files it needs
+inca_tmp_dir="/tmp/incatmpco";
+inca_rep=$1;
+prop_file=$2;
+svn checkout $inca_rep $inca_tmp_dir;
+svn propset svn:externals -F $prop_file $inca_tmp_dir;
+svn commit $inca_tmp_dir -m "automated update of externs"; 
+rm -rf $inca_tmp_dir;

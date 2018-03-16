@@ -1,0 +1,6 @@
+name: Date::Manip
+version: 5.54
+description: Collection of date manipulation functions
+url: http://search.cpan.org/~sbeck/DateManip-5.44
+file: DateManip-5.44.tar.gz
+dependencies:

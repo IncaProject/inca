@@ -1,0 +1,10 @@
+This is an automated email from Inca that changes have been submitted to
+resource @RESOURCE@ for your approval.  These changes will not be submitted to
+your machine until you approve them.  To view and approve these changes,
+please log into @RESOURCE@ and type the following command:
+
+% cd @RM_INSTALL_PATH@; sbin/inca approveChanges -c etc/rmcert.pem -k etc/rmkey.pem -t etc/trusted -a @AGENT@ -i @RESOURCE@ -P stdin:password:
+
+Note it is not possible to edit the proposed changes.  If you find any
+configuration errors in the proposed changes, please contact your Inca
+administrator at @INCA_ADMIN@ and ask them to make the corrections.

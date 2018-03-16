@@ -1,0 +1,68 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use strict;
+use warnings;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.transfer.tgcp.unit',
+  version => 4,
+  description => "Check if tgcp can connect to all teragrid sites and translate url correctly",
+  url => "http://www.teragrid.org/userinfo/guide_data_gridftp.html#tgcp"
+);
+$reporter->addArg( "srcURL" ); 
+$reporter->addArg( "dstURL" );   
+$reporter->addArg( "server" );   
+$reporter->processArgv( @ARGV );
+my $srcURL = $reporter->argValue( "srcURL" );
+my $dstURL = $reporter->argValue( "dstURL" );
+my $server = $reporter->argValue( "server" );
+
+# get environment vars
+if ($srcURL =~ m/\$.*$/) {
+  $srcURL = $ENV{$srcURL};
+}
+if ($srcURL eq "") {
+  $reporter->failPrintAndExit( "srcURL $srcURL does not exist" );
+}
+if ($dstURL eq "") {
+  $reporter->failPrintAndExit( "dstURL $dstURL does not exist" );
+}
+my $tgcp_file = "tgcp_file_$$";
+my $src = $srcURL . "/" . $tgcp_file;
+my $dst = $dstURL . "/" . $tgcp_file;
+
+# make file for testing
+if(!(-e $src)){
+  if ( open SRC, ">$src" ) {
+    print SRC $$;
+    close SRC;
+  }else {
+    $reporter->failPrintAndExit( "Unable to create temporary file $src; check srcURL argument" );
+  }
+}
+
+# run tgcp command
+my @tgcp_out = $reporter->loggedCommand( "tgcp $src $dst" );
+
+# error check for file creation
+if ( $? ) {
+  $reporter->unitFailure("tgcp failed: @tgcp_out $!" ); 
+} elsif (scalar(@tgcp_out) > 3) {
+  # error case
+  my $msg = "";
+  for ( my $j = 3; $j < scalar(@tgcp_out); $j++) {
+    $msg = $msg . $tgcp_out[$j];
+  } 
+  $reporter->unitFailure($msg);
+} else {
+  # success case
+  $reporter->unitSuccess();
+  # delete transferred file
+  my $dout = `uberftp $server "rm $dst"`;  
+}
+
+# delete src file
+unlink $src;
+
+$reporter->print();

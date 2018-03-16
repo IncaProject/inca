@@ -1,0 +1,5 @@
+name: inca.__init__
+version: 1.0
+description: Inca reporter Python API package file
+url: http://inca.sdsc.edu
+dependencies:

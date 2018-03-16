@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import re
+import sys
+
+from inca.SimpleUnitReporter import SimpleUnitReporter
+
+reporter = SimpleUnitReporter(
+  name = 'gsissh.python.unit',
+  version = 8,
+  description = 'This test verifies that you can login and run commands via the SSH service on the remote machine',
+  url = 'http://www.ncsa.uiuc.edu/People/jbasney/teragrid-setup-test.html',
+  unit_name = 'remoteLogin'
+)
+reporter.addDependency('inca.GridProxyReporter')
+reporter.addArg('host', 'remote host to access')
+reporter.addArg('login', 'login id on remote host', '')
+reporter.addArg('ssh', 'ssh command', 'ssh')
+reporter.processArgv(sys.argv[1:])
+sshArgs = '-T -o BatchMode=yes -o StrictHostKeyChecking=no'
+host = reporter.argValue('host')
+login = reporter.argValue('login')
+#login = getlogin() if $login eq '';
+ssh = reporter.argValue('ssh')
+(output, err) = reporter.loggedCommandStatusOutput('echo exit 0 | '+ssh+' '+sshArgs+' '+host);
+if output != 0:
+  reporter.setResult(0, err)
+else:
+  reporter.unitSuccess()
+reporter.printReport()

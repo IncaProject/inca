@@ -1,0 +1,5 @@
+name: inca.Reporter
+version: 1
+description: Inca reporter Python API base class
+url: http://inca.sdsc.edu
+dependencies: inca.__init__

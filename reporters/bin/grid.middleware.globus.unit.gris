@@ -1,0 +1,30 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.gris',
+  version => 3,
+  description => 'This test performs a test query against the specified ' .
+                 'host\'s Grid Resource Information Service (GRIS)',
+  url => 'http://www.ncsa.uiuc.edu/People/jbasney/teragrid-setup-test.html',
+  unit_name => 'gris_query'
+);
+$reporter->addArg('host', 'host where the gris is running');
+$reporter->addArg('port', 'port where the gris is listening', '2135', '\d+');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+my $port = $reporter->argValue('port');
+
+my $output =
+  $reporter->loggedCommand("grid-info-search -x -h $host -p $port");
+if($?) {
+  $reporter->unitFailure("grid-info-search failed: $output $!");
+} elsif($output !~ /Mds-Host-hn=$host/) {
+  $reporter->unitFailure("query to $host gris failed: $output");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

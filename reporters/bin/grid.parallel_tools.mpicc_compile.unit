@@ -1,0 +1,62 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.parallel_tools.mpicc_compile.unit',
+  version => 2,
+  description => 'This test tries to compile cpi.c, an MPI test program from the MPICH2 package.',
+  unit_name => 'mpicc'
+);
+$reporter->addDependency('cpi');
+$reporter->addArg('mpicc', 'path to mpicc', '');
+$reporter->addArg ('lib', 'libraries', '');
+$reporter->addArg ('timeout', 'timeout (secs) for mpicc command', '600');
+$reporter->processArgv(@ARGV);
+my $mpicc = $reporter->argValue('mpicc');
+my $lib = $reporter->argValue('lib');
+my $timeout = $reporter->argValue('timeout');
+
+if ($mpicc eq ''){
+  $mpicc = `which mpicc`;
+  $mpicc =~ s/\n//g;
+}
+$reporter->failPrintAndExit( "Unable to find mpicc") if $mpicc eq '';
+# dependency on cpi.c
+my $incadir = $ENV{INSTALL_DIR};
+chomp($incadir);
+if ( ! -f "$incadir/build/cpi.tar" &&
+     ! -f "$incadir/build/cpi.tar.gz" ) {
+  $reporter->failPrintAndExit( "Unable to locate cpi.tar* in $incadir/build");
+}
+my $origDir = getcwd();
+my $SRC = "/tmp/inca-mpicc.$$";
+failClean("mkdir $SRC failed")
+  if !mkdir($SRC);
+$reporter->tempFile($SRC);
+failClean("chdir $SRC failed")
+  if !chdir($SRC);
+$reporter->loggedCommand("cp $incadir/build/cpi.tar* .");
+if ( -f "cpi.tar.gz"){
+  $reporter->loggedCommand("gunzip -f cpi.tar.gz;");
+}
+$reporter->loggedCommand("tar xvf cpi.tar");
+my $cmd = $mpicc . " -o cpi cpi.c " . $lib;
+$reporter->loggedCommand($cmd, $timeout);
+if($? || ! -f "cpi"){
+  failClean("Couldn't execute '$cmd': $!");
+}
+$reporter->unitSuccess();
+chdir($origDir);
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  my $pid = $$;
+  $err =~ s/$pid/PID/g;
+  chdir($origDir);
+  $reporter->failPrintAndExit($err);
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="Series" table="INCASERIES" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native"/>
+    </id>
+
+    <!-- properties -->
+    <property name="reporter" column="incareporter" type="string"
+              not-null="true"/>
+    <property name="version" column="incaversion" type="string"
+              not-null="true"/>
+    <property name="uri" column="incauri" type="string" length="4000"/>
+    <property name="context" column="incacontext" type="string" length="4000"
+              not-null="true"/>
+    <property name="nice" column="incanice" type="boolean"/>
+    <property name="resource" column="incaresource" type="string"
+              not-null="true"/>
+    <property name="targetHostname" column="incatargethostname" type="string"/>
+    <property name="instanceTableName" column="incainstancetablename" type="string"/>
+    <property name="linkTableName" column="incalinktablename" type="string"/>
+
+    <!-- relations to other tables -->
+    <many-to-one name="argSignature"
+                 column="incaargSignature_id"
+                 class="edu.sdsc.inca.depot.persistent.ArgSignature"
+                 not-null="true"/>
+    <bag name="reports" inverse="true" lazy="true">
+      <key column="incaseries_id"/>
+      <one-to-many class="edu.sdsc.inca.depot.persistent.Report"/>
+    </bag>
+    <set name="seriesConfigs" inverse="true" lazy="true">
+      <key column="incaseries_id"/>
+      <one-to-many class="edu.sdsc.inca.depot.persistent.SeriesConfig"/>
+    </set>
+
+  </class>
+</hibernate-mapping>

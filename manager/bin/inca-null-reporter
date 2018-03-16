@@ -1,0 +1,196 @@
+#!/usr/bin/perl
+
+###############################################################################
+
+=head1 NAME
+
+inca-null-reporter
+
+=head1 DESCRIPTION
+
+This is an Inca reporter that takes all information necessary to produce a
+report from command line arguments.  If desired, a body for the report can be
+fed via stdin.
+
+=head1 SYNOPSIS
+
+inca-null-reporter [options]
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<-->
+
+indicates that any subsequent arguments should be listed as args in the report.
+
+=item B<--error_message>
+
+the exit status error message
+
+=item B<--gmt>
+
+the report time stamp; the script will translate a local epoch time to ISO 8601
+format if necessary
+
+=item B<--hostname>
+
+the report host name
+
+=item B<--name>
+
+the reporter name
+
+=item B<--completed>
+
+the exit status completed value
+
+=item B<--version>
+
+the reporter version
+
+=back
+
+=head1 EXAMPLES
+
+=cut
+###############################################################################
+
+# pragmas
+use strict;
+use warnings;
+use Sys::Hostname;
+use Socket qw(:crlf);
+
+# Try to get a default hostname even when Net::Domain is absent.
+my $hostName = hostname();
+if ( $hostName !~ /\./ ) {
+  my $sys_hostname = `hostname -f 2> /dev/null`;
+  if ( $? == 0 ) {
+    chomp $sys_hostname;
+    $hostName = $sys_hostname;
+  }
+  eval {
+    require Net::Domain;
+    $hostName = Net::Domain::hostfqdn();
+  };
+}
+
+chomp(my $wd = `pwd`);
+my $argsValues = {};
+my $incaValues = {
+  error_message_stdin => 0,
+  error_message => undef,
+  gmt => time(),
+  hostname => $hostName,
+  name => 'inca-null-reporter',
+  completed => 'true',
+  reporterPath => $0,
+  workingDir => $wd,
+  version => '1.0'
+};
+my ($arg, $var);
+
+# Pick up arguments that this script understands (terminated by --) ...
+while($#ARGV >= 0) {
+  $arg = shift;
+  if(defined($var)) {
+    $incaValues->{$var} = $arg;
+    $var = undef;
+  } else {
+    $arg =~ s/^--// or die "Unknown argument '$arg'";
+    last if $arg eq '';
+    unshift(@ARGV, $1) if $arg =~ s/=(.*)$//;
+    die "Unknown argument '$arg'" if !exists($incaValues->{$arg});
+    $var = $arg;
+  }
+}
+die "Missing value for argument '$arg'" if defined($var);
+# ... and arguments for the <arg> section of the report.
+foreach $arg(@ARGV) {
+  $arg =~ /^-([^=]+)(=(.*)?)?/ or die "Bad argument format '$arg'";
+  $argsValues->{$1} = [] if !exists($argsValues->{$1});
+  push(@{$argsValues->{$1}}, defined($3) ? $3 : defined($2) ? '' : 'yes');
+}
+
+# Translate local epoch time to gmt ISO 8601 format
+if($incaValues->{gmt} =~ /^\d+$/) {
+  my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday) =
+    gmtime($incaValues->{gmt});
+  $incaValues->{gmt} =
+    sprintf("%04d-%02d-%02dT%02d:%02d:%02dZ",
+            $year + 1900, $mon + 1, $mday, $hour, $min, $sec);
+}
+
+my @body; 
+if(!$incaValues->{error_message_stdin}) {
+  @body = <STDIN>;
+}
+
+my @xmlBits;
+# Generate the report header ...
+push(@xmlBits,
+     '<?xml version=\'1.0\'?>',
+     '<rep:report xmlns:rep=\'http://inca.sdsc.edu/dataModel/report_2.1\'>',
+     '  <gmt>' . $incaValues->{gmt} . '</gmt>',
+     '  <hostname>' . $incaValues->{hostname} . '</hostname>',
+     '  <name>' . $incaValues->{name} . '</name>',
+     '  <version>' . $incaValues->{version} . '</version>',
+     '  <workingDir>' . $incaValues->{workingDir} . '</workingDir>',
+     '  <reporterPath>' . $incaValues->{reporterPath} . '</reporterPath>'
+   );
+# ... the <args> section (if applicable) ...
+push(@xmlBits, '  <args>');
+if(keys %{$argsValues}) {
+  foreach $arg(sort keys %{$argsValues}) {
+    push(@xmlBits,
+         '    <arg>',
+         '      <name>' . $arg . '</name>'
+        );
+    foreach my $value(@{$argsValues->{$arg}}) {
+      push(@xmlBits, '      <value>' . $value . '</value>');
+    }
+    push(@xmlBits, '    </arg>');
+  }
+}
+push(@xmlBits, '  </args>');
+if ( $#body >= 0 ) {
+  # ... the body (if applicable) ...
+  push(@xmlBits, '  <body>');
+  if($#body >= 0) {
+    foreach my $line(@body) {
+      chomp($line);
+      push(@xmlBits, "    $line");
+    }
+  }
+  push(@xmlBits, '  </body>');
+} else {
+  push(@xmlBits, '  <body/>');
+}
+# ... and the <exitStatus> section.
+push(@xmlBits,
+     '  <exitStatus>',
+     '    <completed>' . $incaValues->{completed} . '</completed>'
+   );
+if( $incaValues->{error_message_stdin} ) {
+  $incaValues->{error_message} = "";
+  my $line;
+  while ( $line = <STDIN> ) {
+    $incaValues->{error_message} .= $line;
+  }
+}
+$incaValues->{error_message} =~ s/&/&amp;/g;
+$incaValues->{error_message} =~ s/</&lt;/g;
+$incaValues->{error_message} =~ s/>/&gt;/g;
+push(@xmlBits,
+     '    <errorMessage>' . $incaValues->{error_message} . '</errorMessage>'
+    ) if defined($incaValues->{error_message});
+push(@xmlBits,
+     '  </exitStatus>',
+     '</rep:report>'
+    );
+
+# make sure there are no crlfs in the report
+my $report = join("\n", @xmlBits) . "\n";
+$report =~ s/$CRLF/\n/g;
+print $report;

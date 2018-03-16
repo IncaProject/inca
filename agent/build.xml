@@ -1,0 +1,26 @@
+<!DOCTYPE project [
+	<!ENTITY inca-common-build SYSTEM "etc/common/build-common.xml">
+]>
+
+<!-- =======================================================================
+Build file for the Inca Agent Source Code
+
+Notes:
+This is a build file for use with the Jakarta Ant build tool.
+
+Prerequisites:
+
+jakarta-ant from http://jakarta.apache.org
+
+Build Instructions:
+Invoke "ant"
+
+============================================================================ -->
+
+<project name="agent" default="help">
+
+  <property name="package.name" value="inca-agent"/>
+  <property name="jar.name" value="inca-agent"/>
+	&inca-common-build;
+
+</project>

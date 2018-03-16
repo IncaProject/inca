@@ -1,0 +1,43 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'inca.memusage',
+  description => 'reports the memory usage for each process',
+  version => 5,
+  measurement_name => "inca"
+);
+
+$reporter->addArg( "procPat", "pattern of processes to report usage", "edu.sdsc.inca" );
+$reporter->addArg( "namePat", "pattern to extract from cmd", "([a-zA-Z]+)\$" );
+$reporter->addArg( "sleep", "wait specified time before running ps command", "10" );
+$reporter->processArgv(@ARGV);
+my $procPat = $reporter->argValue( "procPat" );
+my $namePat = $reporter->argValue( "namePat" );
+my $sleep = $reporter->argValue( "sleep" );
+
+# wait a few seconds for launching processes for reporters executing at the same
+# time to dissipate
+sleep( $sleep ) if $sleep > 0;
+
+my @out = $reporter->loggedCommand( "ps x -o rss,command");
+$reporter->failPrintAndExit("ps cmd failed: @out $!") if $?;
+my $benchmark = $reporter->addNewBenchmark( "memory" );
+for my $line ( @out ) {
+  next if $line =~ $0;
+  next if $line !~ /$procPat/;
+  my ($mem, $command) = $line =~ /(\d+)\s+(.+)$/;
+  my ($name) = $command =~ /$namePat/;
+  if ( defined $name ) {
+    $name =~ s/ /_/;
+    $name =~ s/://g;
+    $name =~ s/\./_/g;
+    $benchmark->setStatistic( $name, $mem / 1024.0, "MB" );
+  }
+}
+
+$reporter->setResult(1);
+$reporter->print();

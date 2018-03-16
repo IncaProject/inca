@@ -1,0 +1,4 @@
+SetEnv PERL5LIB ../lib/perl
+SetEnv PYTHONPATH ../lib/python
+Options +ExecCGI
+SetHandler cgi-script

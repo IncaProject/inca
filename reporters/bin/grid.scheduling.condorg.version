@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'grid.scheduling.condorg.version',
+  version => 2,
+  description => 'Reports the version of Condor-G',
+  url => 'http://www.cs.wisc.edu/condor/condorg',
+  package_name => 'condor-g'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable('condor_version', 'Version: ([\d\.]+)');
+$reporter->print();

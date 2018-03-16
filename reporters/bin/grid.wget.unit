@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.wget.unit',
+  version => 8,
+  description => 'Reports whether wget can download a web page',
+  url => 'http://inca.ucsd.edu',
+  unit_name => 'wget'
+);
+$reporter->addArg('page', 'web page url to download', 'http://cnn.com/index.html');
+$reporter->addArg('wgetArgs', 'wget arguments (e.g. --no-check-certificate)', '');
+$reporter->processArgv(@ARGV);
+my $page = $reporter->argValue('page');
+my $args = $reporter->argValue('wgetArgs');
+
+my $wgetCmd = "wget $args -O /dev/null \"$page\"";
+my $output = $reporter->loggedCommand($wgetCmd);
+if($? || ($output !~ "./dev/null. saved")) {
+  my $err = "wget command failed: $output $!";
+  $err =~ s/--\d{2}:\d{2}:\d{2}--/--xx:xx:xx--/g;
+  $reporter->unitFailure($err);
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

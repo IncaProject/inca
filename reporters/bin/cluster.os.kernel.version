@@ -1,0 +1,21 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.os.kernel.version',
+  version => 4,
+  description => 'Reports the os kernel release info',
+  url => 'http://www.linux.org',
+  package_name => 'kernel'
+);
+$reporter->processArgv(@ARGV);
+my $dist = $reporter->loggedCommand('uname -r -v');
+chomp($dist);
+my @versions = split(/ +/, $dist);
+
+$reporter->setSubpackageVersion("release", shift(@versions));
+$reporter->setSubpackageVersion("version", join(" ", @versions));
+$reporter->print();

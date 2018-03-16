@@ -1,0 +1,34 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.cvs.unit',
+  version => 3,
+  description => 'Reports whether cvs can checkout a file',
+  unit_name => 'cvs'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('root', 'cvs root directory absolute pathname', ':pserver:anonymous@bnetd.cvs.sourceforge.net:/cvsroot/bnetd');
+$reporter->addArg('file', 'cvs file to checkout', 'scripts/README.scripts');
+$reporter->addArg('grep', 'text to find in file', 'This script contains a central place for common settings and functions');
+$reporter->processArgv(@ARGV);
+my $root = $reporter->argValue('root');
+my $file = $reporter->argValue('file');
+my $grep = $reporter->argValue('grep');
+
+# using ssh-Alias in ~/.ssh/config to avoid connection method error
+$ENV{'CVS_RSH'} = "gsissh";
+my $cmd = "cvs -d$root co -p $file";
+my $output = $reporter->loggedCommand($cmd);
+if($?) {
+  $reporter->failPrintAndExit("\"$cmd\" failed: $output $!");
+} elsif ($output !~ $grep) {
+  $reporter->failPrintAndExit("Could not find \"$grep\" in file contents:\n $output");
+} else {
+  $reporter->log("debug", "cvs file contents:\n $output");
+  $reporter->unitSuccess();
+  $reporter->print();
+}

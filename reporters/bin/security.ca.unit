@@ -1,0 +1,191 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter;
+use Date::Parse;
+use Cwd;
+
+my $CERTDIR = "/etc/grid-security/certificates/";
+
+my $reporter = new Inca::Reporter(
+  name => 'security.ca.unit',
+  version => 23,
+  description => 'Checks whether the CA certificates or CRLs have expired',
+);
+$reporter->addArg('minCertDays', 'error when < minimum days left on certs', 14);
+$reporter->addArg('minCrlDays', 'error when < minimum days left on CRLs', 3);
+$reporter->addArg( 'certUrl', 'URL to CA certificate tarball', '' );
+$reporter->addArg('wgetArgs', 'wget arguments (e.g. --no-check-certificate)', '');
+$reporter->addArg('host', 'verify CA/CRLs on remote host (instead of localhost)', '');
+$reporter->addArg('myproxy', 'myproxy cmd and args to verify CA/CRLs on myproxy host (e.g., myproxy-get-trustroots)', '');
+$reporter->addDependency('TimeDate');
+$reporter->processArgv(@ARGV);
+my $minCertDays = $reporter->argValue('minCertDays');
+my $minCertSecs= $minCertDays * 86400;
+my $minCrlDays = $reporter->argValue('minCrlDays');
+my $minCrlSecs = $minCrlDays * 86400;
+my $url = $reporter->argValue('certUrl');
+my $args = $reporter->argValue('wgetArgs');
+my $remotehost = $reporter->argValue('host');
+my $myproxy = $reporter->argValue('myproxy');
+
+my @caFiles;
+my @caMissing;
+my @caExpired;
+my @caWarn;
+my @crlFiles;
+my @crlMissing;
+my @crlExpired;
+my @crlWarn;
+my $err = "";
+
+# unzip tar of certs to compare if exists
+if ( $url ne '' ) {
+  my $scratchDir = "/tmp/security.ca.unit.$$";
+  if ( ! mkdir($scratchDir) ) {
+    failClean("Cannot mkdir scratch dir $scratchDir"); 
+  }
+  $reporter->tempFile( $scratchDir );
+  if ( ! chdir($scratchDir) ) {
+    failClean("Cannot change to scratch dir $scratchDir"); 
+  }
+  my $wgetCmd = "wget $args $url";
+  my $wgetOut = $reporter->loggedCommand($wgetCmd);
+  if ( $? ) {
+    failClean("wget failed: $wgetOut $!");
+  } elsif($wgetOut !~ /([\d.]+) \wB\/s/) {
+    failClean("Failed to retrieve $url: $wgetOut"); 
+  }
+  my ($filename) = $url =~ /([^\/]+)$/;
+  my $gunzipOut = $reporter->loggedCommand( "gunzip -f $filename" );
+  if ( $? ) {
+    failClean("gunzip -f $filename failed: $gunzipOut $!"); 
+  }
+  $filename =~ s/\.gz$//;
+  my $tarOut = $reporter->loggedCommand( "tar xvf $filename" );
+  if ( $? ) {
+    failClean("tar xvf $filename failed: $tarOut $!"); 
+  }
+  if ( ! chdir("certificates") ) {
+    failClean("Cannot change to tar dir certificates"); 
+  }
+  if ( $remotehost ne '' ) {
+    $reporter->loggedCommand( "scp -r $remotehost:$CERTDIR $scratchDir/certificates.remote" );
+    failClean("Error copying over remote host certificates: $!") if $? !=0;; 
+    $CERTDIR = "$scratchDir/certificates.remote/";
+  } 
+  if ( $myproxy ne '' ) {
+    $reporter->loggedCommand( "env X509_CERT_DIR=$scratchDir/myproxy $myproxy" );
+    failClean("Error copying over myproxy certificates: $!") if $? !=0;; 
+    $CERTDIR = "$scratchDir/myproxy/";
+  } 
+  @caFiles = glob( "*.0" );
+  for my $file (@caFiles) {
+    my $path = $CERTDIR . $file;
+    if ( ! -f $path ) {
+      my $cmd = "openssl x509 -issuer -in \'$file\' -noout";
+      chomp( my $issuer = $reporter->loggedCommand($cmd) );
+      $err.="Required CA file $file not found ($issuer)\n\n";
+      push(@caMissing, $reporter->xmlElement('missingCa', 1, $file));
+    } else {
+      # then check the ca certs are valid
+      my $cmd = "openssl x509 -checkend " . $minCertSecs . " -in $path";
+      $reporter->loggedCommand ($cmd);
+      if($?) {
+        my $cmd = "openssl x509 -issuer -in \'$path\' -noout";
+        chomp( my $issuer = $reporter->loggedCommand($cmd) );
+        $cmd = "openssl x509 -checkend 0 -in $path";
+        $reporter->loggedCommand ($cmd);
+        if ($?) {
+          $err.="The CA cert $path has expired ($issuer)\n\n";
+          push(@caExpired, $reporter->xmlElement('expiredCa', 1, $issuer));
+        } else {
+          $reporter->log('warn', "The CA cert $path will expire in less than $minCertDays days ($issuer)");
+          push(@caWarn, $reporter->xmlElement('warnCa', 1, $issuer));
+        }
+      }
+    }
+  }
+  @crlFiles = map { s/0$/r0/; $_ } @caFiles;
+  for my $file (@crlFiles) {
+    my $path = $CERTDIR . $file;
+    if ( ! -f $path ) {
+      $err.="Required CRL file $file not found\n\n";
+      push(@crlMissing, $reporter->xmlElement('missingCrl', 1, $file));
+    } else {
+      # then check the ca CRLS are valid
+      my $cmd = "openssl crl -nextupdate -in \'$path\' -noout";
+      my $date = $reporter->loggedCommand($cmd);
+      if ($date !~ /nextUpdate/ ){
+        $date = $! if ! defined $date;
+        $err .= "Error executing \"$cmd\" $date\n\n";
+        next;
+      }
+      my ($nextupdatestr) = $date =~ /nextUpdate=(.+)/;
+      my $nextupdate = str2time($nextupdatestr);
+      my $timeleft = $nextupdate - time(); 
+      if ( $timeleft < $minCrlSecs ){
+        my $cmd = "openssl crl -issuer -in \'$path\' -noout";
+        chomp( my $issuer = $reporter->loggedCommand($cmd) );
+        if ( $timeleft <= 0 ) {
+          $err .= "The $path CRL has expired ($issuer).\n\n";
+          push(@crlExpired, $reporter->xmlElement('expiredCrl', 1, $issuer));
+        } else {
+          $reporter->log('warn', "The $path CRL will expire in less than $minCrlDays days ($issuer)");
+          push(@crlWarn, $reporter->xmlElement('warnCrl', 1, $issuer));
+        }
+      }  
+    }  
+  }
+} else {
+  if ( ! chdir($CERTDIR) ) {
+    failClean("Cannot change to cert dir $CERTDIR"); 
+  }
+  @caFiles = glob( "*.0" );
+  @crlFiles = glob( "*.r0" );
+}
+
+failClean("no certificates found") if scalar(@caFiles) < 1;
+
+$reporter->setBody(
+  $reporter->xmlElement('statistics', 0,
+      $reporter->xmlElement('statistic', 0,
+                             $reporter->xmlElement('ID', 0, 'numMissingCa'),
+                             $reporter->xmlElement('value', 1, scalar @caMissing)),
+      $reporter->xmlElement('statistic', 0,
+                             $reporter->xmlElement('ID', 0, 'numWarnCa'),
+                             $reporter->xmlElement('value', 1, scalar @caWarn)),
+      $reporter->xmlElement('statistic', 0,
+                             $reporter->xmlElement('ID', 0, 'numExpiredCa'),
+                             $reporter->xmlElement('value', 1, scalar @caExpired)),
+    @caMissing,
+    @caWarn,
+    @caExpired,
+    $reporter->xmlElement('statistic', 0,
+                             $reporter->xmlElement('ID', 0, 'numMissingCrl'),
+                             $reporter->xmlElement('value', 1, scalar @crlMissing)),
+    $reporter->xmlElement('statistic', 0,
+                             $reporter->xmlElement('ID', 0, 'numWarnCrl'),
+                             $reporter->xmlElement('value', 1, scalar @crlWarn)),
+    $reporter->xmlElement('statistic', 0,
+                             $reporter->xmlElement('ID', 0, 'numExpiredCrl'),
+                             $reporter->xmlElement('value', 1, scalar @crlExpired)),
+    @crlMissing,
+    @crlWarn,
+    @crlExpired
+  )
+);
+if ($err ne "") {
+  failClean($err);
+}
+$reporter->setResult(1);
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  $err =~ s/--\d{2}:\d{2}:\d{2}--/--xx:xx:xx--/g;
+  $err =~ s/$$/PID/g;
+  $reporter->failPrintAndExit($err);
+}
+

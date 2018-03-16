@@ -1,0 +1,80 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use File::Path;
+use strict;
+use warnings;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.rft',
+  version => 9,
+  description => 'ws rft test',
+  unit_name => 'rft_unit'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('gridftpHost', 'gridftp server', 'localhost');
+$reporter->addArg('gridftpPort', 'gridftp port', '');
+$reporter->addArg('rftHost', 'host running RFT service', 'localhost');
+$reporter->processArgv(@ARGV);
+my $rhost = $reporter->argValue('rftHost');
+my $ghost = $reporter->argValue('gridftpHost');
+my $port = $reporter->argValue('gridftpPort');
+
+my $dirPre = $ENV{'HOME'} . "/grid.middleware.globus.unit.rft.";
+my $tmpdir = $dirPre . $$;
+my $failtmpdir = $dirPre . "PID";
+$reporter->tempFile($tmpdir);
+if ( ! mkpath( "$tmpdir" ) ) {
+  $reporter->failPrintAndExit( "Unable to create temp dir, $failtmpdir" );
+}
+
+my $loc = "gsiftp://$ghost";
+if ($port ne ""){
+  $loc .= ":$port";
+}
+my $src = "$loc/etc/group";
+my $dest = $loc . $tmpdir . "/rftTest.transferred";
+
+my $rft = "\#true=binary false=ascii
+true
+\#Block size in bytes
+16000
+\#TCP Buffer size in bytes
+16000
+\#Notpt (No thirdPartyTransfer)
+false
+\#Number of parallel streams
+1
+\#Data Channel Authentication (DCAU)
+true
+\#Concurrency of the request
+1
+\#Grid Subject name of the source gridftp server
+null
+\#Grid Subject name of the destination gridftp server
+null
+\#Transfer all or none of the transfers
+false
+\#Maximum number of retries
+10
+\#Source/Dest URL Pairs
+$src
+$dest";
+
+my $r = "$tmpdir/rft.xfr";
+if ( open R, ">$r" ) {
+  print R $rft;
+  close R;
+} else {
+  $reporter->failPrintAndExit( "Unable to create temporary file, $failtmpdir/rft.xfr" );
+}
+my $rftcmd = "rft -h $rhost -f $r";
+$reporter->log("debug", "rft file $r contains:\n\n$rft");
+my $output = $reporter->loggedCommand( $rftcmd );
+if ( $? ) {
+  my $err = "rft returned '$?' $output";
+  $err =~ s/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+/xxxx-xx-xx xx:xx:xx,x/g;
+  $reporter->failPrintAndExit($err);
+}
+$reporter->unitSuccess();
+$reporter->print();

@@ -1,0 +1,16 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'data.format.hdf4.version',
+  version => 3,
+  description => 'Reports the version of HDF4',
+  url => 'http://hdf.ncsa.uiuc.edu',
+  package_name => 'hdf4'
+);
+$reporter->processArgv(@ARGV);
+$reporter->setVersionByExecutable( "hdp -V", "^hdp, .*HDF Version ([^,]*)");
+$reporter->print();

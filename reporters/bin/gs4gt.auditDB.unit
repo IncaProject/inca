@@ -1,0 +1,123 @@
+#!/usr/bin/env perl
+
+# This Inca reporter checks whether a site's GRAM configuration is properly
+#  recording science gateway user attributes in the GRAM audit database.
+#  To accomplish this, a job is submitted against the GRAM endpoint,
+#  authenticating with a proxy credential decorated with SAML attributes.
+#
+# The best place for this reporter to execute is on the GRAM host itself
+#  since it naturally has access to the GRAM audit database and will
+#  require less help from grid-admins to configure.
+#
+# The reporter allows for the embedding of SAML within a credential to occur
+#  on the GRAM host or from where the Inca Reporter Manager launches
+#  reporters (using --have-saml option).  In either case,
+#  /etc/grid-security/metadata must contain a file with a mapping between
+#  the Identity Provider entityID and Distinguished Name (DN)
+
+# For example, the Inca DNs in RFC2253 format are:
+#   "UID=inca,CN=Inca User Account,OU=SDSC,O=SDSC,C=US"
+#   "USERID=inca,CN=Inca User Account,OU=SDSC,O=SDSC,C=US"
+# and the contents of Inca user's ~/GSST-config.properties file is:
+#   IdP.entityID=https://saml.teragrid.org/gateway/inca
+#   NameID.Format=http://teragrid.org/names/nameid-format/principalname
+#   NameID.Format.template=%PRINCIPAL%@inca.teragrid.org
+# there should exists a file in /etc/grid-security/metadata with entry:
+#     https://saml.teragrid.org/gateway/inca "UID=inca,CN=Inca User Account,OU=SDSC,O=SDSC,C=US" "USERID=inca,CN=Inca User Account,OU=SDSC,O=SDSC,C=US"
+# and the reporter should be run with --gsst_conf=~/GSST-config.properties
+#
+# Author: Jon Siwek, jsiwek@ncsa.illinois.edu
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Env qw(X509_USER_PROXY USER);
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'gs4gt.auditDB.unit',
+  version => 2,
+  description => 'Checks that gateway_user attributes are being recorded in'
+                 .'the GRAM audit database' 
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addDependency('gridshib-saml-tools');
+$reporter->addArg('gsst_home', 'GridShib SAML Tools install location',
+                  '/usr/local/gridshib-saml-tools/');
+$reporter->addArg('gram_host', 'GRAM endpoint host', 'localhost');
+$reporter->addArg('gram_port', 'GRAM endpoint port', '8443', '[0-9]+');
+$reporter->addArg('gsst_conf', 'path to configuration file',
+            '/usr/local/gridshib-saml-tools/etc/tg-gateway-config.properties');
+$reporter->addArg('have_saml', 'using existing proxy with embedded SAML?', '');
+$reporter->processArgv(@ARGV);
+my $gsst_home = $reporter->argValue('gsst_home');
+my $gsst_conf = $reporter->argValue('gsst_conf');
+my $gram_host = $reporter->argValue('gram_host');
+my $gram_port = $reporter->argValue('gram_port');
+my $have_saml = $reporter->argValue('have_saml');
+
+$gsst_home .= '/' unless $gsst_home =~ m(\/$); #add trailing slash
+$ENV{'GRIDSHIB_HOME'} = $gsst_home;
+my $gsst_bin = $gsst_home."bin/";
+my $cmd;
+my $output;
+
+# decorate credential
+if ($have_saml eq '') {
+  $cmd = "$gsst_bin"."gridshib-saml-issuer --debug"
+       ." --user $USER --sender-vouches  --authn"
+       ." --authnMethod urn:oasis:names:tc:SAML:1.0:am:password"
+       ." --authnInstant `date --iso-8601=sec` --address `hostname -i`"
+       ." --properties certPath=$X509_USER_PROXY keyPath=$X509_USER_PROXY"
+       ." --x509 --x509Lifetime 86400 --outfile $X509_USER_PROXY"
+       ." --config $gsst_conf";
+
+  $output = $reporter->loggedCommand($cmd);
+
+  if ($?) {
+    $reporter->failPrintAndExit("failed to bind SAML token:\n$output");
+  }
+}
+
+# submit a job
+$cmd = "globusrun-ws -submit -F $gram_host:$gram_port-b -c /bin/date";
+$output = $reporter->loggedCommand($cmd);
+
+if ($?) {
+  failClean("globusrun-ws failed: $output $!");
+}
+
+# log information contained in SAML token
+$cmd = "$gsst_bin"."gridshib-saml-info -f $X509_USER_PROXY";
+$output = $reporter->loggedCommand($cmd);
+$reporter->log("debug", "gridshib-saml-info:\n$output");
+
+# query audit DB (this assumes $GRIDSHIB_HOME/etc/db-connection.properties 
+#  is properly configured to access the GRAM audit database from the
+#  localhost) and check for 'gateway_user' attributes
+$cmd = $gsst_bin."test-gram-audit --quiet --maxDelta=1 | "
+      .$gsst_bin."resolve-gram-attributes";
+$output = $reporter->loggedCommand($cmd);
+
+if ($?) {
+  $reporter->failPrintAndExit("gridshib-saml-tools failed audit DB query:\n"
+                              .$output);
+}
+elsif ($output =~ "gateway_user") {
+  $reporter->unitSuccess();
+  $reporter->print();
+}
+else {
+  $reporter->log("debug", "test-gram-audit output:\n$output");
+  $reporter->failPrintAndExit("No gateway_user attributes found");
+}
+
+sub failClean {
+  my $err = shift;
+  $err =~ s/$$/PID/g;
+  $err =~ s/Job ID: .[^\n]+/Job ID: xxxx/g;
+  $err =~ s/Termination time: .[^\n]+/Termination time: xxxx/g;
+  $err =~ s/inca\.rm\..[^\s\n]*/inca\.rm\.xxx/g;
+  my $uptime = $reporter->loggedCommand("uptime");
+  $reporter->log("info", "Uptime: $uptime");
+  $reporter->failPrintAndExit($err);
+}

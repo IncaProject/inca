@@ -1,0 +1,39 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.ps.unit',
+  description => 'Checks for process in ps output',
+  version => 3,
+  unit_name => 'psCheck'
+);
+
+$reporter->addArg( "process", "process pattern to search for" );
+$reporter->addArg( "psArgs", "arguments to pass to ps", "-ax -o pid,command" );
+$reporter->processArgv(@ARGV);
+my $pRegex = $reporter->argValue( "process" );
+my $psArgs = $reporter->argValue( "psArgs" );
+
+my $psCmd = "ps $psArgs";
+my @output = $reporter->loggedCommand( $psCmd );
+$reporter->failPrintAndExit( "$psCmd failed: @output $!" ) if $?;
+
+# filter out this reporter which will have the pattern in the arguments
+my $name = $reporter->getName();
+@output = grep( !/$name/, @output ); 
+
+# look for matches
+my @linesMatched = grep( /$pRegex/, @output );
+if ( scalar(@linesMatched) > 0 ) {
+  $reporter->log( 'info', scalar(@linesMatched) . " matches found" );
+  for my $match ( @linesMatched ) {
+    $reporter->log( 'debug', $match );
+  }
+  $reporter->unitSuccess();
+} else {
+  $reporter->unitFailure( "Pattern '$pRegex' not found in ps output" );
+}
+$reporter->print();

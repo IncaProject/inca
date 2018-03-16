@@ -1,0 +1,16 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::Version;
+use strict;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'grid.middleware.globus4.version',
+  version => 2,
+  url => 'http://www.globus.org',
+  description => 'Reports the version of gt4',
+);
+$reporter->processArgv( @ARGV );
+
+$reporter->setPackageName('globus4');
+$reporter->setVersionByExecutable("$ENV{'GLOBUS_LOCATION'}/bin/globus-version","([^\s\n]+)");
+$reporter->print();

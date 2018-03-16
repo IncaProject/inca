@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'grid.admin.tginfo.version',
+  version => 1,
+  description => 'Reports the version of tginfo',
+  url => 'http://www.teragrid.org',
+  package_name => 'tginfo'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable("tginfo -version | awk '{gsub(/[ ]/,\"\");print}'", '-\n([\w\d\.]+)');
+$reporter->print();

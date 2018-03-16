@@ -1,0 +1,36 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.mgmt.rocks.version',
+  version => 2,
+  description => 'Reports the version of Rocks and installed rolls',
+  url => 'http://www.rocksclusters.org',
+  package_name => 'rocks'
+);
+$reporter->processArgv(@ARGV);
+
+my @rolls = $reporter->loggedCommand( "dbreport rolls" );
+if ( $? != 0 ) {
+  # if not on rocks server node, dbreport not available.  use motd
+  $reporter->setVersionByExecutable("cat /etc/motd", "Rocks\\s+([\\d\\.]+)");
+  $reporter->print();
+  exit;
+}
+
+if ( scalar(@rolls) < 1 ) {
+  $reporter->failPrintAndExit( "no output returned from dbreport" ); 
+}
+
+for my $rollInfo ( @rolls ) {
+  my ($rollName, $rollVersion) = $rollInfo =~ /^(\S+)\s+(\S+)/;
+  if ( ! defined($rollName) || ! defined $rollVersion ) {
+    $reporter->failPrintAndExit( "Unable to parse roll info '$rollInfo'" ); 
+  }
+  $reporter->setSubpackageVersion( $rollName, $rollVersion );
+}
+
+$reporter->print();

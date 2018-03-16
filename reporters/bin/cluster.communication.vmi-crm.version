@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.communication.vmi-crm.version',
+  version => 2,
+  description => 'Reports the version of crm',
+  package_name => 'vmi-crm'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable
+  ('crm -v', 'Cluster Resource manager\(CRM(.+)\)');
+$reporter->print();

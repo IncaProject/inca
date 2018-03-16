@@ -1,0 +1,135 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'java.cog.unit',
+  version => 11,
+  description => 'Executes Java CoG Toolkit test suite',
+  url => 'http://www.teragridforum.org/mediawiki/index.php?title=CoG_Toolkit',
+  unit_name => 'cogster'
+);
+
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addDependency('cogster');
+$reporter->addArg( "cogProxy", "location of cog proxy", "/tmp/x509up_u1119" );
+$reporter->addArg( "Host1", "gridftp src host", "gridftp.bigred.iu.teragrid.org" );
+$reporter->addArg( "Port1", "gridftp src port", "2812" );
+$reporter->addArg( "File1", "gridftp src file", "/N/gpfsbr/inca/SPEEDPAGE" );
+$reporter->addArg( "Scratch1", "gridftp src scratch file dir", "/N/gpfsbr/inca" );
+$reporter->addArg( "Host2", "gridftp dest host", "gridftp-w.ncsa.teragrid.org" );
+$reporter->addArg( "Port2", "gridftp dest port", "2811" );
+$reporter->addArg( "File2", "gridftp dest file", "/cfs/scratch/users/inca/SPEEDPAGE" );
+$reporter->addArg( "Scratch2", "gridftp dest scratch file dir", "/cfs/scratch/users/inca" );
+$reporter->addArg( "LocalFile", "local file for non third party transfers", "/home/inca/cogster/data/test" );
+$reporter->addArg( "PortRange", "gridftp port rannge for firewall", "50000,51000" );
+$reporter->addArg( "defJavac", "javac location", "/home/inca/j2sdk1.4.1_03/bin/javac" );
+$reporter->addArg( "defJava", "java location", "/home/inca/j2sdk1.4.1_03/bin/java" );
+$reporter->addArg( "defJflags", "java flags", "" );
+$reporter->addArg( "defClasspath", "CLASSPATH variable", "/home/inca/cog-4_1_4/lib/cog-jglobus.jar:/home/inca/j2sdk1.4.1_03/jre/lib/rt.jar:/soft/globus-4.0.1-r3/lib/cog-jglobus.jar:/home/inca/cog-4_1_4/lib/puretls.jar:/home/inca/cog-4_1_4/lib/commons-logging-1.0.4.jar:/home/inca/cog-4_1_4/lib/log4j-1.2.8.jar:/home/inca/cog-4_1_4/lib/cryptix32.jar:/home/inca/cog-4_1_4/lib/cryptix.jar:/home/inca/cog-4_1_4/lib/cryptix-asn1.jar:/home/inca/cog-4_1_4/lib/jce-jdk13-131.jar:../.." );
+$reporter->addArg( "defTimeout", "timout seconds until process gets killed", "900" );
+$reporter->processArgv(@ARGV);
+my $cog_proxy = $reporter->argValue( "cogProxy" );
+my $Host1 = $reporter->argValue( "Host1" );
+my $Port1 = $reporter->argValue( "Port1" );
+my $File1 = $reporter->argValue( "File1" );
+my $Scratch1 = $reporter->argValue( "Scratch1" );
+my $Host2 = $reporter->argValue( "Host2" );
+my $Port2 = $reporter->argValue( "Port2" );
+my $File2 = $reporter->argValue( "File2" );
+my $Scratch2 = $reporter->argValue( "Scratch2" );
+my $LocalFile = $reporter->argValue( "LocalFile" );
+my $PortRange = $reporter->argValue( "PortRange" );
+my $defJavac = $reporter->argValue( "defJavac" );
+my $defJava = $reporter->argValue( "defJava" );
+my $defJflags = $reporter->argValue( "defJflags" );
+my $defClasspath = $reporter->argValue( "defClasspath" );
+my $defTimeout = $reporter->argValue( "defTimeout" );
+
+# cog expects proxy in certain location
+my $proxy = $ENV{X509_USER_PROXY};
+$reporter->loggedCommand("rm $cog_proxy; ln -s $proxy $cog_proxy");
+
+# dependency on cog test suite
+my $incadir = $ENV{INSTALL_DIR};
+if ( ! -f "$incadir/build/cogster.tar" &&
+     ! -f "$incadir/build/cogster.tar.gz" ) {
+  $reporter->failPrintAndExit( "Unable to locate cogster.tar* in $incadir");
+}
+my $SRC = "/tmp/inca-cogster.$$";
+failClean("mkdir $SRC failed")
+  if !mkdir($SRC);
+$reporter->tempFile($SRC);
+failClean("chdir $SRC failed")
+  if !chdir($SRC);
+$reporter->loggedCommand("cp $incadir/build/cogster.tar* .");
+$reporter->loggedCommand("gunzip -f cogster.tar.gz; tar xvf cogster.tar");
+my $tmp = $SRC . "/cogster";
+failClean("can't cd to $tmp")
+  if !chdir($tmp);
+
+my $gridftpConf = "Host1 $Host1
+Port1 $Port1
+File1 $File1
+Scratch1 $Scratch1
+Host2 $Host2
+Port2 $Port2
+File2 $File2.$$
+Scratch2 $Scratch2
+LocalFile $LocalFile
+PortRange $PortRange";
+
+my $gridftpConfFile = "config/gridftp.conf";
+`rm $gridftpConfFile`;
+open (GC, ">$gridftpConfFile");
+print GC "$gridftpConf";
+close GC;
+
+my $defsMk = "JAVAC = $defJavac
+JAVA = $defJava
+JFLAGS = $defJflags
+CLASSPATH = `echo $defClasspath | tr -d '\\t\\n\\ '`
+TIMEOUT = $defTimeout";
+
+my $defsMkFile = "mk/defs.mk";
+`rm $defsMkFile`;
+open (DF, ">$defsMkFile");
+print DF "$defsMk";
+close DF;
+
+my $output = $reporter->loggedCommand("make suite");
+$reporter->log("debug", "MAKE SUITE OUTPUT: $output");
+my @returned = split('\n----------------------------------',$output);
+my @failure;
+my @failMsg;
+my @success;
+for my $return (@returned){
+  if ($return =~ /---SUCCESS/){
+    my ($pre,$test,$post) = $return =~ m/(.*---SUCCESS )(.[^\n]*)(.*)/;
+    push (@success, $test);
+  } elsif ($return =~ /---FAILED/){
+    my ($pre,$test,$post) = $return =~ m/(.*---FAILED )(.[^\n]*)(.*)/;
+    push (@failure, $test);
+    push (@failMsg, $return);
+  }
+}
+$reporter->log("debug", "FAILED: ".join(",\n", @failure));
+$reporter->log("debug", "SUCCESS: ".join(",\n", @success));
+if (@failure){
+  failClean(join("\n", @failMsg));
+}
+if (!@success){
+  failClean("make suite produced: $output");
+}
+$reporter->unitSuccess();
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  my $pid = $$;
+  $err =~ s/$pid/PID/g;
+  $reporter->failPrintAndExit($err);
+}

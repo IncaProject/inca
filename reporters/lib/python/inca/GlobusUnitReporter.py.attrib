@@ -1,0 +1,5 @@
+name: inca.GlobusUnitReporter
+version: 1
+description: Inca reporter Python API class for Globus test reporters
+url: http://inca.sdsc.edu
+dependencies: inca.SimpleUnitReporter

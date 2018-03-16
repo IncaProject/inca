@@ -1,0 +1,19 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.accounting.xdusage.version',
+  version => 3,
+  description => 'Reports the version of xdusage',
+  url => 'http://software.teragrid.org/software/xdusage',
+  package_name => 'xdusage'
+);
+$reporter->processArgv(@ARGV);
+
+# in case requiretty setting is in sudo setup, run in script command to 
+# fake tty
+$reporter->setVersionByExecutable('script -c "xdusage -V" /dev/null', 'version ([\d\.]+)');
+$reporter->print();

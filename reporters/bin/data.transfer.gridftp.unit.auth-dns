@@ -1,0 +1,108 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use POSIX 'EINTR';
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.transfer.gridftp.unit.auth-dns',
+  version => 14,
+  description => 'Verifies gridftp authentication using the "globus-url-copy -len 1280 file:///dev/zero gsiftp://$dest//dev/null" command for each host\'s IP address(es)',
+  unit_name => 'gridftp_auth'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('dest', 'gridftp endpoint');
+$reporter->addArg('timeout', 'timeout in seconds for the globus-url-copy command', '300');
+$reporter->processArgv(@ARGV);
+my $dest = $reporter->argValue('dest');
+my $timeout = $reporter->argValue('timeout');
+
+my @ips;
+my ($server, $post) = $dest =~ m/(.[^:|\/]*)(.*)/;
+my $noCmd = "[C|c]ommand not found";
+my $host = $reporter->loggedCommand("host -n $server");
+if($host =~ $noCmd || $?){
+  my $err = "Could not resolve $server with \"host\" or \"nslookup\":";
+  $host = $reporter->loggedCommand("nslookup -silent $server");
+  if($?){
+    $reporter->failPrintAndExit("$err $host $!");
+  } elsif (!defined $host || $host =~ $noCmd){
+    $reporter->failPrintAndExit("$err $host");
+  } else{
+    $reporter->log("debug", $host);
+    my @add=split(/\nName:.[^\n]+\n/,$host);
+    for my $add (@add){
+      if ($add =~ m/^Address:.[^\n]*/){
+        $add =~ s/Address:\s+//; 
+        $add =~ s/[\s|\n]+//; 
+        push(@ips, $add); 
+      }
+      if ($add =~ m/^Addresses:.[^\n]*/){
+        $add =~ s/Addresses:\s+//;
+        $add =~ s/\n+/,/g;
+        $add =~ s/\s+//g;
+        @ips=split(/,/,$add);
+      }
+    }
+  }
+}else{
+  $reporter->log("debug", $host);
+  my @add=split(/.* has address /,$host);
+  for my $add (@add){
+    if ($add =~ m/^\d+.*/){
+      my ($ip, $post) = $add =~ m/(.[^\n]*)(.*)/; 
+      push(@ips, $ip); 
+    }
+  }
+}
+if (scalar(@ips)<1){
+  $reporter->failPrintAndExit("no IPs for host");
+}
+my $err="";
+@ips = sort( @ips );
+for my $ip (@ips){
+  # use the IP's hostname instead of the IP if it has one
+  my $ipHost = $reporter->loggedCommand("host $ip");
+  if(!defined $ipHost || $ipHost =~ $noCmd || $?){
+    $ipHost = $reporter->loggedCommand("nslookup -silent $ip");
+    if($? == 0 && defined $ipHost && $ipHost !~ $noCmd){
+      $reporter->log("debug", $ipHost);
+      my ($ipName, $postfix) = $ipHost =~ m/.*name = (.[^\n]*)(\.$)/ms; 
+      $ip = $ipName;
+    }
+  }else{
+    $reporter->log("debug", $ipHost);
+    my ($ipName, $postfix) = $ipHost =~ m/.* domain name pointer (.[^\n]*)(\.$)/; 
+    $ip = $ipName;
+  }
+
+  # transfer 10KB of the /dev/zero file to /dev/null
+  $dest = $ip . $post;
+  my $guc = "globus-url-copy -len 1280 file:///dev/zero gsiftp://$dest//dev/null";
+  my $output = $reporter->loggedCommand($guc, $timeout);
+  if ($? != 0 && $! == EINTR) {
+    $err .= "call to \"$guc\" exceeded 5 min\n";
+  } elsif ($?) {
+    $err .= "$guc failed: $output $!\n";
+  } elsif ($output =~ /[E|e]rror/ 
+           || $output =~ /globus-url-copy:.*not found/
+           || $output =~ /Can't exec \"globus-url-copy\"/){
+    $err .= "$guc failed: $output\n";
+  }
+}
+if ($err ne ""){
+  $err .= "\n$server mapped to the following ips: @ips";
+  failClean($err);
+} else {
+  $reporter->unitSuccess();
+  $reporter->print();
+}
+
+sub failClean {
+  my $err = shift;
+  $err =~ s/inca\.rm\..[^\s]*/inca\.rm\.PID/g;
+  $err =~ s/expired \d+ minutes ago/expired xx minutes ago/g;
+  $err =~ s/$$/PID/g;
+  $reporter->failPrintAndExit($err);
+}

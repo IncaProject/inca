@@ -1,0 +1,102 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use File::Path;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.ogsadai',
+  version => 4,
+  description => "Uses ogsadai-client to query the TGCDB (canned query) or
+	to select the local_id of a recent job in the local audit database of the
+	provided ogsadai deployment",
+  unit_name => "ogsada"
+);
+$reporter->addDependency('ogsadai-test-gl');
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('contact', 'contact string', '.*');
+$reporter->addArg('query', 'query for accounting or audit data', 
+  'account', 'account|audit');
+$reporter->processArgv(@ARGV);
+my $contact = $reporter->argValue('contact');
+my $query = $reporter->argValue('query');
+
+my $workdir = cwd();
+my $tmpdir = "/tmp/grid.middleware.globus.unit.ogsadai." . $$;
+failClean("mkdir $tmpdir failed")
+  if !mkdir($tmpdir);
+$reporter->tempFile($tmpdir);
+failClean("chdir $tmpdir failed")
+  if !chdir($tmpdir);
+my $queryXml = '<?xml version="1.0" encoding="UTF-8"?>
+<perform xmlns="http://ogsadai.org.uk/namespaces/2005/10/types">
+   <documentation>
+      This example performs a simple select statement.
+      The results are delivered within the response document.
+   </documentation>
+   <sqlQueryStatement name="statement">
+	<expression>';
+if ($query eq 'account'){
+  $queryXml .= 'select charge from jobs where local_jobid=\'287254.tg-master.uc.teragrid.org\' and resource_name=\'dtf.anl.teragrid\' and \'2006-06-22 15:44:10\' between submit_time - INTERVAL \'24 hours\' and submit_time + INTERVAL \'24 hours\'';
+}else{
+  $queryXml .= 'select job_grid_id from gram_audit_table where queued_time &lt; now() - interval \'48 hours\' order by queued_time DESC limit 1';
+}
+$queryXml .= '</expression>
+      <resultStream name="statementOutputRS"/>
+   </sqlQueryStatement>
+   <sqlResultsToXML name="statementRSToXML">
+      <resultSet from="statementOutputRS"/>
+      <webRowSet name="statementOutput"/>
+   </sqlResultsToXML>
+</perform>';
+
+if ( open Q, ">testquery.xml" ) {
+  print Q $queryXml;
+  close Q;
+} else {
+  failClean( "Unable to create temporary file testquery.xml" );
+}
+if (!-e "$workdir/var/reporter-packages/build/ogsadai-test-gl.tar.gz" && 
+    !-e "$workdir/var/reporter-packages/build/ogsadai-test-gl.tar"){
+  $reporter->loggedCommand("wget http://inca.sdsc.edu/2.0/ctssv3/share/ogsadai-test-gl-temp/ogsadai-test-gl.tar.gz -O $workdir/var/reporter-packages/build/ogsadai-test-gl.tar.gz");
+}
+$reporter->loggedCommand("cp $workdir/var/reporter-packages/build/ogsadai-test-gl.tar* .");
+#$reporter->loggedCommand("cp $workdir/ogsadai-test-gl.tar* .");
+$reporter->loggedCommand("gunzip -f ogsadai-test-gl.tar.gz; tar xvf ogsadai-test-gl.tar");
+failClean("cd to ogsadai-test-gl test jar dir failed")
+  if !chdir("ogsadai-test-gl");
+$ENV{'GLOBUS_LOCATION'} = "$tmpdir/ogsadai-test-gl";
+my $ogsadaiquery = "./ogsadai-inca-client -u $contact -k ";
+if ($query eq 'account'){
+  $ogsadaiquery .= "TeragridAccounting";
+} else {
+  $ogsadaiquery .= "localAuditDB";
+}
+$ogsadaiquery .= " -tls encrypt ../testquery.xml |grep columnValue";
+
+my @output = $reporter->loggedCommand("$ogsadaiquery 2>&1");
+my $output = join( "", @output);
+$reporter->log("debug", "output from ogsadai query: $output");
+
+if(!@output || $? ) {
+  failClean("\"$ogsadaiquery\" failed: $! $output");
+} else{
+  chomp $output;  #output has a trailing \n
+  if($output ne "<columnValue>0.0038466666666666666666743600000000000</columnValue>" 
+	    && $query eq "account") {
+    failClean("\"$ogsadaiquery\" failed: $output");
+  } else {
+    $reporter->unitSuccess();
+  }
+}
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  $err =~ s/$$/PID/g;
+  my $uptime = $reporter->loggedCommand("uptime");
+  $reporter->log("debug", "Uptime: $uptime");
+  $reporter->failPrintAndExit($err);
+}

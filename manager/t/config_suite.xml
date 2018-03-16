@@ -1,0 +1,49 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<inca:inca xmlns:inca="http://inca.sdsc.edu/dataModel/inca_2.0">
+    <suites>
+    <suite>
+	<seriesConfigs>
+    <seriesConfig>
+      <series>
+			  <name>echo_report</name>
+        <version>1</version>
+			  <args>
+			  	<arg>
+			  		<name>verbose</name>
+			  		<value>0</value>
+			  	</arg>
+			  	<arg>
+			  		<name>help</name>
+			  		<value>no</value>
+			  	</arg>
+		  	</args>
+		  	<limits>
+				  <wallClockTime>300</wallClockTime>
+			  </limits>
+			  <context>echo_report -verbose="0" -help="no"</context>
+		  </series>
+      <nickname>echo_test</nickname>
+      <resourceSetName>localhost</resourceSetName>
+  		<schedule/>
+	    <action>add</action>
+    </seriesConfig>
+
+    <seriesConfig>
+		  <series>
+			  <name>stream_report</name>
+        <version>1</version>
+			  <limits>
+				  <memory>100</memory>
+			  </limits>
+			  <context>stream_report</context>
+		  </series>
+      <nickname>stream_test</nickname>
+      <resourceSetName>localhost</resourceSetName>
+  		<schedule/>
+	    <action>add</action>
+    </seriesConfig>
+	</seriesConfigs>
+  <guid>incas://localhost:6323/testSuite</guid>
+</suite>
+</suites>
+</inca:inca>

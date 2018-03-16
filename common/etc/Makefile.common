@@ -1,0 +1,179 @@
+#
+# Common makefile targets and variables for Inca components
+#
+
+include version
+
+SVN_ROOT=http://capac.sdsc.edu:9080/localdisk/inca/subversion
+SVN_ROOT_AUTH=svn+ssh://capac.sdsc.edu/localdisk/inca/subversion
+SVN_PROJECT=inca
+PROJECT_BRANCHES=${SVN_ROOT}/${SVN_PROJECT}/branches
+PROJECT_BRANCHES_AUTH=${SVN_ROOT_AUTH}/${SVN_PROJECT}/branches
+PROJECT_RELEASES=${SVN_ROOT}/${SVN_PROJECT}/releases
+PROJECT_RELEASES_AUTH=${SVN_ROOT_AUTH}/${SVN_PROJECT}/releases
+PROJECT_TRUNK=${SVN_ROOT}/${SVN_PROJECT}/trunk
+PROJECT_TRUNK_AUTH=${SVN_ROOT_AUTH}/${SVN_PROJECT}/trunk
+PROJECT_CONTRIB=${PROJECT_TRUNK}/contrib
+PROJECT_CONTRIB_AUTH=${PROJECT_TRUNK_AUTH}/contrib
+PROJECT_DEVEL=${PROJECT_TRUNK}/devel
+PROJECT_DEVEL_AUTH=${PROJECT_TRUNK_AUTH}/devel
+THIS_RELEASE_DIR=${PROJECT_RELEASES}/${NAME}
+THIS_RELEASE_DIR_AUTH=${PROJECT_RELEASES_AUTH}/${NAME}
+THIS_BRANCH_DIR=${PROJECT_BRANCHES}/${NAME}
+THIS_BRANCH_DIR_AUTH=${PROJECT_BRANCHES_AUTH}/${NAME}
+
+install :: install-sbin install-etc create-var
+
+devel-clean: distclean clean-doc clean-inca-wrapper clean-contrib clean-tests
+
+create-var:
+	if ( test ! -d ${PREFIX}/var ); then \
+	  mkdir ${PREFIX}/var; \
+	fi
+
+release-candidate:
+	@echo "Creating top level directories if they do not exist"
+	- @svn mkdir -m "Automated commit - mkdir" ${THIS_BRANCH_DIR_AUTH} > /dev/null 2>&1
+	- @svn mkdir -m "Automated commit - mkdir" ${THIS_BRANCH_DIR_AUTH}/current > /dev/null 2>&1
+	@majorVersion=`expr ${majorVersion} + 1`; \
+	echo "majorVersion=$$majorVersion" > version; \
+	echo "Updating major version number to $${majorVersion}"; \
+	svn commit -m "Automated commit - updating version" version > /dev/null; \
+	svn update > /dev/null; \
+	echo "Copying to branches ${THIS_BRANCH_DIR_AUTH}/v$${majorVersion}"; \
+	svn copy -m "Automated copy -release candidate" . ${THIS_BRANCH_DIR_AUTH}/v$$majorVersion > /dev/null; \
+	echo "Updating current link"; \
+	svn cat ${PROJECT_DEVEL}/common/sbin/updateExternals > updateExternals; \
+	chmod u+x updateExternals; \
+	echo "${NAME} ${THIS_BRANCH_DIR}/v$$majorVersion" > externals-tmp; \
+	updateExternals ${THIS_BRANCH_DIR_AUTH}/current externals-tmp > /dev/null; \
+	echo "Freezing lib dependencies"; \
+	svnCurrentVersion=`svn info | grep Revision | cut -f 2 -d' '`; \
+	sed "s/$$/ @$${svnCurrentVersion}/" Dependencies > Dependencies.tmp; \
+	svn delete -m "Automated commit - deleting Dependencies" ${THIS_BRANCH_DIR_AUTH}/v$${majorVersion}/Dependencies > /dev/null; \
+	svn import -m "Automated commit - updating Dependencies" Dependencies.tmp ${THIS_BRANCH_DIR_AUTH}/v$${majorVersion}/Dependencies > /dev/null; \
+	rm -f Dependencies.tmp; \
+	echo "Freezing script dependencies"; \
+	echo "sbin/inca @$${svnCurrentVersion}" > version.svn; \
+  svn import -m "Automated commit - version.svn" version.svn ${THIS_BRANCH_DIR_AUTH}/v$${majorVersion}/version.svn > /dev/null; \
+  rm -f version.svn; \
+	echo "Freezing etc/common dependencies"; \
+	echo "etc/common -r$${svnCurrentVersion} ${PROJECT_DEVEL}/common/etc" > externals-tmp; \
+	updateExternals ${THIS_BRANCH_DIR_AUTH}/v$${majorVersion} externals-tmp > /dev/null; \
+	rm -f externals-tmp updateExternals
+
+release:
+	@echo "Creating top level directories if they do not exist"
+	- @svn mkdir -m "Automated commit - mkdir" ${THIS_RELEASE_DIR_AUTH} > /dev/null 2>&1
+	- @svn mkdir -m "Automated commit - mkdir" ${THIS_RELEASE_DIR_AUTH}/current > /dev/null 2>&1
+	svn update > /dev/null
+	@version=`svn info | awk '/Revision: / {print $$2 }'`; \
+	echo "Updating version number to ${majorVersion}.$${version}"; \
+	if ( test `grep minorVersion version` ); then \
+	  cat version | sed "s/minorVersion=.*/minorVersion=$${version}/" > version.tmp; \
+	  mv version.tmp version; \
+	else \
+	  echo "minorVersion=$${version}" >> version; \
+	fi; \
+	svn commit version -m "Automated commit - updating version"; \
+	svn update; \
+	echo "Copying to releases ${THIS_RELEASE_DIR_AUTH}/${NAME}-${majorVersion}.$${version}"; \
+	svn copy . ${THIS_RELEASE_DIR_AUTH}/${NAME}-${majorVersion}.$${version} -m "Automated copy - release"; \
+	echo "Updating current link"; \
+	svn cat ${PROJECT_DEVEL}/common/sbin/updateExternals > updateExternals; \
+	chmod u+x updateExternals; \
+	echo "${NAME} ${THIS_RELEASE_DIR}/${NAME}-${majorVersion}.$${version}" > externals-tmp; \
+	updateExternals ${THIS_RELEASE_DIR_AUTH}/current externals-tmp > /dev/null; \
+	rm -f externals-tmp updateExternals
+
+populate-depends: inca-wrapper
+	@echo ${DEPEND}
+	-@mkdir contrib >> $(LOG) 2>&1
+	-@$(RM_F) MANIFEST
+	modules=`cat Dependencies | tr '\t' ' ' | tr -s ' ' | cut -f 2,4 -d ' ' | tr ' ' '|'`; \
+	for p in $$modules; do \
+	  file=`echo $$p | cut -f 1 -d'|'`; \
+	  version=`echo $$p | cut -f 2 -d'|'`; \
+	  if test "$$file" = "$$version"; then \
+		  version=""; \
+	  fi; \
+		echo Getting $${file}$${version}; \
+	  cd contrib; \
+		svn cat ${PROJECT_CONTRIB}/$${file}.tar.gz$${version} > $${file}.tar.gz; \
+		tar xvzf $${file}.tar.gz;$(RM_F) $${file}.tar.gz; \
+		cd ..; \
+	done 
+	cp Dependencies contrib/Dependencies
+	$(MAKE) manifest >> $(LOG) 2>&1
+	svn cat ${PROJECT_DEVEL}/ChangeLog > ChangeLog
+	svn cat ${PROJECT_DEVEL}/COPYRIGHT > COPYRIGHT
+
+clean-contrib :
+	$(RM_RF) contrib
+
+install-sbin: 
+	if ( test ! -d ${PREFIX}/sbin ); then \
+	  mkdir ${PREFIX}/sbin; \
+	fi
+	for script in ${SBIN_FILES}; do \
+	  $(CP) $${script} $(PREFIX)/sbin; \
+		$(FIXIN) $(PREFIX)/$${script}; \
+	  $(CHMOD) $(PERM_RWX) $(PREFIX)/$${script}; \
+	done
+
+install-etc: 
+	if ( test ! -d ${PREFIX}/etc ); then \
+	  mkdir ${PREFIX}/etc; \
+	fi
+	if ( test ! -d ${PREFIX}/etc/common ); then \
+	  mkdir ${PREFIX}/etc/common; \
+	fi
+	for conf in ${ETC_FILES}; do \
+	  $(CP) $${conf} $(PREFIX)/$${conf}; \
+	  $(CHMOD) $(PERM_RW) $(PREFIX)/$${conf}; \
+	done
+
+inca-wrapper: 
+	for dir in sbin; do \
+	  if ( test ! -d $${dir} ); then \
+	    mkdir $${dir}; \
+	  fi; \
+	done
+	version=""
+	if ( test -f "version.svn" ); then \
+	  version=`grep 'sbin/inca' version.svn | cut -f 2 -d' '`; \
+	fi; \
+	svn cat ${PROJECT_DEVEL}/common/sbin/inca$${version} > sbin/inca
+	-$(NOECHO) $(CHMOD) $(PERM_RWX) sbin/inca
+
+clean-inca-wrapper: 
+	$(RM_F) sbin/inca
+	remaining_files=`ls etc`; \
+	if ( test "$${remaining_files}" = "" ); then \
+	  $(RM_RF) etc; \
+	fi
+
+main-help :
+	@echo "Inca Makefile help for $(NAME)"
+	@echo ""
+	@echo "Target                  Description"
+	@echo "----------------------------------------------------------------------"
+	@echo "<blank>                 Builds module"
+	@echo "devel-help              List targets relevant to developers"
+	@echo "main-help               This message"
+	@echo "install                 Installs files into specified directories"
+	@echo ""
+
+devel-help : main-help
+	@echo "Developers targets"
+	@echo ""
+	@echo "Target                  Description"
+	@echo "----------------------------------------------------------------------"
+	@echo "devel-help              This message"
+	@echo "devel-clean              Invokes distclean and deletes all non-svn checked-in files"
+	@echo "dist                    Create a tar.gz file with this version"
+	@echo "populate-depends        Copy all dependencies out of svn into the contrib dir"
+	@echo "release                 Tag this as an offical release	"
+	@echo "release-candidate       Branch this version as a release candidate"
+	@echo ""
+

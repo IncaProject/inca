@@ -1,0 +1,6 @@
+name: JSON
+version: 2.90
+description: JSON (JavaScript Object Notation) encoder/decoder
+url: http://search.cpan.org/~makamaka/JSON-2.90/
+file: JSON-2.90.tar.gz
+dependencies:

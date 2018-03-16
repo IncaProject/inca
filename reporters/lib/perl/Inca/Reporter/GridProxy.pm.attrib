@@ -1,0 +1,5 @@
+name: Inca::Reporter::GridProxy
+version: 1.0
+description: Inca reporter pseudo-module for reporters that require proxy credentials
+url: http://inca.sdsc.edu
+dependencies:

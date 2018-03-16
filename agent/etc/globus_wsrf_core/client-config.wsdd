@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<deployment name="defaultClientConfig"
+    xmlns="http://xml.apache.org/axis/wsdd/" 
+    xmlns:java="http://xml.apache.org/axis/wsdd/providers/java" 
+    xmlns:wsrp="http://docs.oasis-open.org/wsrf/rp-2"
+    xmlns:wsnt="http://docs.oasis-open.org/wsn/b-2"
+    xmlns:wsbf="http://docs.oasis-open.org/wsrf/bf-2"
+    xmlns:wsa="http://www.w3.org/2005/08/addressing"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    <globalConfiguration>
+        <parameter name="sendXsiTypes" value="true"/>
+        <parameter name="sendMultiRefs" value="true"/>
+        <parameter name="sendXMLDeclaration" value="true"/>
+        
+        <requestFlow>
+            <handler type="java:org.globus.wsrf.handlers.AddressingHandler"/>
+            <handler type="java:org.globus.wsrf.impl.security.authentication.ClientPropertiesHandler"/>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+                <parameter name="className" value="org.globus.wsrf.impl.security.authorization.handlers.SAMLAuthzAssertionHandler"/>
+            </handler>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+                <parameter name="className" value="org.globus.wsrf.impl.security.authentication.securemsg.X509EncryptHandler"/>
+            </handler>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+                <parameter name="className" value="org.globus.wsrf.impl.security.authentication.securemsg.X509SignHandler"/>
+            </handler>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+		<parameter name="className" value="org.globus.wsrf.impl.security.authentication.UsernameHandler"/>
+ 	    </handler>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+                <parameter name="className" value="org.globus.wsrf.impl.security.authentication.secureconv.SecContextHandler"/>
+                <parameter name="authService" value="auto"/>
+            </handler>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+                <parameter name="className" value="org.globus.wsrf.impl.security.authentication.secureconv.GSSHandler"/>
+            </handler>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+                <parameter name="className" value="org.globus.wsrf.impl.security.authorization.TrustedTargetHandler"/>
+            </handler>
+            <handler type="java:org.globus.wsrf.handlers.MessageLoggingHandler"/>
+        </requestFlow>
+
+        <responseFlow>
+            <handler type="java:org.globus.wsrf.handlers.AddressingHandler"/>
+            <handler type="java:org.globus.wsrf.handlers.MessageLoggingHandler"/>
+            <handler type="java:org.apache.axis.handlers.JAXRPCHandler">
+                <parameter name="className" value="org.globus.wsrf.impl.security.authentication.wssec.WSSecurityClientHandler"/>
+            </handler>
+        </responseFlow>
+
+    </globalConfiguration>
+
+    <transport name="http" 
+               pivot="java:org.globus.axis.transport.commons.HTTPSender"/>
+
+    <transport name="https" 
+               pivot="java:org.globus.axis.transport.commons.HTTPSSender"/>
+
+<!--
+    <transport name="http" pivot="java:org.apache.axis.transport.http.HTTPSender">
+        <requestFlow>
+            <handler type="java:org.globus.axis.handlers.HTTP11Handler"/>
+        </requestFlow>
+    </transport>
+-->
+
+    <transport name="local" 
+               pivot="java:org.apache.axis.transport.local.LocalSender">
+       <requestFlow>
+           <handler type="java:org.globus.axis.transport.local.LocalHandler"/>
+       </requestFlow>
+    </transport>
+
+    <transport name="java" 
+        pivot="java:org.apache.axis.transport.java.JavaSender"/>
+
+    <typeMapping 
+        name="TopicExpressionType" 
+        qname="wsnt:TopicExpressionType" 
+        type="java:org.oasis.wsn.TopicExpressionType"
+        deserializer="org.globus.wsrf.encoding.TopicExpressionDeserializerFactory"
+        serializer="org.globus.wsrf.encoding.TopicExpressionSerializerFactory"
+        encodingStyle="" />
+
+    <typeMapping 
+        name=">SetResourceProperties"
+        qname="wsrp:>SetResourceProperties"
+        type="java:org.oasis.wsrf.properties.SetResourceProperties_Element"
+        deserializer="org.globus.wsrf.encoding.AnyListDeserializerFactory"
+        serializer="org.globus.wsrf.encoding.AnyListSerializerFactory"
+        encodingStyle="" />
+
+    <typeMapping 
+        name="QueryExpressionType" 
+        qname="wsrp:QueryExpressionType" 
+        type="java:org.oasis.wsrf.properties.QueryExpressionType"
+        deserializer="org.globus.wsrf.encoding.QueryExpressionDeserializerFactory"
+        serializer="org.globus.wsrf.encoding.QueryExpressionSerializerFactory"
+        encodingStyle="" />
+
+ <typeMapping
+        name="QueryResourcePropertiesResponse"
+        qname="wsrp:QueryResourcePropertiesResponse"
+        type="java:org.oasis.wsrf.properties.QueryResourcePropertiesResponse"
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory"
+        encodingStyle="" />
+        
+    <!-- WS-Addressing Bits -->
+
+    <typeMapping 
+        encodingStyle="" 
+        qname="wsa:EndpointReferenceType" 
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory" 
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        type="java:org.globus.axis.message.addressing.EndpointReferenceType"/>
+
+    <typeMapping
+        encodingStyle=""
+        qname="wsa:ReferenceParametersType"
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory"
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        type="java:org.globus.axis.message.addressing.ReferenceParametersType"/>
+
+ <typeMapping
+        encodingStyle=""
+        qname="wsa:MetadataType"
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory"
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        type="java:org.globus.axis.message.addressing.MetadataType"/>
+
+    <typeMapping 
+        encodingStyle="" 
+        qname="wsa:AttributedURI" 
+        deserializer="org.apache.axis.encoding.ser.SimpleDeserializerFactory"
+        serializer="org.apache.axis.encoding.ser.SimpleSerializerFactory"
+        type="java:org.globus.axis.message.addressing.AttributedURIType" />
+
+    <typeMapping 
+        encodingStyle=""
+        qname="wsa:AttributedQName" 
+        deserializer="org.apache.axis.encoding.ser.SimpleDeserializerFactory"
+        serializer="org.apache.axis.encoding.ser.SimpleSerializerFactory"
+        type="java:org.globus.axis.message.addressing.AttributedQNameType" />
+
+    <typeMapping
+        encodingStyle=""
+        qname="wsa:ServiceNameType"
+        deserializer="org.apache.axis.encoding.ser.SimpleDeserializerFactory"
+        serializer="org.apache.axis.encoding.ser.SimpleSerializerFactory"
+        type="java:org.globus.axis.message.addressing.ServiceNameType" />
+    
+    <!-- WS-BaseFaults Bits -->
+    
+    <typeMapping 
+        encodingStyle=""
+        qname="wsbf:BaseFaultType"
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory"
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        type="java:org.oasis.wsrf.faults.BaseFaultType" />
+        
+      <typeMapping
+        encodingStyle=""
+        serializer="org.globus.wsrf.encoding.FaultCauseSerializerFactory"
+        deserializer="org.globus.wsrf.encoding.FaultCauseDeserializationFactory"
+        type="java:org.oasis.wsrf.faults.BaseFaultTypeFaultCause"
+        qname="bf:>BaseFaultType>FaultCause"
+        xmlns:bf="http://docs.oasis-open.org/wsrf/bf-2"/>        
+
+    <!-- WS Trust and WS Secure Conversation -->
+    <typeMapping 
+        encodingStyle="" 
+        qname="ns1:SecurityContextTokenType" 
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory" 
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        type="java:org.globus.ws.sc.SecurityContextTokenType"
+        xmlns:ns1="http://schemas.xmlsoap.org/ws/2004/04/sc" />
+
+    <typeMapping 
+        encodingStyle="" 
+        qname="ns1:BinaryExchangeType" 
+        deserializer="org.apache.axis.encoding.ser.SimpleDeserializerFactory" 
+        serializer="org.apache.axis.encoding.ser.SimpleSerializerFactory"
+        type="java:org.globus.ws.trust.BinaryExchangeType"
+        xmlns:ns1="http://schemas.xmlsoap.org/ws/2004/04/trust" />
+
+    <!-- targetedXPath -->
+    <typeMapping 
+        encodingStyle="" 
+        deserializer="org.apache.axis.encoding.ser.BeanDeserializerFactory"
+        serializer="org.apache.axis.encoding.ser.BeanSerializerFactory"
+        type="java:org.globus.wsrf.core.query.targetedXPath.TargetedXPathQueryElement"
+        qname="txp:QueryExpressionDialect"
+        xmlns:txp="http://www.globus.org/namespaces/2006/07/TargetedXPath"/>
+
+      <typeMapping
+        encodingStyle=""
+        serializer="org.globus.wsrf.encoding.FaultCauseSerializerFactory"
+        deserializer="org.globus.wsrf.encoding.FaultCauseDeserializationFactory"
+        type="java:org.oasis.wsrf.faults.BaseFaultTypeFaultCause"
+        qname="bf:>BaseFaultType>FaultCause"
+        xmlns:bf="http://docs.oasis-open.org/wsrf/bf-2"/>
+
+</deployment>
+

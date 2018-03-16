@@ -1,0 +1,83 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use File::Basename;
+use strict;
+use warnings;
+use Cwd;
+use POSIX 'EINTR';
+
+my $reporter = new Inca::Reporter::SimpleUnit( 
+  name => 'grid.middleware.globus.unit.xio',
+  url => "http://www.globus.org",
+  version => 7,
+  description => "Runs the xio test from globus distribution",
+  unit_name => "xioTest"
+);
+$reporter->addArg
+  ('timeout', 'terminate the test if it exceeds this many minutes', '60','\d+');
+$reporter->processArgv( @ARGV );
+my $timeout = $reporter->argValue('timeout') * 60; # minutes to seconds
+
+my $dirPre = "/tmp/grid.middleware.globus.unit.xio.";
+my $tmp = $dirPre . $$;
+my $failtmp = $dirPre . "PID";
+mkdir $tmp || $reporter->failPrintAndExit( "could not create $failtmp" );
+$reporter->tempFile($tmp);
+chdir $tmp || $reporter->failPrintAndExit( "could not create $failtmp" );
+my $output = $reporter->loggedCommand
+  ("cp -Rp $ENV{GLOBUS_LOCATION}/test/globus_xio_test .");
+if( $? != 0 ) {
+  $reporter->failPrintAndExit("copy of test dir failed: $output $!");
+}
+chdir('globus_xio_test') ||
+  $reporter->failPrintAndExit("couldn't cd to globus_xio_test");
+
+# remove buggy close-barrier-test.pl from run-all-tests.pl
+open( FD_OLD, "<run-all-tests.pl" );
+open( FD_NEW, ">run-all-tests.pl.new" );
+my $line;
+while ( $line = <FD_OLD> ) {
+  print FD_NEW $line if $line !~ /close-barrier-test\.pl/;
+}
+close FD_OLD;
+close FD_NEW;
+if ( ! rename( "run-all-tests.pl.new", "run-all-tests.pl" ) ) {
+  $reporter->failPrintAndExit
+    ( "Unable to rename run-all-tests.pl.new to run-all-tests.pl" );
+}
+chmod( 0755, "run-all-tests.pl" );
+
+$output = $reporter->loggedCommand("./TESTS.pl", $timeout );
+
+# check for timeout and kill leftover processes if they exist
+if ( $? != 0 && $! == EINTR ) {
+  # kill all processes
+  my @tests = glob( "$ENV{GLOBUS_LOCATION}/test/globus_xio_test/*" );
+  @tests = map( basename($_), @tests );
+  my @ps = `ps -U $ENV{USER} -o pid,args`;
+  for my $test ( @tests ) {
+    my @procs = grep( /$test/, @ps );
+    if ( @procs ) {
+      for my $proc ( @procs ) {
+        my ( $pid ) = $proc =~ /^\s*(\d+)/;
+        $reporter->log( 'debug', "killed test $test, pid=$pid" );
+        kill 9, $pid;
+      }
+    }
+  }
+  $reporter->failPrintAndExit( "xio test exceeded $timeout minutes" );
+}
+
+# cleanup message ??
+$output =~ s/\s/ /g;
+
+# check for failed execution
+if ( $? != 0 ) {
+  $reporter->failPrintAndExit
+    ("test script failed: $! error returned (shortened to 250 chars): " .
+     substr($output, 0, 250));
+}
+
+$reporter->unitSuccess();
+$reporter->print();

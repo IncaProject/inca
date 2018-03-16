@@ -1,0 +1,42 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.netstat.unit',
+  version => 16,
+  description => 'Verifies listening on a port with the "netstat -an | grep $port | grep LISTEN" command',
+  unit_name => 'netstat'
+);
+$reporter->addArg ('port', 'port to grep for in netstat output', '8080');
+$reporter->addArg ('timeout', 'timeout for netstat command in seconds', '30');
+$reporter->processArgv(@ARGV);
+my $port = $reporter->argValue('port');
+my $timeout = $reporter->argValue('timeout');
+
+my $result = 0;
+for( my $i=0; $i<3 && $result==0; $i++ ) {
+  sleep 5;
+  $result = callNetstat($reporter, $port);
+}
+$reporter->print();
+
+sub callNetstat {
+  my $reporter = shift;
+  my $port = shift;
+
+  my $result = 0;
+  my $netstat = "netstat -an | grep $port | grep LISTEN";
+  my $err = "Executed \"$netstat\".  Not listening on port $port.";
+  my $output = $reporter->loggedCommand($netstat, $timeout);
+  if (!defined $output || $output !~ m/(\.|:)$port\s+(\d|\s|\.|\*|:)[^\n]+LISTEN/) {
+    $reporter->unitFailure($err);
+  } else {
+    $reporter->unitSuccess();
+    $result = 1;
+  }
+  $reporter->log('debug', "netstat returned: $output");
+  return $result;
+}

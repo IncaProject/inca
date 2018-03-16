@@ -1,0 +1,6 @@
+name: DBI
+version: 1.609
+description: Database Interface (DBI) module
+url: http://search.cpan.org/~timb/DBI/
+file: DBI-1.609.tar.gz
+dependencies:

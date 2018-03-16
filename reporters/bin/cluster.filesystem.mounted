@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.filesystem.mounted',
+  version => 1,
+  description => 'Checks to see if a directory is mounted on host', 
+  unit_name => 'filesystem_mounted'
+);
+$reporter->addArg('dir', 'directory to check for');
+$reporter->addArg('check', 'check directory for permissions [r][w]', 'r' );
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue('dir');
+my $check = $reporter->argValue('check');
+
+$reporter->failPrintAndExit("directory $dir not found") if ! -d $dir;
+$reporter->failPrintAndExit("directory $dir not readable") 
+  if $check =~ /r/ && ! -r $dir;
+$reporter->failPrintAndExit("directory $dir not writeable") 
+  if $check =~ /w/ && ! -w $dir;
+$reporter->unitSuccess(); 
+$reporter->print();

@@ -1,0 +1,6 @@
+name: DBD::Pg
+version: 2.15.1
+description: PostgreSQL database driver for the DBI module
+url: http://search.cpan.org/~turnstep/DBD-Pg-2.15.1/
+file: DBD-Pg-2.15.1.tar.gz
+dependencies:

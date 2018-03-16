@@ -1,0 +1,41 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use strict;
+use warnings;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.cert.diagnostics.openssl.unit',
+  version => 2,
+  description => 'Verifies rfc2812 compliance of GSI-OpenSSH server',
+  unit_name => 'grid-cert-diagnostics-openssl'
+);
+$reporter->addArg( 'cert', 'Location of the host certificate to verify', '/etc/grid-security/hostcert.pem' );
+$reporter->addArg( 'host', 'DNS name that clients use to connect to the GSI-OpenSSH server' );
+$reporter->processArgv(@ARGV);
+my $cert = $reporter->argValue( 'cert' );
+my $host = $reporter->argValue( 'host' );
+
+my $cmd = "openssl x509 -subject -noout -in $cert";
+my $output = $reporter->loggedCommand( $cmd );
+
+$reporter->failPrintAndExit( "\"$cmd\" failed: $! $output" ) if $? || $output eq '';
+
+my ($dns) = $output =~ /CN=(.[^\s]*)/m;
+
+$reporter->log( 'debug', "CN of the subject DN: $dns" );
+
+if ( $dns ne $host )
+{
+	$cmd = "openssl x509 -text -noout -in $cert | grep -A1 'X509v3 Subject Alternative Name:'";
+	$output = $reporter->loggedCommand( $cmd );
+
+	$reporter->failPrintAndExit( "\"$cmd\" failed: $! $output" ) if $? || $output eq '';
+	$reporter->log( 'debug', "Alternative Names: $output" );
+
+	my ($altdns) = $output =~ /DNS:$host(,|\s+|$)/m;
+	$reporter->failPrintAndExit( "Could not find DNS name \"$host\" for certificate" ) if ! $altdns;
+}
+
+$reporter->unitSuccess();
+$reporter->print();

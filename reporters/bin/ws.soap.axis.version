@@ -1,0 +1,23 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'ws.soap.axis.version',
+  version => 1,
+  description => 'Reports the version of Apache Axis',
+  package_name => 'axis'
+);
+
+$reporter->addArg
+  ( 'axisPath', 'path to axis installation directory', '/opt/axis' );
+$reporter->processArgv(@ARGV);
+my $axisPath = $reporter->argValue( 'axisPath' );
+
+my $classpath = "$axisPath/lib/axis.jar:$axisPath/lib/commons-logging.jar:$axisPath/lib/commons-discovery.jar";
+$reporter->setVersionByExecutable
+  ( "java -classpath $classpath org.apache.axis.Version", 
+    "Apache Axis version: ([\\S\\.]+)" );
+$reporter->print( );

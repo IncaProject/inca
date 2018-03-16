@@ -1,0 +1,38 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.java.sun.version',
+  version => 7,
+  description => 'Reports the version of java',
+  url => 'http://java.sun.com',
+  package_name => 'java'
+);
+$reporter->processArgv(@ARGV);
+
+my $version = $reporter->loggedCommand( "java -version" );
+my ($pre, $ver, $post);
+if ($?) {
+  $reporter->failPrintAndExit("java -version failed: $version $!");
+} elsif ( $version =~ 'Fast VM .build ' )  {
+  ($pre, $ver, $post) = $version =~ m/(Fast VM .build )(.[^,\s]*)(.*)/;
+} elsif ( $version =~ "java version")  {
+  ($pre, $ver, $post) = $version =~ m/(java version \")(.[^\"]*)(.*)/;
+} elsif ( $version =~ "java-")  {
+  $version =~ s/(.|\s)*java-//;
+  ($ver, $post) = $version =~ m/(.[^\s-]*)(.*)/;
+}
+if (!defined $ver) {
+  $reporter->failPrintAndExit("Could not get version information");
+}
+if ($version =~ m/\(SR\d*\)/){
+  my ($cut, $sr, $cut2) = $version =~ m/(.*)SR(\d*)(.*)/;
+  $ver .= "_" . $sr;
+}
+
+$reporter->setPackageVersion($ver);
+$reporter->print();
+exit;

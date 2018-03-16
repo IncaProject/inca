@@ -1,0 +1,219 @@
+#
+# Common makefile targets and variables for Inca Perl components
+#
+
+include Makefile.perl.inc
+include etc/common/Makefile.common
+
+POD2TEST_EXE = pod2test
+
+.PHONY: ${PERL_PKGS} ${AUTOCONF_PKGS}
+
+pm_to_blib: prepare-tests
+
+createtests:
+	@pod2test=`which pod2test`; \
+	if ( test "$${pod2test}" = "" ); then \
+	  $(ECHO) "Unable to locate pod2test"; \
+	  $(ECHO) "Install Test::Inline v0.16 to use createtests"; \
+    exit; \
+	fi; \
+	for file in ${MAN1PODS} ${MAN3PODS} ${SBIN_FILES}; do \
+	  name=`echo $${file} | \
+		tr '/' '-' | \
+		sed 's/\.pm//g' | \
+		sed 's/^lib-//g' | \
+		sed 's/^bin-//g' | \
+	  sed 's/^sbin-//g'`; \
+	  cmd="$${pod2test} $${file} t/$${name}-inlinedtests.t"; \
+		echo $${cmd}; \
+		$${cmd}; \
+	done
+
+prepare-tests:
+	@files=`ls t | grep "\.c"`; \
+	if test -n "$${files}"; then \
+	  for file in t/*.c; do \
+	    execname=`echo $${file} | sed 's/\.c//g'`; \
+	    $(CC) -o $${execname} $${file}; \
+	  done; \
+	fi
+
+clean-tests:
+	@files=`ls t | grep "\.c"`; \
+	if test -n "$${files}"; then \
+	  for file in t/*.c; do \
+	    execname=`echo $${file} | sed 's/\.c//g'`; \
+	    $(ECHO) $(RM_F) $${execname}; \
+	    $(RM_F) $${execname}; \
+	  done; \
+	fi
+
+doc: pod2html wsdl2html
+
+pod2html:
+	if ( test ! -d docs ); then \
+	  mkdir docs; \
+	fi
+	if ( test ! -d docs/${NAME} ); then \
+	  mkdir docs/${NAME}; \
+	fi
+	for file in ${SBIN_FILES} ${EXE_FILES}; do \
+    cp $$file $$file.pod; \
+	done
+	perl -MPod::Simple::HTMLBatch -e 'Pod::Simple::HTMLBatch::go' "lib:bin:sbin" docs/${NAME}
+	for file in ${SBIN_FILES} ${EXE_FILES}; do \
+    rm -f $$file.pod; \
+	done
+
+wsdl2html:
+	@files=`find . -type f -name "*\.wsdl"`; \
+	if test -n "$${files}"; then \
+	  if ( test ! -d docs ); then \
+	    mkdir docs; \
+	  fi; \
+	  if ( test ! -d docs/${NAME} ); then \
+	    mkdir docs/${NAME}; \
+	  fi; \
+	  for file in $${files}; do \
+	    outfile=`basename $${file}`; \
+	    xsltproc etc/common/wsdl-viewer.xsl $${file} > docs/${NAME}/$${outfile%%.wsdl}_wsdl.html; \
+	  done; \
+	fi
+
+clean-doc:
+	$(RM_RF) docs
+
+# remove of build_requires and auto_install is for Curses::UI
+${PERLSTANDARD}:
+	@echo "Install $@ " >> $(LOG)
+	cd contrib; \
+	if ( test -d $@ ); then \
+		echo "Entering $@..."; \
+		cd $@; \
+		echo " configure"; \
+		INSTALLXLIB=""; \
+		if( test "${INSTALLDIRS}" = "perl"); then \
+	    INSTALLXLIB="${INSTALLPRIVLIB}"; \
+	  elif( test "${INSTALLDIRS}" = "site"); then \
+	    INSTALLXLIB="${INSTALLSITELIB}"; \
+	  else \
+	    INSTALLXLIB="${INSTALLVENDORLIB}"; \
+		fi;\
+    grep -v build_requires Makefile.PL|grep -v auto_install > Makefile.PL.t; \
+    mv Makefile.PL.t Makefile.PL; \
+		env PERL5LIB=$${INSTALLXLIB} perl Makefile.PL\
+				 PREFIX=$(PREFIX)\
+				 LIB=$${INSTALLXLIB}\
+				 INSTALLDIRS=$(INSTALLDIRS) \
+				 INSTALLSCRIPT=$(INSTALLSCRIPT) \
+				 INSTALLMAN1DIR=$(INSTALLMAN1DIR) \
+				 INSTALLMAN3DIR=$(INSTALLMAN3DIR) \
+				 EXPATLIBPATH=$(PREFIX)/lib \
+				 EXPATINCPATH=$(PREFIX)/include \
+         INST_ARCHLIB=$(INST_ARCHLIB) \
+         INST_LIB=$(INST_LIB) \
+         INST_BIN=$(INST_BIN) \
+         INST_SCRIPT=$(INST_SCRIPT) \
+         INST_MAN1DIR=$(INST_MAN1DIR) \
+         INST_MAN3DIR=$(INST_MAN3DIR) \
+				 --noprompt < /dev/null >> $(LOG) 2>&1;\
+		perl5lib=""; \
+		if( test -z "${PERL5LIB}" ); then \
+      perl5lib="$${INSTALLXLIB}"; \
+    else \
+      perl5lib="$${INSTALLXLIB}:${PERL5LIB}"; \
+    fi; \
+		echo " $(MAKE) PERL5LIB=$${perl5lib}"; \
+		$(MAKE) PERL5LIB=$${perl5lib} >> $(LOG) 2>&1; \
+		echo " $(MAKE) PERL5LIB=$${perl5lib} install";\
+		$(MAKE) PERL5LIB=$${perl5lib} install >> $(LOG) 2>&1;\
+		echo " done";\
+	fi;\
+	cd ..
+
+${PERLNON}:
+	@echo "Install $@" >> $(LOG)
+	cd contrib;\
+	if( test -d $@ ); then \
+		echo "Entering $@..."; \
+		cd $@; \
+		echo " configure";\
+		if( test "${INSTALLDIRS}" = "perl"); then \
+	    INSTALLXLIB="${INSTALLPRIVLIB}"; \
+	  elif( test "${INSTALLDIRS}" = "site"); then \
+	    INSTALLXLIB="${INSTALLSITELIB}"; \
+	  else \
+	    INSTALLXLIB="${INSTALLVENDORLIB}"; \
+		fi;\
+		env PERL5LIB=$${INSTALLXLIB} perl Build.PL  \
+           --install_path lib=$${INSTALLXLIB} \
+           --install_path libdoc=$(INSTALLMAN3DIR) \
+           --install_path bindoc=$(INSTALLMAN1DIR) \
+           --install_path bin=$(INSTALLSCRIPT) \
+           --install_path script=$(INSTALLSCRIPT) \
+           --install_path arch=$(INST_ARCHLIB) >> $(LOG) 2>&1; \
+		echo " make";\
+		perl -I$${INSTALLXLIB} Build >> $(LOG) 2>&1; \
+		echo " $(MAKE) install";\
+		perl -I$${INSTALLXLIB} Build install >> $(LOG) 2>&1;\
+		echo " done";\
+	fi;\
+	cd ..
+
+${PERLSSL}:
+	@echo "Install $@ " >> $(LOG)
+	cd contrib;\
+	if( test -d $@ ); then \
+		echo "Entering $@..."; \
+		cd $@; \
+		echo n | env PERL5LIB=$(INSTALLPRIVLIB) perl Makefile.PL $${openssl_path} --\
+			 PREFIX=$(PREFIX)\
+			 LIB=$(INSTALLPRIVLIB)\
+			 INSTALLDIRS=$(INSTALLDIRS) \
+			 INSTALLSCRIPT=$(INSTALLSCRIPT) \
+			 INSTALLMAN1DIR=$(INSTALLMAN1) \
+			 INSTALLMAN3DIR=$(INSTALLMAN3) \
+			 EXPATLIBPATH=$(PREFIX)/lib \
+			 EXPATINCPATH=$(PREFIX)/include \
+       INST_ARCHLIB=$(INST_ARCHLIB) \
+       INST_LIB=$(INST_LIB) \
+       INST_BIN=$(INST_BIN) \
+       INST_SCRIPT=$(INST_SCRIPT) \
+       INST_MAN1DIR=$(INST_MAN1DIR) \
+       INST_MAN3DIR=$(INST_MAN3DIR) \
+			 --noprompt >> $(LOG) 2>&1;\
+		echo " $(MAKE)"; \
+		$(MAKE) >> $(LOG) 2>&1; \
+		echo " $(MAKE) install";\
+		$(MAKE) install >> $(LOG) 2>&1;\
+		echo " done";\
+	fi;\
+	cd ..
+
+${PERLINCAREPORTER}:
+	@echo "Install $@ " >> $(LOG)
+	cd contrib; \
+	if( test -d incareporters ); then \
+	  echo "Copying files..."; \
+	  cp -r incareporters/bin/* $(PREFIX)/bin; \
+	  cp -r incareporters/lib/perl/* $(PREFIX)/lib/perl; \
+		echo " done"; \
+  fi; \
+	cd ..
+
+${AUTOCONF}:
+	@echo "Install $@ " >> $(LOG)
+	cd contrib;\
+	if( test -d $@ ); then \
+		echo "Entering $@..."; \
+		cd $@; \
+		echo " configure";\
+		./configure --prefix=${PREFIX} --disable-shared >> $(LOG) 2>&1;\
+		echo " make";\
+		$(MAKE) >> $(LOG) 2>&1; \
+		echo " $(MAKE) install";\
+		$(MAKE) install >> $(LOG) 2>&1;\
+		echo " done";\
+	fi;\
+	cd ..

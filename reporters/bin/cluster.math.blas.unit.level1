@@ -1,0 +1,157 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $CHECKTIME = 60; # * 5; # 5 mins
+my $MAXTIME = (60 * 60 * 24) - 60; # 23 hours 59 mins
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.math.blas.unit.level1',
+  version => 10,
+  description => 'This test runs the level1 tests on blas',
+  url => 'http://www.netlib.org/blas/index.html',
+  unit_name => 'blasLevel1'
+);
+$reporter->addDependency('blasTestSuite');
+$reporter->addArg('compiler', 'compiler to use', 'g77');
+$reporter->addArg('compiler_opts', 'options to pass to the compiler', '', '|.*');
+$reporter->addArg('link', 'linking options to send to compiler', '-lblas');
+$reporter->addArg('queue', 'specify the executables should run on batch node (loadleveler only supported currently)', 'no' );
+$reporter->processArgv(@ARGV);
+my $compiler = $reporter->argValue('compiler');
+my $compiler_opts = $reporter->argValue('compiler_opts');
+my $link = $reporter->argValue('link');
+my $queue = $reporter->argValue('queue');
+
+$ENV{CFLAGS} = $compiler_opts;
+$ENV{FC} = $compiler;
+$ENV{F77} = $compiler;
+$ENV{LINK} = $link;
+$ENV{TESTS} = 'cblat1 dblat1 sblat1 zblat1';
+
+# TODO: The Inca RM should tell the reporter where to find the installation,
+# rather than the reporter knowing implicitly.
+my $workdir = cwd();
+my $dirPre = "/tmp/blas-level1.";
+my $SRC = $dirPre . $$;
+my $failSrc = $dirPre . "PID";
+$reporter->failPrintAndExit("mkdir $failSrc failed")
+  if !mkdir($SRC);
+$reporter->tempFile($SRC);
+$reporter->failPrintAndExit("chdir $failSrc failed")
+  if !chdir($SRC);
+$reporter->loggedCommand
+  ("cp $workdir/var/reporter-packages/build/blasTestSuite.tar* .");
+$reporter->loggedCommand
+  ("gunzip -f blasTestSuite.tar.gz; tar xvf blasTestSuite.tar");
+my $tmp = $SRC . "/blasTestSuite";
+$reporter->failPrintAndExit("cd to $failSrc/blasTestSuite failed")
+  if !chdir($tmp);
+$reporter->loggedCommand("./configure");
+my $output = $reporter->loggedCommand("make tests");
+
+my $cwd = getcwd();
+## submit thu the queue if needed and put the results in the current dir
+if ( $queue ne "no" ) {
+  my $submitfile = "
+#!/usr/bin/ksh
+#@ environment = COPY_ALL;
+#@ job_name = blas.unit.level1.$$
+#@ job_type = bluegene
+#@ comment = 'cluster.math.blas.unit.level1'
+#@ bg_partition = bot64-1
+#@ initialdir = $cwd
+#@ error = blas.level1.$$.err
+#@ output = blas.level1.$$.out
+#@ notify_user = inca\@sdsc.edu
+#@ notification = error
+#@ input = /dev/null
+#@ class = parallel
+#@ wall_clock_limit = 00:15:00
+#@ queue
+ 	 
+for exec in $ENV{TESTS}; do
+  mpirun -np 1 -exe \$exec -cwd $cwd > $cwd/\$exec.out 2> $cwd/\$exec.err
+  echo $? > $cwd/\$exec.exitCode
+done
+";
+ 	 
+  if ( ! open( FD, ">blas1.submit" ) ) {
+    $reporter->failPrintAndExit( "Unable to write submit file" );
+  }
+  print FD $submitfile;
+  close FD;
+  my $out = $reporter->loggedCommand( "llsubmit blas1.submit" );
+  if ( $? != 0 ) {
+    $reporter->failPrintAndExit
+      ( "Problem submitting job to loadleveler: $out $!" );
+  }
+  my ( $jobid ) = $out =~ /llsubmit: The job \"(\S+)\"/;
+  if ( ! defined $jobid ) {
+    $reporter->failPrintAndExit( "Unable to extract job id from $out" );
+  }
+  my $queuetime = time();
+  my $jobdone = 0;
+  while( ! $jobdone ) {
+    my $elapsed = time() - $queuetime;
+    if ( time() - $queuetime > $MAXTIME ) {
+      $reporter->loggedCommand( "llcancel $jobid" );
+      $reporter->failPrintAndExit
+        ( "blas job did not complete within time limit 23:59" );
+    }
+    my $out = $reporter->loggedCommand( "llq -f \%id \%st | grep $jobid" );
+    if ( $? == 0 ) {
+      my ($status) = $out =~ /^\S+\s+(\S)/;
+      if ( defined $status && $status !~ /C|CA|SX|TX|V|VP|X|XP/ ) { # assume it is still running
+        sleep( $CHECKTIME );
+      } else {
+        $jobdone = 1;
+      }
+    }
+  }
+}
+
+if($? != 0) {
+  $reporter->failPrintAndExit
+    ("Error during compilation: '$!' output: '$output'");
+# the make is fine now run the tests
+} elsif ($queue eq "no") {
+  $reporter->unitSuccess();
+  foreach my $test(split(/\s/, $ENV{TESTS})) {
+    $output = $reporter->loggedCommand("./$test");
+    $reporter->failPrintAndExit
+      ("Error during execution of $test: '$!' output: '$output'")
+      if $? != 0;
+  }
+} else {
+# if we get here, job must have completed or errored
+  for my $prog ( split / /, $ENV{TESTS} ) {
+    if ( -f "$cwd/$prog.exitCode" ) {
+      open( EC, "<$cwd/$prog.exitCode" );
+      my $exitCode = <EC>;
+      chomp( $exitCode );
+      close EC;
+      if ( $exitCode != 0 ) {
+        local $/;
+        my $outerr = "";
+        for my $type ( qw(out err) ) {
+          if ( -f "$cwd/$prog.$type" ) {
+            open( FD, "$cwd/$prog.$type" );
+            $outerr .= <FD>;
+            close FD;
+          }
+        }
+        $reporter->failPrintAndExit
+          ("Error during execution of $prog; output: $outerr");
+      }
+    } else {
+      $reporter->failPrintAndExit
+        ("No output returned from job; unable to determine blas functionality");
+    }
+  }
+}
+
+$reporter->print();

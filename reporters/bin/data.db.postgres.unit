@@ -1,0 +1,111 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.db.postgres.unit',
+  version => 4,
+  description => 'Executes Postgres test suite',
+  unit_name => 'postgres'
+);
+
+$reporter->addDependency('postgres');
+$reporter->addArg( "host", "db host", "hogatha.sdsc.edu" );
+$reporter->addArg( "port", "db port", "5432" );
+$reporter->addArg( "db", "db name", "teragrid" );
+$reporter->addArg( "user", "db user", "inca_checkpg" );
+$reporter->addArg( "timeout", " how long in seconds before check timeout", "30" );
+$reporter->addArg( "verify", "list of hosts used to verify general network connectivity", "" );
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue( "host" );
+my $port = $reporter->argValue( "port" );
+my $db = $reporter->argValue( "db" );
+my $user = $reporter->argValue( "user" );
+my $timeout = $reporter->argValue( "timeout" );
+my @verifiers = split(/\s+/, $reporter->argValue( "verify" ));
+
+# dependency on postgres test suite
+my $incadir = $ENV{INSTALL_DIR};
+chomp($incadir);
+if ( ! -f "$incadir/build/postgres.tar" &&
+     ! -f "$incadir/build/postgres.tar.gz" ) {
+  $reporter->failPrintAndExit( "Unable to locate postgres.tar* in $incadir/build");
+}
+my $origDir = getcwd();
+my $SRC = "/tmp/inca-postgres.$$";
+`rm -fr $SRC` if -e $SRC;
+failClean("mkdir $SRC failed")
+  if !mkdir($SRC);
+$reporter->tempFile($SRC);
+failClean("chdir $SRC failed")
+  if !chdir($SRC);
+$reporter->loggedCommand("cp $incadir/build/postgres.tar* .");
+$reporter->loggedCommand("gunzip -f postgres.tar.gz; tar xvf postgres.tar");
+my $tmp = $SRC . "/check_postgres-2.9.1";
+failClean("can't cd to $tmp")
+  if !chdir($tmp);
+$reporter->loggedCommand("./check_postgres.pl --symlinks");
+if($?){
+  failClean("Couldn't make test suite symlinks");
+}
+
+my $connect = "-H $host -p $port -db $db -dbuser $user";
+my $connect_test = "./check_postgres_connection -t $timeout $connect";
+my $connect_output = $reporter->loggedCommand($connect_test);
+if($? || ($connect_output !~ /POSTGRES_CONNECTION OK/s)) {
+  if (verifyConnectivity(\@verifiers)) {
+    failClean("Connect test failed: $connect_output");
+  }
+  else {
+    $reporter->failPrintAndExit("Inca error: network connectivity problem detected on source host");
+  }
+}
+$reporter->log("debug", "Connect test output: $connect_output");
+$reporter->unitSuccess();
+chdir($origDir);
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  my $pid = $$;
+  $err =~ s/$pid/PID/g;
+  chdir($origDir);
+  $reporter->failPrintAndExit($err);
+}
+
+sub verifyConnectivity {
+  my @verifiers = @{$_[0]};
+  my $numVerifiers = scalar(@verifiers);
+
+  if ($numVerifiers == 0) {
+    return 1;
+  }
+
+  my $pingOpts = "-q -c 5";
+  my $pingOutput = $reporter->loggedCommand("ping $pingOpts $verifiers[0]", 60);
+
+  if ($? != 0 && $pingOutput =~ /Bad option/) {
+    $pingOpts = "-n 5";
+
+    $reporter->loggedCommand("ping $pingOpts $verifiers[0]", 60);
+  }
+
+  my $index = 0;
+
+  while (1) {
+    if ($? == 0) {
+      return 1;
+    }
+
+    if (++$index >= $numVerifiers) {
+      last;
+    }
+
+    $reporter->loggedCommand("ping $pingOpts $verifiers[$index]", 60);
+  }
+
+  return 0;
+}

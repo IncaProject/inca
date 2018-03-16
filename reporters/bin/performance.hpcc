@@ -1,0 +1,268 @@
+#!/usr/bin/env perl
+
+###############################################################################
+
+=head1 NAME
+
+performance.hpcc - Execute HPCC over a set of input files
+
+=head1 DESCRIPTION
+
+This reporter executes HPCC on a machine and reports the results.  It 
+requires a set of HPCC input files and the location of HPCC.  For
+usage information, type
+
+performance.hpcc -help -verbose=0
+
+=cut
+
+###############################################################################
+
+#=============================================================================#
+# Usage
+#=============================================================================#
+
+# pragmas
+use strict;
+use warnings;
+
+# Inca
+use Inca::Reporter::Performance;
+
+# Perl standard
+use File::Path;
+use Sys::Hostname;
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+my @FIELDS = ( 
+  "Running on",
+  "HPL_Tflops",
+  "PTRANS_GBs",
+  "^Gflop/s",
+  "MPIRandomAccess_GUPs",
+  "StarSTREAM_Triad",
+  "StarDGEMM_Gflops",
+  "RandomlyOrderedRingBandwidth_GBytes",
+  "RandomlyOrderedRingLatency_usec" );
+my %RENAMES = ( 
+  "Running on" => "Cores",
+  "HPL_Tflops" => "G-HPL_TFlop_s",
+  "PTRANS_GBs" => "G-PTRANS_GB_s",
+  "^Gflop/s" => "G-FFTE_Gup_s",
+  "MPIRandomAccess_GUPs" => "G-Random_Access_GFlop_s",
+  "StarSTREAM_Triad" => "EP-STREAM_Triad_GB_s",
+  "StarDGEMM_Gflops" => "EP-DGEMM_GFlop_s",
+  "RandomlyOrderedRingBandwidth_GBytes" => "Random_Ring_Bandwidth_GB_s",
+  "RandomlyOrderedRingLatency_usec" => "Random_Ring_Latency_usecs"
+);
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#-----------------------------------------------------------------------------#
+# addStats( $reporter, $id, $elapsed )
+#
+# Read in a HPCC output file (hpccoutf.txt), parse the results, and add
+# the appropriate statistics to the $reporter object.  Assumes hpccoutf.txt
+# exists.
+#
+# Arguments:
+#
+# reporter   A performance reporter object
+#
+# id         The id for the particular HPCC run result (e.g., 008, 016)
+#
+# elapsed    The amount of time for HPCC to run (secs)
+#-----------------------------------------------------------------------------#
+sub addStats {
+  my $reporter = shift;
+  my $id = shift;
+  my $elapsed = shift;
+
+  my $benchmark = $reporter->addNewBenchmark( $id );
+  $benchmark->setStatistic( "Wall_Mins", sprintf("%.3f", $elapsed / 60.0) );
+
+  my $GHz = $reporter->argValue('procGHz');
+	if ( $GHz eq '' ) {
+    my @cpuinfo = `cat /proc/cpuinfo | grep "cpu MHz"`;
+    my $MHz;
+    if ( scalar(@cpuinfo) < 1 ) {
+      $reporter->failPrintAndExit("Cannot find cpu speed");
+    } else {
+      ($MHz)= $cpuinfo[0] =~ /([\d\.]+)$/;
+    }
+    $GHz = $MHz / 1000;
+  }
+  $benchmark->setStatistic( "ProcSpeed_GHz", sprintf("%.2f", $GHz) );
+  
+  my %VALUES;
+  open( FD, "<hpccoutf.txt" ) or return 0;
+  my $hpl_tflops;
+  my $num_cores;
+  while( <FD> ) {
+    for my $field ( @FIELDS ) {
+      if ( /$field/ ) {
+        my ( $value ) = /([\d\.]+)/;
+        $VALUES{$field} = $value;
+        $hpl_tflops = $value if ( $field eq "HPL_Tflops" );
+        $num_cores = $value if ( $field eq "Running on" );
+      }
+    }
+  }
+  close FD;
+  for my $field ( @FIELDS ) {
+    if ( ! exists $VALUES{$field} ) {
+      $reporter->log( 'warn', "Unable to find field $field" );
+      next;
+    }
+    my $printField = $field;
+    $printField = $RENAMES{$field} if exists $RENAMES{$field};
+    if ( $field eq "StarSTREAM_Triad" ) {
+      $benchmark->setStatistic( "G-STREAM_Triad_GB_s", sprintf("%.3f", $VALUES{$field} * $num_cores) );
+    }
+    $benchmark->setStatistic( $printField, sprintf("%.3f", $VALUES{$field}) );
+  }
+  if ( ! defined $num_cores ) {
+    $reporter->log( 'warn', "Unable to find num cores" );
+  } else {
+    my $theoretical = ($GHz * $num_cores * 4) / 1000;
+    my $percent = ($hpl_tflops / $theoretical) * 100;
+    $benchmark->setStatistic( "HPL_percent", sprintf("%.3f", $percent) );
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# backupResults( $reporter, $backupDir )
+#
+# Copy over input and output files to remote location
+#
+# Arguments:
+#
+# reporter   A performance reporter object
+#
+# backupDir  Path to backup dir ( host:path )
+#-----------------------------------------------------------------------------#
+sub backupResults {
+  my $reporter = shift;
+  my $backupDir = shift;
+
+  my $saveFilename = "hpcc." . hostname() . "." . time() . "." . $$ . ".tar";
+  `tar cvf ../$saveFilename *; gzip ../$saveFilename`;
+  if ( $? != 0 ) {
+    $reporter->failPrintAndExit("Error tarring/zipping up outputfiles: $!") ;
+  }
+  `scp ../$saveFilename.gz $backupDir`;
+  if ( $? == 0 ) {
+    $reporter->log("info", "Saved results $saveFilename.gz to $backupDir" );
+  } else {
+    $reporter->log("error", "Error copying results to $backupDir: $!" );
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# prepareHpccDir( $reporter, $id )
+#
+# Prepare a temporary run directory for a set of HPCC runs.  Creates a 
+# a temporary directory, fetches the tar.gz of input files, and unpacks.
+#
+# Arguments:
+#
+# reporter   A performance reporter object
+#
+# runDir     A path to a temporary run directory name
+#-----------------------------------------------------------------------------#
+sub prepareHpccDir {
+  my $reporter = shift;
+  my $runDir = shift;
+  
+  my $keepfiles = $reporter->argValue('keepfiles') eq 'false' ? 0 : 1;
+  # TODO:  add addRuntimeDependency to base reporter class
+  my $hpccConfigUrl = $reporter->argValue('hpccConfigUrl'); 
+  mkpath($runDir) or $reporter->failPrintAndExit("Unable to create $runDir");
+  $reporter->tempFile($runDir) if ! $keepfiles;
+  chdir $runDir or $reporter->failPrintAndExit("Unable to change to $runDir");
+  $reporter->loggedCommand( "wget -O hpccinf.txt $hpccConfigUrl" );
+  if ( $? != 0 || ! -f "hpccinf.txt" ) {
+    $reporter->failPrintAndExit( "Unable to download $hpccConfigUrl" );
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# runHpcc( $reporter, $hpcc, $size )
+#
+# Run HPCC using the specified hpcc executable and size.
+#
+# Arguments:
+#
+# reporter   A performance reporter object
+#
+# hpcc       Path to HPCC executable
+#
+# size       Size of HPCC run
+#-----------------------------------------------------------------------------#
+sub runHpcc {
+  my $reporter = shift;
+  my $hpcc = shift;
+
+  my $mpirun = $reporter->argValue('mpirun');
+  my $cmd = "$mpirun $hpcc";
+  my $stime = time();
+  my $out = $reporter->loggedCommand( $cmd );
+  my $etime = time() - $stime;
+	sleep( 60 );  # give one minute for outputfile to get written
+  if ( ! -f "hpccoutf.txt" ) {
+    $reporter->failPrintAndExit( "No output file hpccoutf.txt found: $out" );
+  }
+  `grep "End of HPC Challenge tests" hpccoutf.txt`;
+  if ( $? != 0 ) {
+    $reporter->failPrintAndExit( "No output in hpccoutf.txt: $out" );
+  } 
+  return $etime;
+}
+
+#=============================================================================#
+# Main
+#=============================================================================#
+my $reporter = new Inca::Reporter::Performance(
+  name => 'performance.hpcc',
+  version => '7',
+  description => 'Executes a set of HPCC runs and reports the results', 
+  url => 'http://inca.ucsd.edu',
+  short => 1,
+  measurement_name => 'hpcc'
+);
+
+# read and parse arguments
+$reporter->addArg('backupDir', 'Scp results to remote dir (assumes passwordless keys)', '');
+$reporter->addArg('hpcc', 'path to HPCC');
+$reporter->addArg('hpccConfigUrl', 'url to targz containing hpcc input files');
+$reporter->addArg( 'keepfiles', 'keep files around', 'false', 'false|true' );
+$reporter->addArg( 'mpirun', 'MPI run command', 'mpirun -np 8' );
+$reporter->addArg( 'procGHz', 'Provide processor speed in GHz.  Default speed is from /proc/cpuinfo', '' );
+$reporter->addArg( 'size', 'number of nodes' );
+$reporter->processArgv(@ARGV);
+my $hpcc = $reporter->argValue('hpcc');
+if ( ! -f $hpcc || ! -x $hpcc ) {
+  $reporter->failPrintAndExit("$hpcc path to hpcc executable is invalid") ;
+}
+if ( ! exists $ENV{INSTALL_DIR} ) {
+  $reporter->failPrintAndExit("Env variable INSTALL_DIR not defined") ;
+}
+my $size = $reporter->argValue('size');
+my $runDir = "$ENV{INSTALL_DIR}/tmp/performance.hpcc.$$";
+
+# run HPCC
+prepareHpccDir( $reporter, $runDir );
+my $etime = runHpcc( $reporter, $hpcc );
+addStats( $reporter, $size, $etime );
+my $backupDir =  $reporter->argValue('backupDir');
+backupResults( $reporter, $backupDir ) if $backupDir ne "";
+
+# print result
+$reporter->setResult(1);
+$reporter->print();
+

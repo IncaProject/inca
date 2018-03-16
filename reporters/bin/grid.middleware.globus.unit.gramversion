@@ -1,0 +1,40 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit( 
+  name => 'grid.middleware.globus.unit.gramversion',
+  version => 10, 
+  description => 'Verifies that the GRAM Service Container is up and responding and that the specific scheduler type is available.  Executes "wsrf-get-property -s $service -k {http://www.globus.org/namespaces/2004/10/gram/job}ResourceID $scheduler {http://mds.globus.org/metadata/2005/02}ServiceMetaDataInfo"', 
+  unit_name => 'gram_version' 
+); 
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('host', 'Hostname to query');
+$reporter->addArg('scheduler', 'Scheduler to query');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+my $scheduler = $reporter->argValue('scheduler');  # e.g. "PBS"
+my $service = "https://" . $host . "/wsrf/services/ManagedJobFactoryService";
+
+my $cmd = "wsrf-get-property -s \"$service\" -k \"{http://www.globus.org/namespaces/2004/10/gram/job}ResourceID\" $scheduler \"{http://mds.globus.org/metadata/2005/02}ServiceMetaDataInfo\"";
+
+my $err = "";
+my $output = $reporter->loggedCommand($cmd);
+if($?) {
+  $err .= "wsrf-get-property failed: $output $!";
+} elsif ($output =~ /ommand not found/) {
+  $err .= "wsrf-get-property failed: $output";
+}
+
+if ($err ne ""){
+  my $uptime = $reporter->loggedCommand("uptime");
+  $reporter->log("info", "Uptime: $uptime");
+  $reporter->log("debug", "wsrf-get-property output: $output");
+  $err =~ s/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d+/xxxx-xx-xx xx:xx:xx,x/g;
+  $reporter->failPrintAndExit($err);
+} else {
+  $reporter->unitSuccess();
+  $reporter->print();
+}

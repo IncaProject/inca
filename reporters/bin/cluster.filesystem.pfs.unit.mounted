@@ -1,0 +1,27 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.filesystem.pfs.unit.mounted',
+  version => 3,
+  description =>
+    'Checks to see if a filesystem of supplied type is mounted on host by running mount -l -t [type]',
+  url => 'http://www.teragrid.org/userinfo/guide_environment.html',
+  unit_name => 'filesystem_mounted'
+);
+$reporter->addArg('type', 'Filesystem type to test', 'nfs');
+$reporter->processArgv(@ARGV);
+my $type = $reporter->argValue('type');
+
+my $output = $reporter->loggedCommand("mount -l -t $type");
+if($?) {
+  $reporter->unitFailure("mount -l -t $type failed: $output $!");
+} elsif($output eq '') {
+  $reporter->unitFailure("No $type filesystems are currently mounted");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

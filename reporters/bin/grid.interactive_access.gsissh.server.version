@@ -1,0 +1,36 @@
+#!/usr/bin/env perl
+ 
+use strict; 
+use warnings; 
+use Inca::Reporter::Version; 
+ 
+my $reporter = new Inca::Reporter::Version(
+  name => "grid.interactive_access.gsissh.server.version",
+  version => 2,
+  description => "Reports GSI-SSH version",
+  package_name => "gsissh",
+);
+$reporter->addArg("host", "gsissh host");
+$reporter->addArg("port", "gsissh port", "22");
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue("host");
+my $port = $reporter->argValue("port");
+
+my $output = $reporter->loggedCommand("echo exit | sleep 5 | telnet $host $port");
+my ($whole_ver) = $output =~ /(SSH.*)$/m;
+$reporter->log("info", "Version string parsed '$whole_ver'");
+my ($ssh_ver) = $whole_ver =~ /OpenSSH_([\d\.p]+)/;
+$reporter->setSubpackageVersion("OpenSSH", $ssh_ver);
+my ($hpn_ver) = $whole_ver =~ /hpn_?([\dv]+)/i;
+if ($hpn_ver) {
+  $reporter->setSubpackageVersion("HPN", $hpn_ver);
+}
+my ($nmod_ver) = $whole_ver =~ /nmod_?([\d\.]+)/i;
+if ($nmod_ver) {
+  $reporter->setSubpackageVersion("NMOD", $nmod_ver);
+}
+my ($gss_ver) = $whole_ver =~ /GSI_GSSAPI_(\S+)/i;
+if ($gss_ver) {
+  $reporter->setSubpackageVersion("GSI_GSSAPI", $gss_ver);
+}
+$reporter->print();

@@ -1,0 +1,340 @@
+#!/usr/bin/perl
+
+###############################################################################
+
+=head1 NAME
+
+reporter-instance-manager - Executes a single reporter on a resource
+
+=head1 DESCRIPTION
+
+The Reporter Instance Manager (RIM) is responsible for launching a
+reporter instance and monitoring its execution. It will request the
+reporter from the Reporter Administrator (who will download it if not
+available locally) and then fork/exec it. The RIM monitors system usage
+of the reporter (CPU time, wall clock time, and memory) and if it
+exceeds a specified timeout set for either wall clock  time, CPU time,
+or memory, it will kill the reporter and formulate an  error report.
+Otherwise upon reporter exit, the RIM will gather stderr, stdout, usage
+statistics, and the depot list and send it  to the Depot. The envelope
+is sent to the first available Depot in its list where the data will
+then get passed to all interested  parties.
+:
+=head1 SYNOPSIS
+
+reporter-instance-manager [options] 
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<-c|--cert>
+
+A path to a valid certificate file [default: none]
+
+=item B<-C|--context>
+
+Add an execution context to the reporter containing setup to be done before
+execution and/or cleanup to be done afterward.
+
+=item B<-d|--depot>
+
+A string containing the URI of a depot to send its reporter data to.
+Currently accepted URIs include:
+
+incas://host:port
+inca://host:port
+file://path
+
+This option can be specified more than once.  The report will be sent to the
+first specified depot.  If the first depot is unreacheable, the next depots in
+the list will be tried.
+
+=item B<-D|--depot-timeout>
+
+A positive integer indicating the period in seconds of which to time out the
+send of a report to the depot [default: 120]
+
+=item B<-e|--error-reporter>
+
+A string containing a path to the error reporter.  E.g., inca-null-reporter  
+
+=item B<-i|--id>
+
+The resource identifier supplied by the reporter agent that the reporter
+manager will use to identify itself to the depot.
+
+=item B<-I|--target-id>
+
+The identifier for the target resource of this series that the agent 
+will pass to the depot
+
+=item B<-l|--logfile>
+
+A string containing a path to the file where the log messages can be stored.
+If not specified, log messages will be printed to the console.
+
+=item B<-L|--level>
+
+A string containing the log message level (i.e., print statements of this
+level and higher).  [default: INFO]
+
+=item B<-h|--help>
+
+Print help/usage information
+
+=item B<-k|--key>
+
+A path to a valid key file [default: none]
+
+=item B<-m|--memory>
+
+A positive integer indicating the maximum megabytes of memory the reporter
+should consume before killing it.
+
+=item B<-N|--name>
+
+Name of the reporter to be executed
+
+=item B<-n|--niced>
+
+Lower the execution priority of the reporter by invoking the reporter with the
+Unix nice command 
+
+=item B<-p|--path>
+
+A string containing the path to the reporter to execute
+
+=item B<-P|--passphrase>
+
+Read a passphrase for key from stdin 
+
+=item B<-r|--reporter-cache>
+
+A string containing the path to the local cache of reporters. 
+
+=item B<-s|--suspend>
+
+A string describing when to suspend execution of the reporters when system
+load is high.  Format is load[1,5,15]>[number]. 
+
+=item B<-t|--trusted>
+
+A path to either a directory or file of trusted certificates [default: none]
+
+=item B<-T|--cpuTime>
+
+A positive integer indicating the maximum period in cpu seconds the reporter
+should run before killing it.
+
+=item B<-v|--var>
+
+A string containing a path to a temporary file space that Inca can use while
+executing reporters
+
+=item B<-V|--version>
+
+A string containing the version of the reporter
+
+=item B<-w|--wait>
+
+A positive integer indicating the period in seconds of which to check the
+reporter for a timeout [default: 2]
+
+=item B<-W|--wallTime>
+
+A positive integer indicating the maximum period in seconds the reporter
+should run before killing it.
+
+=back
+
+=head1 EXAMPLES
+
+reporter-instance-manager --id=resourceA --path="t/echo_report" --context="echo_report" --name=echo_report --niced=0 --wait=5 --depot=$file_depot --depot-timeout=120 --error-reporter="bin/inca-null-reporter" --reporter-cache="t" --var="/tmp" --version="1"
+
+=begin testing
+
+  use Cwd;
+  use File::Spec;
+  use Inca::Logger;
+  use Inca::Net::MockDepot;
+  my $file_depot = "file://" . File::Spec->catfile( getcwd(), "depot.tmp.$$" );
+
+  # sequential
+  `sbin/reporter-instance-manager --id=resourceA --path="t/echo_report" --context="echo_report" --name=echo_report --niced=0 --wait=5 --depot=$file_depot --depot-timeout=120 --error-reporter="bin/inca-null-reporter" --reporter-cache="t" --var="/tmp" --version="1" --wallTime=300 --cpuTime=60 --memory=50 -level=ERROR`;
+  my $depot = new Inca::Net::MockDepot;
+  ok( 
+    $depot->readReportsFromFile( "./depot.tmp.$$", 0 ), 
+    "report read from ./depot.tmp.$$" 
+  );
+  is( $depot->getNumReports(), 1, "Received 1 report" );
+
+  # test ssl
+  use Inca::IO;
+  use Inca::Net::Protocol::Statement;
+  my $port = 8518;
+  my @instances = ( 
+    "sbin/reporter-instance-manager --id=resourceA --path='t/echo_report' --name=echo_report --context='echo_report' --niced=0 --wait=5 --depot=incas://localhost:$port --depot-timeout=120 --error-reporter='bin/inca-null-reporter' --reporter-cache='t' --var='/tmp' --version=1 --cert=t/certs/client_ca1cert.pem --key=t/certs/client_ca1keynoenc.pem --trusted=t/certs/trusted -level=ERROR", 
+    "sbin/reporter-instance-manager --id=resourceA --target-id=resourceB --path='t/echo_report' --name=echo_report --context='echo_report' --niced=0 --wait=5 --depot=incas://localhost:$port --depot-timeout=120 --error-reporter='bin/inca-null-reporter' --reporter-cache='t' --var='/tmp' --version=1 --cert=t/certs/client_ca1cert.pem --key=t/certs/client_ca1keynoenc.pem --trusted=t/certs/trusted -level=ERROR", 
+    "echo test | sbin/reporter-instance-manager --id=resourceA --path='t/echo_report' --name=echo_report --context='echo_report' --niced=0 --wait=5 --depot=incas://localhost:$port --depot-timeout=120 --error-reporter='bin/inca-null-reporter' --reporter-cache='t' --var='/tmp' --version=1 --cert=t/certs/client_ca1cert.pem --key=t/certs/client_ca1key.pem --trusted=t/certs/trusted --passphrase -level=ERROR" 
+  );
+  my $pid;
+  for ( my $i = 0; $i <= $#instances; $i++ ) {
+    if ( $pid = fork() ) {
+      my $depot = new Inca::Net::MockDepot();
+      $depot->readReportsFromSSL( 1, $port, "ca1", "t/certs/trusted" );
+      is( $depot->getNumReports(), 1, "Received 1 report" );
+      ok( $depot->{lastTargetResource} =~ /resourceB/, "found target resource" ) if ( $i == 1 );
+    } else {
+      exec $instances[$i];
+    }
+  }
+
+=end testing
+
+=cut
+
+###############################################################################
+
+#=============================================================================#
+# Usage
+#=============================================================================#
+use strict;
+use warnings;
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
+use Pod::Usage;
+use Inca::Constants qw(:defaults);
+use Inca::Logger;
+use Inca::Config::Suite::SeriesConfig;
+use Inca::ReporterManager::ReporterCache;
+use Inca::ReporterManager::ReporterInstanceManager;
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+our ( $VERSION ) = '$Revision: 1.5 $' =~ 'Revision: (.*) ';
+
+my %DEFAULT_ARGS = ( 'depot' => [],
+                     'depot-timeout' => $DEFAULT_DEPOT_TIMEOUT,
+                     'level' => "INFO",
+                     'var' => '/tmp',
+                     'wait' => $DEFAULT_CHECK_PERIOD );
+                     
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+my %args = %DEFAULT_ARGS;
+GetOptions( \%args, "agent|a=s", "cert|c=s", "context|C=s", "depot|d=s", 
+                    "depot-timeout|D=i", "error-reporter|e=s", "help|h", 
+                    "id|i=s", "target-id|I=s", "key|k=s", "logfile|l=s", "level|L=s", 
+                    "memory|m=f", "niced|n=i", "name|N=s", "path|p=s", 
+                    "passphrase|P", "reporter-cache|r=s", "suspend|S=s", 
+                    "trusted|t=s", "cpuTime|T=f", "var|v=s", "version|V=s", 
+                    "wait|w=i", "wallTime|W=f" );
+
+if ( exists $args{help} ) {
+  pod2usage(1);
+}
+
+my $logLevel = $args{'level'};
+if ( ! exists $args{'logfile'} ) {
+  Inca::Logger->screen_init( $logLevel );
+} else {
+  Inca::Logger->file_init( $logLevel, File::Spec->rel2abs($args{'logfile'}) );
+}
+my $logger = Inca::Logger->get_logger( "reporter-instance-manager" );
+
+if ( ! exists $args{'reporter-cache'} ) {
+  die "No local cache for reporters specified.  Type $0 -help for usage details";
+}
+if ( ! -d $args{'reporter-cache'} ) {
+  die "Local reporter cache directory not a directory";
+}
+if ( ! exists $args{'error-reporter'} ) {
+  die "Path to error reporter not specified. Type $0 -help for usage details";
+}
+if ( ! -x $args{'error-reporter'} ) {
+  die "Path to error reporter $args{'error-reporter'} is not executable";
+}
+if ( scalar @{$args{depot}} < 1 ) {
+  die "No depots specified.  Type $0 -help for usage details";
+}
+if ( ! exists $args{'path'} ) {
+  die "path to reporter not specified. Type $0 -help for usage details";
+}
+if ( ! exists $args{'name'} ) {
+  die "name of reporter not specified. Type $0 -help for usage details";
+}
+if ( ! exists $args{'id'} ) {
+  die "Resource id not specified. Type $0 -help for usage details";
+}
+if ( ! exists $args{'version'} ) {
+  die "version not specified. Type $0 -help for usage details";
+}
+
+my $rc = new Inca::ReporterManager::ReporterCache( $args{'reporter-cache'} );
+$rc->setErrorReporterPath( $args{'error-reporter'} );
+
+my $sc = new Inca::Config::Suite::SeriesConfig(
+  path => $args{path},
+  name => $args{name},
+  version => $args{version},
+);
+$sc->setTargetResource( $args{'target-id'} ) if exists $args{'target-id'};
+$sc->setNiced( $args{niced} ) if exists $args{niced};
+if ( exists $args{context} ) {
+  $sc->setContext( $args{context} ) 
+} elsif ( exists $args{C} ) {
+  $sc->setContext( $args{C} ) 
+}
+$sc->getArgumentsFromCmdLine( @ARGV );
+my $limits = {};
+$limits->{cpuTime} = $args{"cpuTime"} if exists $args{"cpuTime"};
+$limits->{wallClockTime} = $args{"wallTime"} if exists $args{"wallTime"};
+$limits->{memory} = $args{"memory"} if exists $args{"memory"};
+$sc->setLimits( $limits );
+
+my $credentials = {};
+for my $part ( qw(cert key trusted) ) {
+  $credentials->{$part} = $args{$part} if exists $args{$part};
+}
+my $passphrase = undef;
+if ( exists $args{key} && exists $args{"passphrase"} ) {
+  $passphrase = <STDIN>;
+  chomp( $passphrase );
+  $credentials->{passphrase} = $passphrase;
+} else {
+  $credentials->{passphrase} = undef;
+}
+
+my $rim = new Inca::ReporterManager::ReporterInstanceManager(
+  config => $sc,
+  checkPeriod => $args{'wait'},
+  depotURIs => $args{depot},
+  depotTO => $args{'depot-timeout'},
+  id => $args{id},
+  reporterCache => $rc,
+  tmpDir => $args{var}
+);
+$rim->setAgent( $args{agent} ) if exists $args{agent};
+$rim->setCredentials( $credentials );
+$rim->setSuspend( $args{suspend} ) if exists $args{suspend};
+$rim->runReporter( );
+
+exit(0); # ensure we exit with 0 when there are no errors
+
+
+__END__
+
+=head1 AUTHOR
+
+Shava Smallen <ssmallen@sdsc.edu>
+
+=cut
+

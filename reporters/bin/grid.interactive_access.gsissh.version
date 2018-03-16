@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'grid.interactive_access.gsissh.version',
+  version => 2,
+  description => 'Reports the version of GSI-SSH',
+  url => 'http://grid.ncsa.uiuc.edu/ssh/',
+  package_name => 'gsissh'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByGptQuery('gsi_openssh');
+# trim off the excess version number
+foreach my $id($reporter->getSubpackageNames()) {
+  $reporter->getSubpackageVersion($id) =~ m#GSI-OpenSSH ((\d|\.)+) /.*#;
+  $reporter->setSubpackageVersion($id, $1);
+}
+$reporter->print();

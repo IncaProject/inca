@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="ArgSignature" table="INCAARGSIGNATURE" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native" />
+    </id>
+
+    <!-- properties -->
+    <property name="signature" column="incasignature" type="string"
+              length="4000" not-null="true" unique="true"/>
+
+    <!-- relations to other tables -->
+    <set name="args" table="INCAARGS" lazy="false">
+      <key>
+        <column name="incaargs_id" not-null="true"/>
+      </key>
+      <many-to-many class="edu.sdsc.inca.depot.persistent.Arg"
+                    column="incainput_id"/>
+    </set>
+
+  </class>
+</hibernate-mapping>

@@ -1,0 +1,90 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+	name => 'grid.middleware.genesisii.job.unit',
+	version => 1,
+	description => 'Submits a simple job to a GFFS queue',
+	unit_name => 'gffs_job'
+);
+$reporter->addArg( 'queue', 'Queue to submit job to', '/resources/xsede.org/queues/globalQ' );
+$reporter->processArgv( @ARGV );
+my $queue = $reporter->argValue( 'queue' );
+
+my $scratchDir = "/tmp/genesisii.job.unit.$$";
+if ( ! mkdir( $scratchDir ) ) 
+{
+	failClean( "Cannot mkdir scratch dir $scratchDir" );
+}
+$reporter->tempFile( $scratchDir );
+if ( ! chdir( $scratchDir ) ) 
+{
+	failClean( "Cannot change to scratch dir $scratchDir" );
+}
+
+createJSDL( );
+
+my $cmd = "grid qsub $queue local:ls.jsdl";
+my $out = $reporter->loggedCommand( $cmd );
+if ( $? )
+{
+	failClean( "Could not submit job: $out $!" );
+}
+my ( $pre, $ticket, $post );
+( $pre, $ticket, $post ) = $out =~ m/(Job Submitted.  Ticket is ")(.*)(".*)$/;
+$reporter->log( 'debug', $ticket );
+
+# grid qlist $queue
+$cmd = "grid qkill $queue $ticket";
+$out = $reporter->loggedCommand( $cmd );
+if ( $? )
+{
+	failClean( "Could not kill job: $out $!" );
+}
+$cmd = "grid qcomplete $queue --all";
+$out = $reporter->loggedCommand( $cmd );
+if ( $? )
+{
+	failClean( "Could not complete all jobs: $out $!" );
+}
+
+$reporter->unitSuccess();
+$reporter->print();
+exit;
+
+sub failClean 
+{
+	my $err = shift;
+	$err =~ s/$$/PID/g;
+	$reporter->failPrintAndExit( $err );
+}
+
+sub createJSDL
+{
+	open( my $fh, '>', 'ls.jsdl' );
+	print $fh '<?xml version="1.0" ?>
+<JobDefinition xmlns="http://schemas.ggf.org/jsdl/2005/11/jsdl">
+	<JobDescription>
+		<JobIdentification>
+			<JobName>Ls Test</JobName>
+		</JobIdentification>
+		<Resources>
+			<OperatingSystem>
+				<OperatingSystemType>
+					<OperatingSystemName>LINUX</OperatingSystemName>
+				</OperatingSystemType>
+			</OperatingSystem>
+		</Resources>
+		<Application xmlns:genii="http://vcgr.cs.virginia.edu/jsdl/genii">>
+			<POSIXApplication xmlns="http://schemas.ggf.org/jsdl/2005/11/jsdl-posix">
+				<Executable>/bin/ls</Executable>
+				<Output>local:/N/home/i/n/inca/Mason/incaReporterManager/var/reporter-packages/bin/ls.out</Output>
+			</POSIXApplication>
+		</Application>
+	</JobDescription>
+</JobDefinition>';
+	close $fh;
+}

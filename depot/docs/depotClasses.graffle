@@ -1,0 +1,2307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CanvasColor</key>
+	<dict>
+		<key>w</key>
+		<string>1</string>
+	</dict>
+	<key>ColumnAlign</key>
+	<integer>1</integer>
+	<key>ColumnSpacing</key>
+	<real>36</real>
+	<key>GraphDocumentVersion</key>
+	<integer>4</integer>
+	<key>GraphicsList</key>
+	<array>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>70</integer>
+			</dict>
+			<key>ID</key>
+			<integer>111</integer>
+			<key>Points</key>
+			<array>
+				<string>{690, 673.542}</string>
+				<string>{522, 434}</string>
+				<string>{554, 31.6194}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>88</integer>
+				<key>Info</key>
+				<integer>7</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>85</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>110</integer>
+			<key>Points</key>
+			<array>
+				<string>{690, 722}</string>
+				<string>{553, 563}</string>
+				<string>{538, 300}</string>
+				<string>{556, 208.329}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>88</integer>
+				<key>Info</key>
+				<integer>9</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{85, 323}, {414, 120}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>108</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.SuiteDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + SuiteDAO()\
++ loadSuiteFromDB(suite : edu.sdsc.inca.depot.persistent.Suite) : edu.sdsc.inca.depot.persistent.Suite\
++ saveSuiteToDB(suite : edu.sdsc.inca.depot.persistent.Suite) : edu.sdsc.inca.depot.persistent.Suite\
++ executeSuiteActions(suite : edu.sdsc.inca.depot.persistent.Suite) : edu.sdsc.inca.depot.persistent.Suite\
++ createSuite(suiteXml : java.io.Reader) : edu.sdsc.inca.depot.persistent.Suite}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{86, 10}, {412, 312}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>109</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.513424, -0.494546}</string>
+						<string>{-0.517781, 0.34811}</string>
+					</array>
+					<key>Style</key>
+					<dict>
+						<key>fill</key>
+						<dict>
+							<key>Color</key>
+							<dict>
+								<key>b</key>
+								<string>0.901961</string>
+								<key>g</key>
+								<string>0.901961</string>
+								<key>r</key>
+								<string>0.901961</string>
+							</dict>
+						</dict>
+					</dict>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.Suite}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ADD : java.lang.String\
++ DELETE : java.lang.String\
++ SUSPEND : java.lang.String\
++ UNSUSPEND : java.lang.String}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + Suite(name : java.lang.String, guid : java.lang.String, description : java.lang.String)\
++ Suite(guid : java.lang.String)\
++ Suite(name : java.lang.String, guid : java.lang.String, description : java.lang.String, version : int, reportSeriesConfig : java.util.Set)\
++ Suite()\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ getName() : java.lang.String\
++ setName(name : java.lang.String)\
++ getGuid() : java.lang.String\
++ setGuid(guid : java.lang.String)\
++ getDescription() : java.lang.String\
++ setDescription(description : java.lang.String)\
++ getVersion() : int\
++ setVersion(version : int)\
++ incrementVersion()\
++ getReportSeriesConfig() : java.util.Set\
++ setReportSeriesConfig(reportSeriesConfig : java.util.Set)\
++ addReportSeriesconfig(rsc : edu.sdsc.inca.depot.persistent.ReportSeriesConfig)\
++ equals(other : java.lang.Object) : boolean\
++ hashCode() : int}</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>107</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{37, 718}, {490, 48}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>YES</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>105</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ScheduleDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ScheduleDAO()\
++ createSchedule(sched : edu.sdsc.inca.dataModel.util.Schedule) : edu.sdsc.inca.depot.persistent.Schedule}</string>
+						</dict>
+					</array>
+					<key>Wrap</key>
+					<string>NO</string>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{37, 490}, {490, 228}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>106</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.578334, -0.541506}</string>
+					</array>
+					<key>Style</key>
+					<dict>
+						<key>fill</key>
+						<dict>
+							<key>Color</key>
+							<dict>
+								<key>b</key>
+								<string>0.901961</string>
+								<key>g</key>
+								<string>0.901961</string>
+								<key>r</key>
+								<string>0.901961</string>
+							</dict>
+						</dict>
+					</dict>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.Schedule}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + Schedule()\
++ Schedule(min : java.lang.String, hour : java.lang.String, month : java.lang.String, mday : java.lang.String, wday : java.lang.String, type : java.lang.String, numOccurs : int)\
++ getMinute() : java.lang.String\
++ setMinute(minute : java.lang.String)\
++ getMonth() : java.lang.String\
++ setMonth(month : java.lang.String)\
++ getMday() : java.lang.String\
++ setMday(mday : java.lang.String)\
++ getWday() : java.lang.String\
++ setWday(wday : java.lang.String)\
++ getType() : java.lang.String\
++ setType(type : java.lang.String)\
++ getNumOccurs() : java.lang.Integer\
++ setNumOccurs(numOccurs : java.lang.Integer)\
++ getHour() : java.lang.String\
++ setHour(hour : java.lang.String)}</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>104</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{63, 1298}, {527, 156}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>102</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ReportSeriesDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ReportSeriesDAO()\
++ loadReportSeriesFromDB(rs : edu.sdsc.inca.depot.persistent.ReportSeries) : edu.sdsc.inca.depot.persistent.ReportSeries\
++ getNumReports(rs : edu.sdsc.inca.depot.persistent.ReportSeries) : int\
++ saveOrLoadReportSeries(rs : edu.sdsc.inca.depot.persistent.ReportSeries) : edu.sdsc.inca.depot.persistent.ReportSeries\
++ saveReportSeriesToDB(rs : edu.sdsc.inca.depot.persistent.ReportSeries) : edu.sdsc.inca.depot.persistent.ReportSeries\
++ saveOrUpdateReportSeries(rs : edu.sdsc.inca.depot.persistent.ReportSeries) : edu.sdsc.inca.depot.persistent.ReportSeries\
++ createReportSeries(rs : edu.sdsc.inca.dataModel.util.ReportSeries) : edu.sdsc.inca.depot.persistent.ReportSeries}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{63, 925}, {527, 372}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>103</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.506192, -0.223436}</string>
+						<string>{-0.504644, 0.297604}</string>
+						<string>{-0.501548, 0.199482}</string>
+						<string>{-0.503096, 0.362782}</string>
+						<string>{-0.501496, -0.48131}</string>
+					</array>
+					<key>Style</key>
+					<dict>
+						<key>fill</key>
+						<dict>
+							<key>Color</key>
+							<dict>
+								<key>b</key>
+								<string>0.4</string>
+								<key>g</key>
+								<string>0.8</string>
+								<key>r</key>
+								<string>1</string>
+							</dict>
+						</dict>
+					</dict>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ReportSeries}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ReportSeries(hostname : java.lang.String, setup : java.lang.String, cleanup : java.lang.String, uri : java.lang.String, argSignature : edu.sdsc.inca.depot.persistent.ArgSignature)\
++ ReportSeries(hostname : java.lang.String, setup : java.lang.String, cleanup : java.lang.String, uri : java.lang.String)\
++ ReportSeries()\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ setArgs(args : java.util.Set)\
++ getArgs() : java.util.Set\
++ addArg(arg : edu.sdsc.inca.depot.persistent.Arg)\
++ getSetup() : java.lang.String\
++ setSetup(setup : java.lang.String)\
++ getCleanup() : java.lang.String\
++ setCleanup(cleanup : java.lang.String)\
++ getUri() : java.lang.String\
++ setUri(uri : java.lang.String)\
++ getName() : java.lang.String\
++ setName(name : java.lang.String)\
++ getHostname() : java.lang.String\
++ setHostname(hostname : java.lang.String)\
++ getReports() : java.util.Collection\
++ setReports(reports : java.util.Collection)\
++ addReport(report : edu.sdsc.inca.depot.persistent.Report)\
++ getArgSignature() : edu.sdsc.inca.depot.persistent.ArgSignature\
++ setArgSignature(argSignature : edu.sdsc.inca.depot.persistent.ArgSignature)\
++ getReportSeriesConfig() : java.util.Set\
++ setReportSeriesConfig(reportSeriesConfig : java.util.Set)\
++ addReportSeriesConfig(rsc : edu.sdsc.inca.depot.persistent.ReportSeriesConfig)\
++ equals(other : java.lang.Object) : boolean\
++ hashCode() : int}</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>101</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{35, 1928}, {523, 168}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>99</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ReportDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + s_numReportsThreshold : int}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ReportDAO()\
++ loadReportFromDB(rs : edu.sdsc.inca.depot.persistent.ReportSeries, body : java.lang.String, completed : java.lang.Boolean, version : java.lang.String, exitMessage : java.lang.String, stderr : java.lang.String) : edu.sdsc.inca.depot.persistent.Report\
++ createReport(reportXML : java.io.Reader, uri : java.lang.String, sysusage : java.lang.String, stderr : java.lang.String, setup : java.lang.String, cleanup : java.lang.String) : edu.sdsc.inca.depot.persistent.Report\
++ loadReportFromDB(report : edu.sdsc.inca.depot.persistent.Report) : edu.sdsc.inca.depot.persistent.Report\
++ saveOrLoadReport(report : edu.sdsc.inca.depot.persistent.Report) : edu.sdsc.inca.depot.persistent.Report\
++ saveReportToDB(report : edu.sdsc.inca.depot.persistent.Report) : edu.sdsc.inca.depot.persistent.Report\
++ compareAndNotify(report : edu.sdsc.inca.depot.persistent.Report)\
++ convertToBean(ii : edu.sdsc.inca.depot.persistent.InstanceInfo) : edu.sdsc.inca.dataModel.report.ReportDocument.Report}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{35, 1603}, {523, 324}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>100</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.525424, 0.120837}</string>
+						<string>{-0.502825, 0.193795}</string>
+						<string>{-0.560735, 0.424069}</string>
+						<string>{-0.509887, -0.487907}</string>
+					</array>
+					<key>Style</key>
+					<dict>
+						<key>fill</key>
+						<dict>
+							<key>Color</key>
+							<dict>
+								<key>b</key>
+								<string>0.4</string>
+								<key>g</key>
+								<string>0.8</string>
+								<key>r</key>
+								<string>1</string>
+							</dict>
+						</dict>
+					</dict>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.Report}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + Report(version : java.lang.String, exit_status : java.lang.Boolean, exit_message : java.lang.String, body : java.lang.String, reportSeries : edu.sdsc.inca.depot.persistent.ReportSeries, instances : java.util.Set)\
++ Report()\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ getVersion() : java.lang.String\
++ setVersion(version : java.lang.String)\
++ getExit_status() : java.lang.Boolean\
++ setExit_status(exit_status : java.lang.Boolean)\
++ setExit_status(exit_status : boolean)\
++ getExit_message() : java.lang.String\
++ setExit_message(exit_message : java.lang.String)\
++ getBody() : java.lang.String\
++ setBody(body : java.lang.String)\
++ getReportSeries() : edu.sdsc.inca.depot.persistent.ReportSeries\
++ setReportSeries(reportSeries : edu.sdsc.inca.depot.persistent.ReportSeries)\
++ getInstances() : java.util.Set\
++ setInstances(instances : java.util.Set)\
++ addInstance(instance : edu.sdsc.inca.depot.persistent.InstanceInfo)\
++ getStderr() : java.lang.String\
++ setStderr(stderr : java.lang.String)\
++ getCurrentInstance() : edu.sdsc.inca.depot.persistent.InstanceInfo\
++ setCurrentInstance(currentInstance : edu.sdsc.inca.depot.persistent.InstanceInfo)\
++ equals(other : java.lang.Object) : boolean\
++ hashCode() : int}</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>98</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{673, 1729}, {444, 96}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>96</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ComparisonResultDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ComparisonResultDAO()\
++ loadComparisonResultFromDB(ii : edu.sdsc.inca.depot.persistent.InstanceInfo, rsc : edu.sdsc.inca.depot.persistent.ReportSeriesConfig) : edu.sdsc.inca.depot.persistent.ComparisonResult\
++ saveComparisonResultToDB(cr : edu.sdsc.inca.depot.persistent.ComparisonResult) : edu.sdsc.inca.depot.persistent.ComparisonResult}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{673, 1596}, {444, 132}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>YES</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>97</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.538136, -0.489343}</string>
+						<string>{-0.526836, 0.223292}</string>
+						<string>{-0.525424, 0.394324}</string>
+					</array>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ComparisonResult}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ComparisonResult()\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ getResult() : java.lang.String\
++ setResult(result : java.lang.String)\
++ getInstance() : edu.sdsc.inca.depot.persistent.InstanceInfo\
++ setInstance(instance : edu.sdsc.inca.depot.persistent.InstanceInfo)\
++ getReportSeriesConfig() : edu.sdsc.inca.depot.persistent.ReportSeriesConfig\
++ setReportSeriesConfig(reportSeriesConfig : edu.sdsc.inca.depot.persistent.ReportSeriesConfig)}</string>
+						</dict>
+					</array>
+					<key>Wrap</key>
+					<string>NO</string>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>95</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{674, 1449}, {451, 132}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>93</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ArgSignatureDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ArgSignatureDAO()\
++ loadArgSignatureFromDB(signature : java.lang.String) : edu.sdsc.inca.depot.persistent.ArgSignature\
++ loadArgSignatureFromDB(argSig : edu.sdsc.inca.depot.persistent.ArgSignature) : edu.sdsc.inca.depot.persistent.ArgSignature\
++ loadOrSaveArgSignature(argSig : edu.sdsc.inca.depot.persistent.ArgSignature) : edu.sdsc.inca.depot.persistent.ArgSignature\
++ saveArgSignatureToDB(argSig : edu.sdsc.inca.depot.persistent.ArgSignature) : edu.sdsc.inca.depot.persistent.ArgSignature}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{674, 1269}, {451, 180}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>94</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.519293, 0.220339}</string>
+						<string>{-0.551749, -0.502118}</string>
+					</array>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ArgSignature}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ArgSignature(inputs : java.util.Set)\
++ ArgSignature()\
++ ArgSignature(signature : java.lang.String)\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ getSignature() : java.lang.String\
++ setSignature() : java.lang.String\
++ setSignature(signature : java.lang.String)\
++ getArgs() : java.util.Set\
++ setArgs(args : java.util.Set)\
++ addArg(arg : edu.sdsc.inca.depot.persistent.Arg)\
++ equals(other : java.lang.Object) : boolean\
++ hashCode() : int}</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>92</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{667, 1125}, {465, 120}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>90</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ArgDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ArgDAO()\
++ createArg(arg : edu.sdsc.inca.dataModel.util.Args.Arg) : edu.sdsc.inca.depot.persistent.Arg\
++ getStringFromArgSet(args : java.util.Set) : java.lang.String\
++ loadArgFromDB(name : java.lang.String, value : java.lang.String) : edu.sdsc.inca.depot.persistent.Arg\
++ loadArgFromDB(arg : edu.sdsc.inca.depot.persistent.Arg) : edu.sdsc.inca.depot.persistent.Arg\
++ saveArgToDB(arg : edu.sdsc.inca.depot.persistent.Arg) : edu.sdsc.inca.depot.persistent.Arg\
++ loadOrSaveArg(arg : edu.sdsc.inca.depot.persistent.Arg) : edu.sdsc.inca.depot.persistent.Arg}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{668, 956}, {463, 168}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>91</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.528361, -0.485753}</string>
+					</array>
+					<key>Style</key>
+					<dict>
+						<key>fill</key>
+						<dict>
+							<key>Color</key>
+							<dict>
+								<key>b</key>
+								<string>0.4</string>
+								<key>g</key>
+								<string>0.8</string>
+								<key>r</key>
+								<string>1</string>
+							</dict>
+						</dict>
+					</dict>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.Arg}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + Arg()\
++ Arg(rawInput : java.lang.String)\
++ Arg(name : java.lang.String, value : java.lang.String)\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ getName() : java.lang.String\
++ setName(name : java.lang.String)\
++ getValue() : java.lang.String\
++ setValue(value : java.lang.String)\
++ toString() : java.lang.String\
++ equals(other : java.lang.Object) : boolean\
++ hashCode() : int}</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>89</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{690, 811}, {418, 84}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>87</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ReportSeriesConfigDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ReportSeriesConfigDAO()\
++ attemptMapping(rsc : edu.sdsc.inca.depot.persistent.ReportSeriesConfig) : boolean\
++ loadReportSeriesConfigFromDB(rsc : edu.sdsc.inca.depot.persistent.ReportSeriesConfig)\
++ saveReportSeriesConfigToDB(curr : edu.sdsc.inca.depot.persistent.ReportSeriesConfig) : edu.sdsc.inca.depot.persistent.ReportSeriesConfig}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{690, 450}, {418, 360}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>88</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.513132, -0.490144}</string>
+						<string>{-0.547257, -0.230397}</string>
+						<string>{-0.578854, -0.162892}</string>
+						<string>{-0.518188, -0.0792446}</string>
+						<string>{-0.539674, -0.0146747}</string>
+						<string>{-0.551049, 0.0631025}</string>
+						<string>{-0.545993, 0.132075}</string>
+						<string>{-0.626881, 0.239202}</string>
+						<string>{-0.528299, 0.27002}</string>
+					</array>
+					<key>Style</key>
+					<dict>
+						<key>fill</key>
+						<dict>
+							<key>Color</key>
+							<dict>
+								<key>b</key>
+								<string>0.901961</string>
+								<key>g</key>
+								<string>0.901961</string>
+								<key>r</key>
+								<string>0.901961</string>
+							</dict>
+						</dict>
+					</dict>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.ReportSeriesConfig}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + ReportSeriesConfig()\
++ ReportSeriesConfig(timeout : edu.sdsc.inca.depot.persistent.Timeout, schedule : edu.sdsc.inca.depot.persistent.Schedule, acceptedOutput : edu.sdsc.inca.depot.persistent.AcceptedOutput)\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ getRawSeries() : edu.sdsc.inca.depot.persistent.PotentialReportSeries\
++ setRawSeries(rawSeries : edu.sdsc.inca.depot.persistent.PotentialReportSeries)\
++ getSuite() : edu.sdsc.inca.depot.persistent.Suite\
++ setSuite(suite : edu.sdsc.inca.depot.persistent.Suite)\
++ getSeries() : edu.sdsc.inca.depot.persistent.ReportSeries\
++ setSeries(series : edu.sdsc.inca.depot.persistent.ReportSeries)\
++ getResults() : java.util.Set\
++ setResults(results : java.util.Set)\
++ getLatestResult() : edu.sdsc.inca.depot.persistent.ComparisonResult\
++ setLatestResult(latestResult : edu.sdsc.inca.depot.persistent.ComparisonResult)\
++ getTimeout() : edu.sdsc.inca.depot.persistent.Timeout\
++ setTimeout(timeout : edu.sdsc.inca.depot.persistent.Timeout)\
++ getSchedule() : edu.sdsc.inca.depot.persistent.Schedule\
++ setSchedule(schedule : edu.sdsc.inca.depot.persistent.Schedule)\
++ getAcceptedOutput() : edu.sdsc.inca.depot.persistent.AcceptedOutput\
++ setAcceptedOutput(acceptedOutput : edu.sdsc.inca.depot.persistent.AcceptedOutput)\
++ getActivated() : int\
++ setActivated(activated : int)\
++ getDeactivated() : int\
++ setDeactivated(deactivated : int)\
++ getAction() : java.lang.String\
++ setAction(action : java.lang.String)}</string>
+						</dict>
+					</array>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>86</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>Group</string>
+			<key>Graphics</key>
+			<array>
+				<dict>
+					<key>Bounds</key>
+					<string>{{556, 371}, {431, 60}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>Vertical</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>84</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.AcceptedOutputDAO}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + AcceptedOutputDAO()\
++ createAcceptedOutput(aoXmlObj : edu.sdsc.inca.dataModel.util.AcceptedOutput) : edu.sdsc.inca.depot.persistent.AcceptedOutput}</string>
+						</dict>
+					</array>
+				</dict>
+				<dict>
+					<key>Bounds</key>
+					<string>{{556, 202}, {431, 168}}</string>
+					<key>Class</key>
+					<string>MultiTextGraphic</string>
+					<key>FitText</key>
+					<string>YES</string>
+					<key>Flow</key>
+					<string>Resize</string>
+					<key>ID</key>
+					<integer>85</integer>
+					<key>ListOrientation</key>
+					<string>Vertical</string>
+					<key>Magnets</key>
+					<array>
+						<string>{-0.556051, -0.514158}</string>
+						<string>{-0.51479, 0.418383}</string>
+					</array>
+					<key>Style</key>
+					<dict>
+						<key>fill</key>
+						<dict>
+							<key>Color</key>
+							<dict>
+								<key>b</key>
+								<string>0.901961</string>
+								<key>g</key>
+								<string>0.901961</string>
+								<key>r</key>
+								<string>0.901961</string>
+							</dict>
+						</dict>
+					</dict>
+					<key>TextList</key>
+					<array>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.AcceptedOutput}</string>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+						</dict>
+						<dict>
+							<key>Align</key>
+							<integer>0</integer>
+							<key>Text</key>
+							<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + AcceptedOutput()\
++ AcceptedOutput(body : java.lang.String, exitMessage : java.lang.String, completed : boolean)\
++ getBody() : java.lang.String\
++ setBody(body : java.lang.String)\
++ getErrorMessage() : java.lang.String\
++ setErrorMessage(errorMessage : java.lang.String)\
++ getCompleted() : java.lang.Boolean\
++ setCompleted(completed : java.lang.Boolean)\
++ getComparitor() : java.lang.String\
++ setComparitor(comparitor : java.lang.String)\
++ getNotification() : edu.sdsc.inca.depot.persistent.Notification\
++ setNotification(notification : edu.sdsc.inca.depot.persistent.Notification)}</string>
+						</dict>
+					</array>
+					<key>Wrap</key>
+					<string>NO</string>
+				</dict>
+			</array>
+			<key>ID</key>
+			<integer>83</integer>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>106</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>82</integer>
+			<key>Points</key>
+			<array>
+				<string>{690, 698.684}</string>
+				<string>{120, 711}</string>
+				<string>{527, 686}</string>
+				<string>{37, 497.259}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>88</integer>
+				<key>Info</key>
+				<integer>8</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>109</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>81</integer>
+			<key>Points</key>
+			<array>
+				<string>{690, 579.347}</string>
+				<string>{612, 476}</string>
+				<string>{44, 443}</string>
+				<string>{86, 15.7359}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>88</integer>
+				<key>Info</key>
+				<integer>3</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>103</integer>
+			</dict>
+			<key>ID</key>
+			<integer>80</integer>
+			<key>Points</key>
+			<array>
+				<string>{690, 602.473}</string>
+				<string>{425, 862}</string>
+				<string>{101.45, 925}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>88</integer>
+				<key>Info</key>
+				<integer>4</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>88</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>79</integer>
+			<key>Points</key>
+			<array>
+				<string>{86, 270.881}</string>
+				<string>{55, 443}</string>
+				<string>{382, 460}</string>
+				<string>{690, 458.064}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>1</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>109</integer>
+				<key>Info</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>97</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>78</integer>
+			<key>Points</key>
+			<array>
+				<string>{597, 2103.16}</string>
+				<string>{583, 1836}</string>
+				<string>{625, 1690}</string>
+				<string>{673, 1601.98}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>1</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>69</integer>
+				<key>Info</key>
+				<integer>3</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>69</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>77</integer>
+			<key>Points</key>
+			<array>
+				<string>{673, 1689.97}</string>
+				<string>{640, 1798}</string>
+				<string>{597, 1860.14}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>97</integer>
+				<key>Info</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>100</integer>
+				<key>Info</key>
+				<integer>4</integer>
+			</dict>
+			<key>ID</key>
+			<integer>76</integer>
+			<key>Points</key>
+			<array>
+				<string>{597, 2077.52}</string>
+				<string>{574, 1865}</string>
+				<string>{549, 1564}</string>
+				<string>{35, 1609.98}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>69</integer>
+				<key>Info</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>69</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>75</integer>
+			<key>Points</key>
+			<array>
+				<string>{35, 1827.44}</string>
+				<string>{58, 1548}</string>
+				<string>{550, 1600}</string>
+				<string>{597, 1860.14}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>1</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>100</integer>
+				<key>Info</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>94</integer>
+				<key>Info</key>
+				<integer>2</integer>
+			</dict>
+			<key>ID</key>
+			<integer>74</integer>
+			<key>Points</key>
+			<array>
+				<string>{63, 1220.69}</string>
+				<string>{114, 1559}</string>
+				<string>{608, 1548}</string>
+				<string>{674, 1277.1}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>0</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>103</integer>
+				<key>Info</key>
+				<integer>2</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>91</integer>
+			</dict>
+			<key>ID</key>
+			<integer>73</integer>
+			<key>Points</key>
+			<array>
+				<string>{63, 1028.9}</string>
+				<string>{77, 813}</string>
+				<string>{537, 801}</string>
+				<string>{668, 962.774}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>1</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>103</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>100</integer>
+				<key>Info</key>
+				<integer>4</integer>
+			</dict>
+			<key>ID</key>
+			<integer>72</integer>
+			<key>Points</key>
+			<array>
+				<string>{63, 1184.98}</string>
+				<string>{35, 1609.98}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>1</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>103</integer>
+				<key>Info</key>
+				<integer>3</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Class</key>
+			<string>LineGraphic</string>
+			<key>Head</key>
+			<dict>
+				<key>ID</key>
+				<integer>91</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+			<key>ID</key>
+			<integer>71</integer>
+			<key>Points</key>
+			<array>
+				<string>{674, 1397.19}</string>
+				<string>{616, 1149}</string>
+				<string>{668, 962.774}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>stroke</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>1</string>
+						<key>g</key>
+						<string>0</string>
+						<key>r</key>
+						<string>1</string>
+					</dict>
+					<key>HeadArrow</key>
+					<string>FilledArrow</string>
+					<key>LineType</key>
+					<integer>1</integer>
+					<key>TailArrow</key>
+					<string>0</string>
+					<key>Width</key>
+					<real>2</real>
+				</dict>
+			</dict>
+			<key>Tail</key>
+			<dict>
+				<key>ID</key>
+				<integer>94</integer>
+				<key>Info</key>
+				<integer>1</integer>
+			</dict>
+		</dict>
+		<dict>
+			<key>Bounds</key>
+			<string>{{554, 26}, {268, 120}}</string>
+			<key>Class</key>
+			<string>MultiTextGraphic</string>
+			<key>FitText</key>
+			<string>YES</string>
+			<key>Flow</key>
+			<string>Resize</string>
+			<key>ID</key>
+			<integer>70</integer>
+			<key>ListOrientation</key>
+			<string>Vertical</string>
+			<key>Magnets</key>
+			<array>
+				<string>{-0.505948, -0.458562}</string>
+			</array>
+			<key>TextList</key>
+			<array>
+				<dict>
+					<key>Align</key>
+					<integer>0</integer>
+					<key>Text</key>
+					<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.Timeout}</string>
+				</dict>
+				<dict>
+					<key>Align</key>
+					<integer>0</integer>
+				</dict>
+				<dict>
+					<key>Align</key>
+					<integer>0</integer>
+					<key>Text</key>
+					<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + Timeout()\
++ Timeout(memory : int, cpuTime : int, wallClockTime : int)\
++ getMemory() : java.lang.Integer\
++ setMemory(memory : java.lang.Integer)\
++ getCpuTime() : java.lang.Integer\
++ setCpuTime(cpuTime : java.lang.Integer)\
++ getWallClockTime() : java.lang.Integer\
++ setWallClockTime(wallClockTime : java.lang.Integer)}</string>
+				</dict>
+			</array>
+			<key>Wrap</key>
+			<string>NO</string>
+		</dict>
+		<dict>
+			<key>Bounds</key>
+			<string>{{597, 1854}, {542, 300}}</string>
+			<key>Class</key>
+			<string>MultiTextGraphic</string>
+			<key>FitText</key>
+			<string>Vertical</string>
+			<key>Flow</key>
+			<string>Resize</string>
+			<key>ID</key>
+			<integer>69</integer>
+			<key>ListOrientation</key>
+			<string>Vertical</string>
+			<key>Magnets</key>
+			<array>
+				<string>{-0.526836, -0.505254}</string>
+				<string>{-0.531074, 0.260283}</string>
+				<string>{-0.50565, 0.334284}</string>
+			</array>
+			<key>Style</key>
+			<dict>
+				<key>fill</key>
+				<dict>
+					<key>Color</key>
+					<dict>
+						<key>b</key>
+						<string>0.4</string>
+						<key>g</key>
+						<string>0.8</string>
+						<key>r</key>
+						<string>1</string>
+					</dict>
+				</dict>
+			</dict>
+			<key>TextList</key>
+			<array>
+				<dict>
+					<key>Align</key>
+					<integer>0</integer>
+					<key>Text</key>
+					<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 edu.sdsc.inca.depot.persistent.InstanceInfo}</string>
+				</dict>
+				<dict>
+					<key>Align</key>
+					<integer>0</integer>
+				</dict>
+				<dict>
+					<key>Align</key>
+					<integer>0</integer>
+					<key>Text</key>
+					<string>{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf230
+{\fonttbl\f0\fswiss\fcharset77 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\ql\qnatural\pardirnatural
+
+\f0\fs20 \cf0 + InstanceInfo(collected : java.util.Date, commited : java.util.Date, memoryUsageMB : java.lang.Double, cpuUsageSec : java.lang.Double, wallClockTimeSec : java.lang.Double)\
++ InstanceInfo(collected : java.util.Date, sysusage : java.lang.String, report : edu.sdsc.inca.depot.persistent.Report)\
++ InstanceInfo()\
++ getId() : java.lang.Long\
++ setId(id : java.lang.Long)\
++ getCollected() : java.util.Date\
++ setCollected(collected : java.util.Date)\
++ getCommited() : java.util.Date\
++ setCommited(commited : java.util.Date)\
++ getMemoryUsageMB() : java.lang.Double\
++ setMemoryUsageMB(memoryUsageMB : java.lang.Double)\
++ getCpuUsageSec() : java.lang.Double\
++ setCpuUsageSec(cpuUsageSec : java.lang.Double)\
++ getWallClockTimeSec() : java.lang.Double\
++ setWallClockTimeSec(wallClockTimeSec : java.lang.Double)\
++ getReport() : edu.sdsc.inca.depot.persistent.Report\
++ setReport(report : edu.sdsc.inca.depot.persistent.Report)\
++ getComparisonResults() : java.util.Set\
++ setComparisonResults(comparisonResults : java.util.Set)\
++ addComparisonResult(cr : edu.sdsc.inca.depot.persistent.ComparisonResult)\
++ equals(other : java.lang.Object) : boolean\
++ hashCode() : int}</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+	<key>GridInfo</key>
+	<dict/>
+	<key>GuidesLocked</key>
+	<string>NO</string>
+	<key>GuidesVisible</key>
+	<string>YES</string>
+	<key>HPages</key>
+	<integer>2</integer>
+	<key>ImageCounter</key>
+	<integer>1</integer>
+	<key>IsPalette</key>
+	<string>NO</string>
+	<key>Layers</key>
+	<array>
+		<dict>
+			<key>Lock</key>
+			<string>NO</string>
+			<key>Name</key>
+			<string>Layer 1</string>
+			<key>Print</key>
+			<string>YES</string>
+			<key>View</key>
+			<string>YES</string>
+		</dict>
+	</array>
+	<key>LayoutInfo</key>
+	<dict/>
+	<key>LinksVisible</key>
+	<string>NO</string>
+	<key>MagnetsVisible</key>
+	<string>NO</string>
+	<key>Orientation</key>
+	<integer>2</integer>
+	<key>PageBreaks</key>
+	<string>NO</string>
+	<key>PageSetup</key>
+	<data>
+	BAt0eXBlZHN0cmVhbYED6IQBQISEhAtOU1ByaW50SW5mbwGEhAhOU09iamVjdACFkoSE
+	hBNOU011dGFibGVEaWN0aW9uYXJ5AISEDE5TRGljdGlvbmFyeQCUhAFpFJKEhIQITlNT
+	dHJpbmcBlIQBKxBOU0pvYkRpc3Bvc2l0aW9uhpKEmZkPTlNQcmludFNwb29sSm9ihpKE
+	mZkLTlNQYXBlclNpemWGkoSEhAdOU1ZhbHVlAJSEASqEhAx7X05TU2l6ZT1mZn2cgQJk
+	gQMYhpKEmZkUTlNWZXJ0aWNhbFBhZ2luYXRpb26GkoSEhAhOU051bWJlcgCdm4SXlwCG
+	koSZmQ5OU1BNUGFnZUZvcm1hdIaShISEDU5TTXV0YWJsZURhdGEAhIQGTlNEYXRhAJSX
+	gR2thAdbNzU5N2NdPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4K
+	PCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUgQ29tcHV0ZXIvL0RURCBQTElT
+	VCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3Qt
+	MS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+Y29tLmFw
+	cGxlLnByaW50LlBhZ2VGb3JtYXQuUE1Ib3Jpem9udGFsUmVzPC9rZXk+Cgk8ZGljdD4K
+	CQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuY3JlYXRvcjwva2V5PgoJCTxzdHJp
+	bmc+Y29tLmFwcGxlLnByaW50aW5nbWFuYWdlcjwvc3RyaW5nPgoJCTxrZXk+Y29tLmFw
+	cGxlLnByaW50LnRpY2tldC5pdGVtQXJyYXk8L2tleT4KCQk8YXJyYXk+CgkJCTxkaWN0
+	PgoJCQkJPGtleT5jb20uYXBwbGUucHJpbnQuUGFnZUZvcm1hdC5QTUhvcml6b250YWxS
+	ZXM8L2tleT4KCQkJCTxyZWFsPjcyPC9yZWFsPgoJCQkJPGtleT5jb20uYXBwbGUucHJp
+	bnQudGlja2V0LmNsaWVudDwva2V5PgoJCQkJPHN0cmluZz5jb20uYXBwbGUucHJpbnRp
+	bmdtYW5hZ2VyPC9zdHJpbmc+CgkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQu
+	bW9kRGF0ZTwva2V5PgoJCQkJPGRhdGU+MjAwMy0wMS0yNFQxNjoyODo1NFo8L2RhdGU+
+	CgkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuc3RhdGVGbGFnPC9rZXk+CgkJ
+	CQk8aW50ZWdlcj4wPC9pbnRlZ2VyPgoJCQk8L2RpY3Q+CgkJPC9hcnJheT4KCTwvZGlj
+	dD4KCTxrZXk+Y29tLmFwcGxlLnByaW50LlBhZ2VGb3JtYXQuUE1PcmllbnRhdGlvbjwv
+	a2V5PgoJPGRpY3Q+CgkJPGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0LmNyZWF0b3I8
+	L2tleT4KCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGluZ21hbmFnZXI8L3N0cmluZz4K
+	CQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuaXRlbUFycmF5PC9rZXk+CgkJPGFy
+	cmF5PgoJCQk8ZGljdD4KCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LlBhZ2VGb3JtYXQu
+	UE1PcmllbnRhdGlvbjwva2V5PgoJCQkJPGludGVnZXI+MTwvaW50ZWdlcj4KCQkJCTxr
+	ZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5jbGllbnQ8L2tleT4KCQkJCTxzdHJpbmc+
+	Y29tLmFwcGxlLnByaW50aW5nbWFuYWdlcjwvc3RyaW5nPgoJCQkJPGtleT5jb20uYXBw
+	bGUucHJpbnQudGlja2V0Lm1vZERhdGU8L2tleT4KCQkJCTxkYXRlPjIwMDMtMDEtMjRU
+	MTY6Mjg6NTRaPC9kYXRlPgoJCQkJPGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0LnN0
+	YXRlRmxhZzwva2V5PgoJCQkJPGludGVnZXI+MDwvaW50ZWdlcj4KCQkJPC9kaWN0PgoJ
+	CTwvYXJyYXk+Cgk8L2RpY3Q+Cgk8a2V5PmNvbS5hcHBsZS5wcmludC5QYWdlRm9ybWF0
+	LlBNU2NhbGluZzwva2V5PgoJPGRpY3Q+CgkJPGtleT5jb20uYXBwbGUucHJpbnQudGlj
+	a2V0LmNyZWF0b3I8L2tleT4KCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGluZ21hbmFn
+	ZXI8L3N0cmluZz4KCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuaXRlbUFycmF5
+	PC9rZXk+CgkJPGFycmF5PgoJCQk8ZGljdD4KCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50
+	LlBhZ2VGb3JtYXQuUE1TY2FsaW5nPC9rZXk+CgkJCQk8cmVhbD4xPC9yZWFsPgoJCQkJ
+	PGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0LmNsaWVudDwva2V5PgoJCQkJPHN0cmlu
+	Zz5jb20uYXBwbGUucHJpbnRpbmdtYW5hZ2VyPC9zdHJpbmc+CgkJCQk8a2V5PmNvbS5h
+	cHBsZS5wcmludC50aWNrZXQubW9kRGF0ZTwva2V5PgoJCQkJPGRhdGU+MjAwMy0wMS0y
+	NFQxNjoyODo1NFo8L2RhdGU+CgkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQu
+	c3RhdGVGbGFnPC9rZXk+CgkJCQk8aW50ZWdlcj4wPC9pbnRlZ2VyPgoJCQk8L2RpY3Q+
+	CgkJPC9hcnJheT4KCTwvZGljdD4KCTxrZXk+Y29tLmFwcGxlLnByaW50LlBhZ2VGb3Jt
+	YXQuUE1WZXJ0aWNhbFJlczwva2V5PgoJPGRpY3Q+CgkJPGtleT5jb20uYXBwbGUucHJp
+	bnQudGlja2V0LmNyZWF0b3I8L2tleT4KCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGlu
+	Z21hbmFnZXI8L3N0cmluZz4KCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuaXRl
+	bUFycmF5PC9rZXk+CgkJPGFycmF5PgoJCQk8ZGljdD4KCQkJCTxrZXk+Y29tLmFwcGxl
+	LnByaW50LlBhZ2VGb3JtYXQuUE1WZXJ0aWNhbFJlczwva2V5PgoJCQkJPHJlYWw+NzI8
+	L3JlYWw+CgkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuY2xpZW50PC9rZXk+
+	CgkJCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGluZ21hbmFnZXI8L3N0cmluZz4KCQkJ
+	CTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5tb2REYXRlPC9rZXk+CgkJCQk8ZGF0
+	ZT4yMDAzLTAxLTI0VDE2OjI4OjU0WjwvZGF0ZT4KCQkJCTxrZXk+Y29tLmFwcGxlLnBy
+	aW50LnRpY2tldC5zdGF0ZUZsYWc8L2tleT4KCQkJCTxpbnRlZ2VyPjA8L2ludGVnZXI+
+	CgkJCTwvZGljdD4KCQk8L2FycmF5PgoJPC9kaWN0PgoJPGtleT5jb20uYXBwbGUucHJp
+	bnQuUGFnZUZvcm1hdC5QTVZlcnRpY2FsU2NhbGluZzwva2V5PgoJPGRpY3Q+CgkJPGtl
+	eT5jb20uYXBwbGUucHJpbnQudGlja2V0LmNyZWF0b3I8L2tleT4KCQk8c3RyaW5nPmNv
+	bS5hcHBsZS5wcmludGluZ21hbmFnZXI8L3N0cmluZz4KCQk8a2V5PmNvbS5hcHBsZS5w
+	cmludC50aWNrZXQuaXRlbUFycmF5PC9rZXk+CgkJPGFycmF5PgoJCQk8ZGljdD4KCQkJ
+	CTxrZXk+Y29tLmFwcGxlLnByaW50LlBhZ2VGb3JtYXQuUE1WZXJ0aWNhbFNjYWxpbmc8
+	L2tleT4KCQkJCTxyZWFsPjE8L3JlYWw+CgkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50
+	aWNrZXQuY2xpZW50PC9rZXk+CgkJCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGluZ21h
+	bmFnZXI8L3N0cmluZz4KCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5tb2RE
+	YXRlPC9rZXk+CgkJCQk8ZGF0ZT4yMDAzLTAxLTI0VDE2OjI4OjU0WjwvZGF0ZT4KCQkJ
+	CTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5zdGF0ZUZsYWc8L2tleT4KCQkJCTxp
+	bnRlZ2VyPjA8L2ludGVnZXI+CgkJCTwvZGljdD4KCQk8L2FycmF5PgoJPC9kaWN0PgoJ
+	PGtleT5jb20uYXBwbGUucHJpbnQuc3ViVGlja2V0LnBhcGVyX2luZm9fdGlja2V0PC9r
+	ZXk+Cgk8ZGljdD4KCQk8a2V5PmNvbS5hcHBsZS5wcmludC5QYWdlRm9ybWF0LlBNQWRq
+	dXN0ZWRQYWdlUmVjdDwva2V5PgoJCTxkaWN0PgoJCQk8a2V5PmNvbS5hcHBsZS5wcmlu
+	dC50aWNrZXQuY3JlYXRvcjwva2V5PgoJCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGlu
+	Z21hbmFnZXI8L3N0cmluZz4KCQkJPGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0Lml0
+	ZW1BcnJheTwva2V5PgoJCQk8YXJyYXk+CgkJCQk8ZGljdD4KCQkJCQk8a2V5PmNvbS5h
+	cHBsZS5wcmludC5QYWdlRm9ybWF0LlBNQWRqdXN0ZWRQYWdlUmVjdDwva2V5PgoJCQkJ
+	CTxhcnJheT4KCQkJCQkJPHJlYWw+MC4wPC9yZWFsPgoJCQkJCQk8cmVhbD4wLjA8L3Jl
+	YWw+CgkJCQkJCTxyZWFsPjczNDwvcmVhbD4KCQkJCQkJPHJlYWw+NTc2PC9yZWFsPgoJ
+	CQkJCTwvYXJyYXk+CgkJCQkJPGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0LmNsaWVu
+	dDwva2V5PgoJCQkJCTxzdHJpbmc+Y29tLmFwcGxlLnByaW50aW5nbWFuYWdlcjwvc3Ry
+	aW5nPgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5tb2REYXRlPC9rZXk+
+	CgkJCQkJPGRhdGU+MjAwNS0xMS0yOVQxOTowMDozMFo8L2RhdGU+CgkJCQkJPGtleT5j
+	b20uYXBwbGUucHJpbnQudGlja2V0LnN0YXRlRmxhZzwva2V5PgoJCQkJCTxpbnRlZ2Vy
+	PjA8L2ludGVnZXI+CgkJCQk8L2RpY3Q+CgkJCTwvYXJyYXk+CgkJPC9kaWN0PgoJCTxr
+	ZXk+Y29tLmFwcGxlLnByaW50LlBhZ2VGb3JtYXQuUE1BZGp1c3RlZFBhcGVyUmVjdDwv
+	a2V5PgoJCTxkaWN0PgoJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuY3JlYXRv
+	cjwva2V5PgoJCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGluZ21hbmFnZXI8L3N0cmlu
+	Zz4KCQkJPGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0Lml0ZW1BcnJheTwva2V5PgoJ
+	CQk8YXJyYXk+CgkJCQk8ZGljdD4KCQkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC5QYWdl
+	Rm9ybWF0LlBNQWRqdXN0ZWRQYXBlclJlY3Q8L2tleT4KCQkJCQk8YXJyYXk+CgkJCQkJ
+	CTxyZWFsPi0xODwvcmVhbD4KCQkJCQkJPHJlYWw+LTE4PC9yZWFsPgoJCQkJCQk8cmVh
+	bD43NzQ8L3JlYWw+CgkJCQkJCTxyZWFsPjU5NDwvcmVhbD4KCQkJCQk8L2FycmF5PgoJ
+	CQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5jbGllbnQ8L2tleT4KCQkJCQk8
+	c3RyaW5nPmNvbS5hcHBsZS5wcmludGluZ21hbmFnZXI8L3N0cmluZz4KCQkJCQk8a2V5
+	PmNvbS5hcHBsZS5wcmludC50aWNrZXQubW9kRGF0ZTwva2V5PgoJCQkJCTxkYXRlPjIw
+	MDUtMTEtMjlUMTk6MDA6MzBaPC9kYXRlPgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50
+	LnRpY2tldC5zdGF0ZUZsYWc8L2tleT4KCQkJCQk8aW50ZWdlcj4wPC9pbnRlZ2VyPgoJ
+	CQkJPC9kaWN0PgoJCQk8L2FycmF5PgoJCTwvZGljdD4KCQk8a2V5PmNvbS5hcHBsZS5w
+	cmludC5QYXBlckluZm8uUE1QYXBlck5hbWU8L2tleT4KCQk8ZGljdD4KCQkJPGtleT5j
+	b20uYXBwbGUucHJpbnQudGlja2V0LmNyZWF0b3I8L2tleT4KCQkJPHN0cmluZz5jb20u
+	YXBwbGUucHJpbnQucG0uUG9zdFNjcmlwdDwvc3RyaW5nPgoJCQk8a2V5PmNvbS5hcHBs
+	ZS5wcmludC50aWNrZXQuaXRlbUFycmF5PC9rZXk+CgkJCTxhcnJheT4KCQkJCTxkaWN0
+	PgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LlBhcGVySW5mby5QTVBhcGVyTmFtZTwv
+	a2V5PgoJCQkJCTxzdHJpbmc+bmEtbGV0dGVyPC9zdHJpbmc+CgkJCQkJPGtleT5jb20u
+	YXBwbGUucHJpbnQudGlja2V0LmNsaWVudDwva2V5PgoJCQkJCTxzdHJpbmc+Y29tLmFw
+	cGxlLnByaW50LnBtLlBvc3RTY3JpcHQ8L3N0cmluZz4KCQkJCQk8a2V5PmNvbS5hcHBs
+	ZS5wcmludC50aWNrZXQubW9kRGF0ZTwva2V5PgoJCQkJCTxkYXRlPjIwMDAtMDctMjhU
+	MjI6NTc6MDRaPC9kYXRlPgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5z
+	dGF0ZUZsYWc8L2tleT4KCQkJCQk8aW50ZWdlcj4xPC9pbnRlZ2VyPgoJCQkJPC9kaWN0
+	PgoJCQk8L2FycmF5PgoJCTwvZGljdD4KCQk8a2V5PmNvbS5hcHBsZS5wcmludC5QYXBl
+	ckluZm8uUE1VbmFkanVzdGVkUGFnZVJlY3Q8L2tleT4KCQk8ZGljdD4KCQkJPGtleT5j
+	b20uYXBwbGUucHJpbnQudGlja2V0LmNyZWF0b3I8L2tleT4KCQkJPHN0cmluZz5jb20u
+	YXBwbGUucHJpbnQucG0uUG9zdFNjcmlwdDwvc3RyaW5nPgoJCQk8a2V5PmNvbS5hcHBs
+	ZS5wcmludC50aWNrZXQuaXRlbUFycmF5PC9rZXk+CgkJCTxhcnJheT4KCQkJCTxkaWN0
+	PgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LlBhcGVySW5mby5QTVVuYWRqdXN0ZWRQ
+	YWdlUmVjdDwva2V5PgoJCQkJCTxhcnJheT4KCQkJCQkJPHJlYWw+MC4wPC9yZWFsPgoJ
+	CQkJCQk8cmVhbD4wLjA8L3JlYWw+CgkJCQkJCTxyZWFsPjczNDwvcmVhbD4KCQkJCQkJ
+	PHJlYWw+NTc2PC9yZWFsPgoJCQkJCTwvYXJyYXk+CgkJCQkJPGtleT5jb20uYXBwbGUu
+	cHJpbnQudGlja2V0LmNsaWVudDwva2V5PgoJCQkJCTxzdHJpbmc+Y29tLmFwcGxlLnBy
+	aW50aW5nbWFuYWdlcjwvc3RyaW5nPgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRp
+	Y2tldC5tb2REYXRlPC9rZXk+CgkJCQkJPGRhdGU+MjAwMy0wMS0yNFQxNjoyODo1NFo8
+	L2RhdGU+CgkJCQkJPGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0LnN0YXRlRmxhZzwv
+	a2V5PgoJCQkJCTxpbnRlZ2VyPjA8L2ludGVnZXI+CgkJCQk8L2RpY3Q+CgkJCTwvYXJy
+	YXk+CgkJPC9kaWN0PgoJCTxrZXk+Y29tLmFwcGxlLnByaW50LlBhcGVySW5mby5QTVVu
+	YWRqdXN0ZWRQYXBlclJlY3Q8L2tleT4KCQk8ZGljdD4KCQkJPGtleT5jb20uYXBwbGUu
+	cHJpbnQudGlja2V0LmNyZWF0b3I8L2tleT4KCQkJPHN0cmluZz5jb20uYXBwbGUucHJp
+	bnQucG0uUG9zdFNjcmlwdDwvc3RyaW5nPgoJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50
+	aWNrZXQuaXRlbUFycmF5PC9rZXk+CgkJCTxhcnJheT4KCQkJCTxkaWN0PgoJCQkJCTxr
+	ZXk+Y29tLmFwcGxlLnByaW50LlBhcGVySW5mby5QTVVuYWRqdXN0ZWRQYXBlclJlY3Q8
+	L2tleT4KCQkJCQk8YXJyYXk+CgkJCQkJCTxyZWFsPi0xODwvcmVhbD4KCQkJCQkJPHJl
+	YWw+LTE4PC9yZWFsPgoJCQkJCQk8cmVhbD43NzQ8L3JlYWw+CgkJCQkJCTxyZWFsPjU5
+	NDwvcmVhbD4KCQkJCQk8L2FycmF5PgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRp
+	Y2tldC5jbGllbnQ8L2tleT4KCQkJCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludGluZ21h
+	bmFnZXI8L3N0cmluZz4KCQkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQubW9k
+	RGF0ZTwva2V5PgoJCQkJCTxkYXRlPjIwMDMtMDEtMjRUMTY6Mjg6NTRaPC9kYXRlPgoJ
+	CQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5zdGF0ZUZsYWc8L2tleT4KCQkJ
+	CQk8aW50ZWdlcj4wPC9pbnRlZ2VyPgoJCQkJPC9kaWN0PgoJCQk8L2FycmF5PgoJCTwv
+	ZGljdD4KCQk8a2V5PmNvbS5hcHBsZS5wcmludC5QYXBlckluZm8ucHBkLlBNUGFwZXJO
+	YW1lPC9rZXk+CgkJPGRpY3Q+CgkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5j
+	cmVhdG9yPC9rZXk+CgkJCTxzdHJpbmc+Y29tLmFwcGxlLnByaW50LnBtLlBvc3RTY3Jp
+	cHQ8L3N0cmluZz4KCQkJPGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0Lml0ZW1BcnJh
+	eTwva2V5PgoJCQk8YXJyYXk+CgkJCQk8ZGljdD4KCQkJCQk8a2V5PmNvbS5hcHBsZS5w
+	cmludC5QYXBlckluZm8ucHBkLlBNUGFwZXJOYW1lPC9rZXk+CgkJCQkJPHN0cmluZz5M
+	ZXR0ZXI8L3N0cmluZz4KCQkJCQk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQuY2xp
+	ZW50PC9rZXk+CgkJCQkJPHN0cmluZz5jb20uYXBwbGUucHJpbnQucG0uUG9zdFNjcmlw
+	dDwvc3RyaW5nPgoJCQkJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5tb2REYXRl
+	PC9rZXk+CgkJCQkJPGRhdGU+MjAwMC0wNy0yOFQyMjo1NzowNFo8L2RhdGU+CgkJCQkJ
+	PGtleT5jb20uYXBwbGUucHJpbnQudGlja2V0LnN0YXRlRmxhZzwva2V5PgoJCQkJCTxp
+	bnRlZ2VyPjE8L2ludGVnZXI+CgkJCQk8L2RpY3Q+CgkJCTwvYXJyYXk+CgkJPC9kaWN0
+	PgoJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tldC5BUElWZXJzaW9uPC9rZXk+CgkJ
+	PHN0cmluZz4wMC4yMDwvc3RyaW5nPgoJCTxrZXk+Y29tLmFwcGxlLnByaW50LnRpY2tl
+	dC5wcml2YXRlTG9jazwva2V5PgoJCTxmYWxzZS8+CgkJPGtleT5jb20uYXBwbGUucHJp
+	bnQudGlja2V0LnR5cGU8L2tleT4KCQk8c3RyaW5nPmNvbS5hcHBsZS5wcmludC5QYXBl
+	ckluZm9UaWNrZXQ8L3N0cmluZz4KCTwvZGljdD4KCTxrZXk+Y29tLmFwcGxlLnByaW50
+	LnRpY2tldC5BUElWZXJzaW9uPC9rZXk+Cgk8c3RyaW5nPjAwLjIwPC9zdHJpbmc+Cgk8
+	a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQucHJpdmF0ZUxvY2s8L2tleT4KCTxmYWxz
+	ZS8+Cgk8a2V5PmNvbS5hcHBsZS5wcmludC50aWNrZXQudHlwZTwva2V5PgoJPHN0cmlu
+	Zz5jb20uYXBwbGUucHJpbnQuUGFnZUZvcm1hdFRpY2tldDwvc3RyaW5nPgo8L2RpY3Q+
+	CjwvcGxpc3Q+CoaShJmZFE5TVmVydGljYWxseUNlbnRlcmVkhpKEoZuilwGGkoSZmQ9O
+	U1ByaW50QWxsUGFnZXOGkqCShJmZCE5TQ29waWVzhpKokoSZmQtOU1BhcGVyTmFtZYaS
+	hJmZBkxldHRlcoaShJmZD05TU2NhbGluZ0ZhY3RvcoaShKGbhIQBZqEBhpKEmZkJTlNQ
+	cmludGVyhpKEhIQJTlNQcmludGVyAJSShJmZFmFwaGlkLXByaW50ZXIuc2RzYy5lZHWG
+	hpKEmZkNTlNSaWdodE1hcmdpboaShKGbr6EAhpKEmZkVTlNIb3Jpem9uYWxQYWdpbmF0
+	aW9uhpKgkoSZmRlOU1ByaW50UmV2ZXJzZU9yaWVudGF0aW9uhpKgkoSZmQ5OU0JvdHRv
+	bU1hcmdpboaShKGbr6EAhpKEmZkMTlNMZWZ0TWFyZ2luhpKEoZuvoQCGkoSZmQtOU1Rv
+	cE1hcmdpboaShKGbr6EAhpKEmZkKTlNMYXN0UGFnZYaShKGbopeCf////4aShJmZC05T
+	Rmlyc3RQYWdlhpKokoSZmRZOU0hvcml6b250YWxseUNlbnRlcmVkhpKokoSZmQ1OU09y
+	aWVudGF0aW9uhpKghoY=
+	</data>
+	<key>ReadOnly</key>
+	<string>NO</string>
+	<key>RowAlign</key>
+	<integer>1</integer>
+	<key>RowSpacing</key>
+	<real>36</real>
+	<key>SheetTitle</key>
+	<string>Canvas 1</string>
+	<key>SmartAlignmentGuidesActive</key>
+	<string>YES</string>
+	<key>SmartDistanceGuidesActive</key>
+	<string>YES</string>
+	<key>UseEntirePage</key>
+	<true/>
+	<key>VPages</key>
+	<integer>3</integer>
+	<key>WindowInfo</key>
+	<dict>
+		<key>CurrentSheet</key>
+		<string>0</string>
+		<key>Frame</key>
+		<string>{{7, 69}, {1235, 846}}</string>
+		<key>ShowRuler</key>
+		<false/>
+		<key>ShowStatusBar</key>
+		<true/>
+		<key>VisibleRegion</key>
+		<string>{{-34, 0}, {1220, 748}}</string>
+		<key>Zoom</key>
+		<string>1</string>
+	</dict>
+</dict>
+</plist>

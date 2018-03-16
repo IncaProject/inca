@@ -1,0 +1,5 @@
+name: cogster
+version: 6.0
+description: Java CoG Toolkit test suite
+url: http://www.teragridforum.org/mediawiki/index.php?title=CoG_Toolkit
+dependencies:

@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'network.backplane.unit',
+  version => 3,
+  description =>
+    'Verifies that host network traffic is routed through a specific domain',
+  url => 'http://network.teragrid.org',
+  unit_name => 'traceroute'
+);
+$reporter->addArg('domain', 'routing domain');
+$reporter->addArg('host', 'remote destination to trace');
+$reporter->processArgv(@ARGV);
+my $domain = $reporter->argValue('domain');
+my $host = $reporter->argValue('host');
+
+my $output = $reporter->loggedCommand("traceroute $host");
+if($?) {
+  $reporter->unitFailure("traceroute $host failed: $output $!");
+} elsif($output !~ /$domain/) {
+  $reporter->unitFailure("route to $host does not include $domain");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

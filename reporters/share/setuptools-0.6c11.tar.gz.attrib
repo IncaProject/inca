@@ -1,0 +1,4 @@
+name: setuptools
+version: 0.6c11
+description: Download, build, install, upgrade, and uninstall Python packages -- easily!
+dependencies:

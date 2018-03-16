@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="KbArticle" table="INCAKBARTICLE" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native"/>
+    </id>
+
+    <!-- properties -->
+    <property name="entered" column="incaentered" type="timestamp" not-null="true"/>
+    <property name="errorMsg" column="incaerrormsg" type="string" length="4000"/>
+    <property name="series" column="incaseries" type="string" length="255" not-null="true"/>
+    <property name="reporter" column="incareporter" type="string" length="255" not-null="true"/>
+    <property name="authorName" column="incaauthorname" type="string" length="255" not-null="true"/>
+    <property name="authorEmail" column="incaauthoremail" type="string" length="255" not-null="true"/>
+    <property name="articleTitle" column="incaarticletitle" type="string" length="2000" not-null="true"/>
+    <property name="articleText" column="incaarticletext" type="text" not-null="true"/>
+
+  </class>
+</hibernate-mapping>

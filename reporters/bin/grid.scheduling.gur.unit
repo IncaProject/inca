@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+import sys
+import re
+import string
+import time
+
+import inca.SimpleUnitReporter
+
+reporter = inca.SimpleUnitReporter.SimpleUnitReporter(
+  name = 'grid.scheduling.gur.unit',
+  version = 4,
+  description = 'Did GUR run?',
+  url = 'http://www.sdsc.edu/scheduler/gur/gur.html'
+)
+
+reporter.addDependency('inca.GridProxyReporter')
+
+reporter.addArg('gur_path') 
+reporter.addArg('total_cores')
+reporter.addArg('machine_preference')
+reporter.addArg('duration')
+reporter.addArg('machines_dict_string')
+reporter.processArgv(sys.argv[1:])
+gur_path = reporter.argValue('gur_path')
+total_cores = reporter.argValue('total_cores')
+machine_preference = reporter.argValue('machine_preference')
+duration = reporter.argValue('duration')
+mds_raw = reporter.argValue('machines_dict_string')
+
+mds_hitchcock = string.replace(mds_raw, "{", "\\{")
+mds_hitchcock = string.replace(mds_hitchcock, "}", "\\}")
+mds_singletick = string.replace(mds_hitchcock, "'", "\\\'")
+
+time_format = "%H:%M_%m/%d/%Y"
+earliest_start = time.strftime(time_format,time.localtime(time.time()))
+latest_end = time.strftime(time_format,time.localtime(time.time() + 30 * 24 * 3600))
+
+cmd = "%s --reserve --request=total_cores=%s__sep__machine_preference=%s__sep__machine_preference_reorder=yes__sep__duration=%s__sep__earliest_start=%s__sep__latest_end=%s__sep__usage_pattern=multiple__sep__machines_dict_string=%s" % (
+  gur_path,
+  total_cores,
+  machine_preference,
+  duration,
+  earliest_start,
+  latest_end,
+  mds_singletick)
+
+status, output = reporter.loggedCommandStatusOutput(cmd, timeout=600)
+
+if status != 0 :
+    reporter.failPrintAndExit("gur.py --reserve failed: %s %s" % (status, output))
+else : 
+    metajob_pat = "^GUR: metajob submitted: (?P<metajobfile>.*metajob.\d+.\d+)$"
+    metajob_ro = re.compile(metajob_pat,re.MULTILINE)
+    metajob_mo = metajob_ro.search(output)
+    if metajob_mo == None :
+        reporter.failPrintAndExit("gur.py --reserve failed: %s %s" % (status, output))
+    else :
+        metajobfile = metajob_mo.group('metajobfile')
+        cmd = "gur.py --cancel --metajobfile=%s" % (metajobfile,)
+        status, output = reporter.loggedCommandStatusOutput(cmd, timeout=600)
+        if status != 0 :
+            reporter.failPrintAndExit("gur.py --cancel failed: %s %s" % (status, output))
+        else :
+            reporter.unitSuccess()
+            reporter.printReport()

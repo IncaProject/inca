@@ -1,0 +1,40 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter;
+
+my $reporter = new Inca::Reporter(
+  name => 'cluster.admin.topcpu',
+  version => 3,
+  description => 'Reports top non-root CPU % process',
+  url => 'http://inca.sdsc.edu'
+);
+$reporter->processArgv(@ARGV);
+
+my $output = $reporter->loggedCommand('ps waux');
+$reporter->failPrintAndExit("ps waux failed: $output $!") if $?;
+my $highestCpu = 0;
+my $highestLine;
+foreach my $line(split(/\n/, $output)) {
+  next if $line =~ /%|^root/; # Skip header and root procs
+  my @columns = split(/\s+/, $line);
+  my $cpu = $columns[2];
+  next if $cpu < $highestCpu;
+  $highestCpu = $cpu;
+  $highestLine = $line;
+}
+$reporter->failPrintAndExit('No non-root process found')
+  if !defined($highestLine);
+my @columns = split(/\s+/, $highestLine);
+$reporter->setBody(
+  $reporter->xmlElement('topcpu', 0,
+    $reporter->xmlElement('ID', 1, 'topcpu'),
+    $reporter->xmlElement('user', 1, $columns[0]),
+    $reporter->xmlElement('pid', 1, $columns[1]),
+    $reporter->xmlElement('cpu', 1, $columns[2]),
+    $reporter->xmlElement('command', 1, $columns[$#columns]),
+  )
+);
+$reporter->setResult(1);
+$reporter->print();

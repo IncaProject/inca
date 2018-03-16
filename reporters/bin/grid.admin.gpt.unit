@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit();
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.admin.gpt.unit',
+  version => 3,
+  description => 'Checks coherant builds using gpt-verify',
+  url => 'http://www.gridpackagingtools.org',
+  unit_name => 'gpt-verify'
+);
+$reporter->processArgv(@ARGV);
+
+my $output = $reporter->loggedCommand('gpt-verify');
+if($?) {
+  $reporter->unitFailure("gpt-verify failed: $output $!");
+} elsif($output !~ /appear to be coherent/) {
+  $reporter->unitFailure($output);
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

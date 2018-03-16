@@ -1,0 +1,16 @@
+#!/usr/bin/perl -It/reporters
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  version => 1.5,
+  description => 'Reports the version of java',
+  url => 'http://java.sun.com',
+  package_name => 'java'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable('java -version', 'java version "(.+)"');
+$reporter->print();

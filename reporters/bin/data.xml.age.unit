@@ -1,0 +1,76 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Time::Local;
+use XML::XPath;
+
+my $reporter = new Inca::Reporter::SimpleUnit (
+	name => 'data.xml.age.unit',
+	version => 1,
+	description => 'Fetches XML from a URL and uses XPath to check that a timestamp is not stale',
+);
+$reporter->addDependency( 'XML::XPath' );
+
+#
+# Read arguments
+#
+$reporter->addArg( 'url', 'URL to fetch XML from', '' );
+$reporter->addArg( 'xpath', 'XPath to return a timestamp from XML (format YYYY-MM-DDTHH:MM:SSZ)', '' );
+$reporter->addArg( 'expire', 'Number of seconds before data is considered expired', '1800' );
+$reporter->processArgv( @ARGV );
+my $url = $reporter->argValue( 'url' );
+my $xpath = $reporter->argValue( 'xpath' );
+my $secs = $reporter->argValue( 'expire' );
+
+#
+# Fetch XML from URL
+#
+my $page = $reporter->loggedCommand( "wget -o /dev/null -O - -q '$url'" );
+$reporter->failPrintAndExit( "wget command failed: $page $!" ) if $? != 0; 
+
+#
+# Find timestamp in XML
+#
+my $xp = XML::XPath->new( xml => $page );
+my $nodeset;
+eval 
+{
+	$nodeset = $xp->find( $xpath );
+} 
+or do 
+{
+	$reporter->failPrintAndExit( 'Invalid XPath' );
+};
+my @nodes = $nodeset->get_nodelist;
+my $timestamp = $nodes[0]->findvalue( '.' );
+if ( ! defined $timestamp || $timestamp !~ /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/ )
+{
+	$reporter->failPrintAndExit( 'Unable to find timestamp in XML' );
+}
+$timestamp =~ s/Z$//;
+
+#
+# Find timestamp age
+#
+my ( $ymd, $hms ) = split ( /T/, $timestamp );
+my ( $year, $mon, $day ) = split ( /-/, $ymd );
+my ( $hour, $min, $sec ) = split( /:/, $hms );
+$mon -= 1;  #months need to be zero indexed for timegm, so decrement
+my $datatime = timegm( $sec, $min, $hour, $day, $mon, $year );
+my $localtime = time;
+my $age = $localtime - $datatime;
+$reporter->log( 'debug', "data timestamp: $timestamp, data age: $age");
+if ( $age > $secs ) 
+{
+	$reporter->failPrintAndExit( "Stale data found, data is more than $secs seconds old" );
+}
+if ( $age < -10 ) 
+{ 
+	# allow 10 secs into future 
+	$reporter->failPrintAndExit( 'Invalid timestamp, data from the future' );
+}
+
+$reporter->unitSuccess();
+$reporter->print();

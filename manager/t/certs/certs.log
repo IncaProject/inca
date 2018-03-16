@@ -1,0 +1,110 @@
+Using configuration from ca1.cnf
+Generating a 512 bit RSA private key
+..++++++++++++
+...++++++++++++
+writing new private key to 'ca1key.pem'
+-----
+Making trusted certificate dir
+Using configuration from ca1.cnf
+cannot lookup how long until the next CRL is issued
+Using configuration from ca2.cnf
+Generating a 512 bit RSA private key
+.....++++++++++++
+..........................................++++++++++++
+writing new private key to 'ca2key.pem'
+-----
+Trusted dir exists
+Using configuration from ca2.cnf
+cannot lookup how long until the next CRL is issued
+Using configuration from ca1.cnf
+Generating a 512 bit RSA private key
+..............++++++++++++
+.........++++++++++++
+writing new private key to 'server_ca1key.pem'
+-----
+Using configuration from ca1.cnf
+Check that the request matches the signature
+Signature ok
+The Subjects Distinguished Name is as follows
+countryName           :PRINTABLE:'US'
+stateOrProvinceName   :PRINTABLE:'California'
+localityName          :PRINTABLE:'San Diego'
+organizationName      :PRINTABLE:'SDSC'
+commonName            :PRINTABLE:'IncaTestServer1'
+Certificate is to be certified until Mar 29 01:33:04 2006 GMT (365 days)
+
+Write out database with 1 new entries
+Data Base Updated
+read RSA key
+writing RSA key
+        Issuer: C=US, ST=California, L=San Diego, O=SDSC, CN=IncaTestCA_ca1
+        Subject: C=US, ST=California, O=SDSC, CN=IncaTestServer1
+Using configuration from ca2.cnf
+Generating a 512 bit RSA private key
+..++++++++++++
+...++++++++++++
+writing new private key to 'server_ca2key.pem'
+-----
+Using configuration from ca2.cnf
+Check that the request matches the signature
+Signature ok
+The Subjects Distinguished Name is as follows
+countryName           :PRINTABLE:'US'
+stateOrProvinceName   :PRINTABLE:'California'
+localityName          :PRINTABLE:'San Diego'
+organizationName      :PRINTABLE:'SDSC'
+commonName            :PRINTABLE:'IncaTestServer2'
+Certificate is to be certified until Mar 29 01:33:04 2006 GMT (365 days)
+
+Write out database with 1 new entries
+Data Base Updated
+read RSA key
+writing RSA key
+        Issuer: C=US, ST=California, L=San Diego, O=SDSC, CN=IncaTestCA_ca2
+        Subject: C=US, ST=California, O=SDSC, CN=IncaTestServer2
+Using configuration from ca1.cnf
+Generating a 512 bit RSA private key
+.++++++++++++
+....................++++++++++++
+writing new private key to 'client_ca1key.pem'
+-----
+Using configuration from ca1.cnf
+Check that the request matches the signature
+Signature ok
+The Subjects Distinguished Name is as follows
+countryName           :PRINTABLE:'US'
+stateOrProvinceName   :PRINTABLE:'California'
+localityName          :PRINTABLE:'San Diego'
+organizationName      :PRINTABLE:'SDSC'
+commonName            :PRINTABLE:'IncaTestClient1'
+Certificate is to be certified until Mar 29 01:33:05 2006 GMT (365 days)
+
+Write out database with 1 new entries
+Data Base Updated
+read RSA key
+writing RSA key
+        Issuer: C=US, ST=California, L=San Diego, O=SDSC, CN=IncaTestCA_ca1
+        Subject: C=US, ST=California, O=SDSC, CN=IncaTestClient1
+Using configuration from ca2.cnf
+Generating a 512 bit RSA private key
+.......++++++++++++
+....++++++++++++
+writing new private key to 'client_ca2key.pem'
+-----
+Using configuration from ca2.cnf
+Check that the request matches the signature
+Signature ok
+The Subjects Distinguished Name is as follows
+countryName           :PRINTABLE:'US'
+stateOrProvinceName   :PRINTABLE:'California'
+localityName          :PRINTABLE:'San Diego'
+organizationName      :PRINTABLE:'SDSC'
+commonName            :PRINTABLE:'IncaTestClient2'
+Certificate is to be certified until Mar 29 01:33:05 2006 GMT (365 days)
+
+Write out database with 1 new entries
+Data Base Updated
+read RSA key
+writing RSA key
+        Issuer: C=US, ST=California, L=San Diego, O=SDSC, CN=IncaTestCA_ca2
+        Subject: C=US, ST=California, O=SDSC, CN=IncaTestClient2

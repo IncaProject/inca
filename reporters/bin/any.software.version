@@ -1,0 +1,21 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'any.software.version',
+  version => 1,
+  description => 'Reports version of software package thru command-line',
+);
+$reporter->addArg( "command", "The command to print out software version" );
+$reporter->addArg( "regex", "The regex to extract the version from command output", '([\d\.\-]+)' );
+$reporter->addArg( "package", "Set name of software package (default: first word in command)", "" );
+$reporter->processArgv(@ARGV);
+my $command = $reporter->argValue( "command" );
+my $regex = $reporter->argValue( "regex" );
+$reporter->setVersionByExecutable( $command, $regex );
+my ($packageName) = $command =~ /(\w+)/;
+$reporter->setPackageName( $packageName );
+$reporter->print( );

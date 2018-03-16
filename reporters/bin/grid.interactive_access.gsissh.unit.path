@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.interactive_access.gsissh.unit.path',
+  version => 2,
+  description => "Verifies that gsissh's ssh is the user's path",
+  url => 'http://grid.ncsa.uiuc.edu/ssh',
+  unit_name => 'gsissh_in_path'
+);
+$reporter->processArgv(@ARGV);
+
+my $path = $reporter->loggedCommand('which ssh');
+chomp($path);
+if(!defined($ENV{GLOBUS_LOCATION})) {
+  $reporter->unitFailure('env var GLOBUS_LOCATION is not defined');
+} elsif($path ne "$ENV{GLOBUS_LOCATION}/bin/ssh") {
+  $reporter->unitFailure('ssh in path is not gsissh');
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

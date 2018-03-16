@@ -1,0 +1,6 @@
+<kb>
+  <enable>true</enable>
+  <searchString>/inca/jsp/searchKnowledgeBase.jsp?nickname=@nickname@&amp;reporter=@reporter@&amp;error=@error@</searchString>
+  <submitString>/inca/jsp/addKnowledgeBase.jsp?nickname=@nickname@&amp;reporter=@reporter@&amp;error=@error@</submitString>
+  <submitEmailNotification>none</submitEmailNotification>
+</kb>

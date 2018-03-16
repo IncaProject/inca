@@ -1,0 +1,49 @@
+#!/usr/bin/env perl -w
+#   Galen Arnold [arnoldg@ncsa.uiuc.edu]
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.os.softenv.unit.has_required',
+  version => 3,
+  description => 'Verifies that softenv keys from the min. CTSS are present',
+  url => 'http://www.gnu.org/',
+  unit_name => 'softenv'
+);
+$reporter->addArg('file', 'comparison file');
+$reporter->processArgv(@ARGV);
+my $file = $reporter->argValue('file');
+
+# Build hash of softenv keys from source file
+my %settings;
+$reporter->failPrintAndExit("Couldn't open $file for reading")
+  if !open(INPUT, "<$file");
+while(<INPUT>) {
+  # Parse [@+]name [value] lines; ignore blank/comment (leading # or ;) lines.
+  next if $_ =~ /^\s*([#;].*)?$/;
+  next if $_ !~ /^\s*[+@]\s*(\S+)\s*((\S+)(\s+\S+)*)?\s*$/;
+  $settings{$1} = $2;
+}
+close(INPUT);
+
+# Compare to softenv settings
+my @mismatches;
+my $output = $reporter->loggedCommand('softenv');
+$reporter->failPrintAndExit('softenv failed: $output $!') if $?;
+foreach my $line(split(/\n/, $output)) {
+  next if $line =~ /^\s*([#;].*)?$/;
+  next if $line !~ /^\s*[+@]\s*(\S+)\s*((\S+)(\s+\S+)*)?\s*$/;
+  pushd(@mismatches, $1) if exists($settings{$1}) && $settings{$1} ne $2;
+}
+
+if($#mismatches >= 0) {
+  $reporter->unitFailure
+    ('The softenv keys ' . join(' ', @mismatches) .
+     " do not have the values specified in $file");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();
+

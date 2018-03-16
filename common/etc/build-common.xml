@@ -1,0 +1,830 @@
+
+	<!-- this taskdef allows us to use the foreach and propertyregex tasks -->
+	<taskdef resource="net/sf/antcontrib/antlib.xml">
+		<classpath>
+			<pathelement location="${basedir}/lib/ant-contrib.jar"/>
+		</classpath>
+	</taskdef>
+
+	<!-- get environment vars -->
+	<property environment="env"/>
+	<property name="debug" value="on"/>
+	<property name="inca.test" value="0"/>
+	<property name="testworkingdir" value="${basedir}"/>
+
+	<!-- project build targets -->
+	<property name="build.lib" value="${basedir}/lib"/>
+	<property name="build.bin" value="${basedir}/bin"/>
+	<property name="build.sbin" value="${basedir}/sbin"/>
+	<property name="build.src" value="${basedir}/src"/>
+	<property name="build.etc" value="${basedir}/etc"/>
+	<property name="build.etc.common" value="${basedir}/etc/common"/>
+	<property name="build.classes" value="${basedir}/classes"/>
+	<property name="build.docs" value="${basedir}/docs"/>
+	<property name="build.javadoc" 
+            value="${build.docs}/javadocs/${package.name}"/>
+	<property name="build.tlddoc" value="${build.docs}/tlddocs"/>
+	<property name="build.tests" value="${basedir}/tests"/>
+	<property name="tests.output" value="${basedir}/test-results"/>
+	<property name="build.output" value="${basedir}"/>
+	<property name="build.dependencyfile" value="${basedir}/Dependencies"/>
+
+	<property name="rep.root"
+		value="http://capac.sdsc.edu:9080/localdisk/inca/subversion/inca"/>
+	<property name="rep.root.ssh"
+		value="svn://capac.sdsc.edu/inca"/>
+	<property name="rep.branches" value="${rep.root}/branches/${package.name}"/>
+	<property name="rep.branches.ssh"
+            value="${rep.root.ssh}/branches/${package.name}"/>
+	<property name="rep.trunk" value="${rep.root}/trunk"/>
+	<property name="rep.contrib" value="${rep.trunk}/contrib"/>
+	<property name="rep.releases" value="${rep.root}/releases/${package.name}"/>
+	<property name="rep.releases.ssh" 
+            value="${rep.root.ssh}/releases/${package.name}"/>
+	<property name="rep.common.sbin" value="${rep.trunk}/devel/common/sbin"/>
+	<property name="rep.common.etc" value="${rep.trunk}/devel/common/etc"/>
+  <available property="tldsExist" file="${basedir}/webapps" />
+
+	<!-- =================================================================== -->
+	<!-- Clover setup                                                        -->
+	<!-- =================================================================== -->
+	<property name="clover.lib.location" value="${env.CLOVER_HOME}/lib/clover.jar"/>
+
+	<path id="clover.lib">
+		<pathelement location="${clover.lib.location}"/>
+	</path>
+
+	<available file="${clover.lib.location}" property="have.clover"/>
+
+	<target name="define-clover" if="have.clover">
+		<taskdef resource="cloverlib.xml" classpathref="clover.lib" />
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Sets the CLASSPATH                                                  -->
+	<!-- The default here is to include all jar files in the lib dir and the -->
+	<!-- local etc directory as well as the system classpath                 -->
+	<!-- =================================================================== -->
+	<path id="classpath">
+		<pathelement location="${build.classes}"/>
+		<fileset dir="${build.lib}">
+			<exclude name="*.LICENSE"/>
+			<include name="*.jar"/>
+		</fileset>
+		<fileset file="${jar.name}.jar"/>
+		<pathelement location="${build.etc}"/>
+		<pathelement location="${build.etc.common}"/>
+		<pathelement path="${java.class.path}"/>
+	</path>
+
+	<!-- =================================================================== -->
+	<!-- Create binary distribution                                          -->
+	<!-- =================================================================== -->
+	<target name="bindist" depends="getChangeLog,getCopyright,javadoc"
+		description="creates a binary distribution of this component">
+
+		<property file="${basedir}/version" prefix="version"/>
+    <!-- set version.minor if not set in file -->
+    <antcallback target="getSvnProjectInfo" return="svn.current.version"/> 
+    <property name="version.minor" value="${svn.current.version}"/>
+		<property name="tmpdir" value="installdir-bindist"/>
+		<property name="tarname"
+      value="${package.name}-${version.major}.${version.minor}-bin.tar.gz"/>
+
+    <delete dir="${tmpdir}"/>
+    <delete file="${tarname}"/>
+    <antcall target="install">
+       <param name="installdir" value="${tmpdir}"/>
+    </antcall>
+		<tar destfile="${tarname}" compression="gzip">
+			<tarfileset dir="${tmpdir}"> 
+				<exclude name="*bin"/>
+				<exclude name="*bin/*"/>
+				<exclude name="lib/inca-common.jar" unless="isIncaCommon"/>
+				<exclude name="lib/incaXmlBeans.jar" unless="isIncaCommon"/>
+			</tarfileset>
+			<tarfileset dir="${tmpdir}" mode="755">
+				<include name="*bin"/>
+				<include name="*bin/*"/>
+			</tarfileset>
+		</tar>
+    <delete dir="${tmpdir}"/>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- clean up Clover output                                              -->
+	<!-- =================================================================== -->
+	<target name="clean-clover" if="have.clover" depends="define-clover">
+		<clover-clean/>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- clean up down to a base devel snapshot                              -->
+	<!-- =================================================================== -->
+	<target name="clean" depends="clean-clover" description="clean up any files generated by build">
+		<delete quiet="true" includeEmptyDirs="true">
+			<fileset dir="${tests.output}"/>
+			<fileset dir="classes"/>
+			<fileset file="junitReport.xml"/>
+			<fileset dir="${basedir}/src" includes="**/*_jsp.*"/>
+			<fileset dir="${basedir}/src" includes="**/*_tag.*"/>
+		</delete>
+
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- compile                                                             -->
+	<!-- =================================================================== -->
+	<target name="compile" 
+		description="Compiles all of the source code">
+
+		<mkdir dir="${build.classes}"/>
+		<javac
+			srcdir="${build.src}"
+			destdir="${build.classes}"
+			classpathref="classpath"
+			debug="${debug}">
+		</javac>
+		<copy toDir="${build.classes}">
+			<fileset dir="${build.src}">
+				<include name="**/*.properties"/>
+				<include name="**/*.html"/>
+				<include name="**/*.xml"/>
+			</fileset>
+		</copy>
+    <copy toDir="${build.classes}">
+      <fileset dir="${build.lib}">
+        <include name="*.tar.gz"/>
+      </fileset>
+    </copy>
+    <copy toDir="${build.classes}" failOnError="false">
+      <fileset dir="${build.sbin}">
+        <include name="*"/>
+      </fileset>
+    </copy>
+  </target>
+
+	<!-- =================================================================== -->
+	<!-- clean up everything but the svn files                               -->
+	<!-- =================================================================== -->
+	<target name="devel-clean" depends="clean"
+		description="clean up all files that do not belong in svn">
+		<delete quiet="true">
+			<fileset file="${jar.name}.jar"/>
+		</delete>
+		<delete quiet="true">
+			<fileset dir="${basedir}">
+				<include name="test.*"/>
+			</fileset>
+		</delete>
+		<delete quiet="true" includeEmptyDirs="true" >
+			<fileset dir="${build.lib}"/>
+		</delete>
+		<delete quiet="true" includeEmptyDirs="true">
+			<fileset dir="${build.docs}"/>
+		</delete>
+		<delete quiet="true" includeEmptyDirs="true">
+			<fileset dir="${basedir}">
+				<include name="${package.name}.*tar*"/>
+			</fileset>
+		</delete>
+
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Print detailed usage information                                    -->
+	<!-- =================================================================== -->
+	<target name="devel-help" depends="help"
+		description="shows help about developer specific targets">
+		<echo message="bindist            Create a binary distribution"/>
+		<echo message="devel-clean        Removes all file created by dist"/>
+		<echo message="release            Marks this version as stable in svn"/>
+		<echo message="release-candidate  Tag this as a release"/>
+		<echo message="run-tests          Builds and runs the JUnit tests."/>
+		<echo message="                   Requires extra setup:"/>
+		<echo message="                   junit jar must be in $ANT_HOME/lib"/>
+		<echo message="srcdist            Create a source distribution"/>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Generate UML diagrams                                               -->
+	<!-- =================================================================== -->
+	<target name="diag" description="generates the Inca Util Javadocs">
+		<javadoc
+			sourcepath="${build.src}"
+			classpathref="classpath"
+			doclet="UmlGraph"
+			docletpathref="classpath"
+			additionalparam="-all -qualify">
+			<fileset dir="${build.src}">
+				<exclude name="**/*Test.java"/>
+				<exclude name="**/*.xml"/>
+				<exclude name="**/*.properties"/>
+			</fileset>
+		</javadoc>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Print usage information                                             -->
+	<!-- =================================================================== -->
+	<target name="help" description="shows help about useful targets">
+		<echo message="Target             Description"/>
+		<echo message="------------------------------------------------------"/>
+		<echo message="install            Install"/>
+		<echo message="compile            Compiles Depot source code"/>
+		<echo message="javadoc            Creates only Javadoc API"/>
+		<echo message="jar                Creates the ${jar.name}.jar file"/>
+		<echo message="war                Creates the ${jar.name}.war file if applicable"/>
+		<echo message="devel-help         List the targets available only to "/>
+		<echo message="                   developers."/>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Install project into a directory                                    -->
+	<!-- =================================================================== -->
+	<target name="install"
+		description="install to a specified location" depends="jar">
+		<fail unless="installdir"
+			message="USAGE: ant -Dinstalldir=path install"/>
+		<copy todir="${installdir}/etc" failonerror="false">
+			<fileset dir="${basedir}/etc"/>
+		</copy>
+		<copy todir="${installdir}/lib" failonerror="true">
+			<fileset dir="${basedir}/lib">
+			</fileset>
+		</copy>
+		<copy todir="${installdir}/bin" failonerror="true">
+			<fileset dir="${basedir}/bin">
+			</fileset>
+		</copy>
+		<copy todir="${installdir}/docs" failonerror="true">
+			<fileset dir="${basedir}/docs">
+			</fileset>
+		</copy>
+		<copy todir="${installdir}/sbin" failonerror="false">
+			<fileset dir="${basedir}/sbin">
+			</fileset>
+		</copy>
+		<copy todir="${installdir}/webapps" failonerror="false">
+			<fileset dir="${basedir}/webapps"/>
+		</copy>
+		<copy todir="${installdir}/xsl" failonerror="false">
+			<fileset dir="${basedir}/xsl"/>
+		</copy>
+    <chmod perm="755" failonerror="true">
+      <fileset dir="${installdir}/bin"/>
+    </chmod>
+		<copy tofile="${installdir}/etc/${package.name}-version" failonerror="true">
+			<fileset file="${basedir}/version">
+			</fileset>
+		</copy>
+		<copy todir="${installdir}/lib" failonerror="true">
+			<fileset file="${basedir}/${jar.name}.jar">
+			</fileset>
+		</copy>
+
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- create the jar                                                      -->
+	<!-- =================================================================== -->
+	<target name="jar" description="create jar of project src" depends="compile">
+    <antcall target="jsp"/> 
+		<jar
+			destfile="${jar.name}.jar"
+			basedir="${build.classes}">
+		</jar>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Generate JavaDoc                                                    -->
+	<!-- =================================================================== -->
+	<target name="javadoc" description="generates the Javadocs" depends="tlddoc">
+		<mkdir dir="${build.docs}"/>
+		<mkdir dir="${build.javadoc}"/>
+		<javadoc
+			sourcepath="${build.src}"
+			destdir="${build.javadoc}"
+			classpathref="classpath"
+			packagenames="edu.sdsc.inca.*"/>
+	</target>
+
+	<target name="tlddoc" description="generates the TLD docs" if="tldsExist">
+		<mkdir dir="${build.docs}"/>
+		<mkdir dir="${build.tlddoc}"/>
+    <java fork="true" jar="${build.lib}/tlddoc.jar" failonerror="false">
+        <arg line="-d ${build.tlddoc}"/>
+        <arg value="${basedir}/webapps/inca/WEB-INF/tags/inca"/>
+    </java>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- copy over dependencies if needed                                    -->
+	<!-- =================================================================== -->
+	<target name="populate-depends"
+		description="Copy over project dependencies">
+
+		<mkdir dir="${build.lib}"/>
+		<loadfile property="depends" srcFile="${build.dependencyfile}"/>
+		<foreach list="${depends}" delimiter="${line.separator}"
+			target="copyContribFileFromSVN" param="fileSpec"/>
+
+		<property prefix="version" file="version.svn"/>
+    <!-- use HEAD for version if minor not set -->
+		<property name="version.inca" value="HEAD"/> 
+		<mkdir dir="${build.bin}"/>
+    <antcall target="copyFileFromSVN"> 
+       <param name="relSvnPath" value="devel/common/sbin/inca"/>
+       <param name="relPath" value="bin/inca"/>
+       <param name="version" value="@${version.inca}"/>
+       <param name="perm" value="755"/>
+    </antcall>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Release this version of the component                               -->
+	<!-- =================================================================== -->
+	<target name="release" description="tag this as a release">
+
+    <!-- make sure project directories are already created -->
+    <antcall target="createSvnDirectory"> 
+       <param name="relSvnPath" value="releases/${package.name}"/>
+    </antcall>
+    <antcall target="createSvnDirectory"> 
+       <param name="relSvnPath" value="releases/${package.name}/current"/>
+    </antcall>
+
+    <!-- get minor version of package -->
+    <antcallback target="getSvnProjectInfo" return="svn.lastmodified.version"/> 
+		<!-- update the minor version -->
+		<propertyfile file="version" comment="Build version info">
+			<entry key="major" default="0" type="int"/>
+			<entry key="minor" value="${svn.lastmodified.version}"/>
+		</propertyfile>
+
+		<!-- commit the changes -->
+		<exec executable="svn" failonerror="true">
+			<arg value="commit"/>
+			<arg value="-m"/> <arg value="Automated commit - updating version"/>
+			<arg value="version"/>
+		</exec>
+
+    <!-- You have to do an update after committing, before svn log will show
+         the commit you just made.) -->
+		<exec executable="svn" failonerror="true"><arg value="update"/></exec>
+
+		<property prefix="version" file="version"/>
+
+		<!-- create the tag -->
+		<exec executable="svn">
+			<arg value="copy"/>
+			<arg value="."/>
+			<arg value= "${rep.releases.ssh}/${package.name}_${version.major}.${version.minor}"/>
+			<arg value="-m"/>
+			<arg value="Automated copy - release"/>
+		</exec>
+
+		<!-- update current to point to the new candidate -->
+    <antcall target="setExternals"> 
+       <param name="externals" 
+              value="${package.name} ${rep.releases}/${package.name}_${version.major}.${version.minor}"/>
+       <param name="relSvnPath" value="releases/${package.name}/current"/>
+    </antcall>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Branch this version of the component                                -->
+	<!-- =================================================================== -->
+	<target name="release-candidate" description="branch this version">
+
+    <!-- make sure project directories are already created -->
+    <echo message="Creating top level directories if they do not exist"/>
+    <antcall target="createSvnDirectory"> 
+       <param name="relSvnPath" value="branches/${package.name}"/>
+    </antcall>
+    <antcall target="createSvnDirectory"> 
+       <param name="relSvnPath" value="branches/${package.name}/current"/>
+    </antcall>
+
+		<!-- update the major version -->
+		<propertyfile file="version" comment="Build version info">
+			<entry key="major" default="0" type="int" operation="+" value="1"/>
+		</propertyfile>
+		<property prefix="version" file="version"/>
+    <echo message="Updating major version number to ${version.major}"/>
+		<exec executable="svn" failonerror="true" output="/dev/null">
+			<arg value="commit"/>
+			<arg value="-m"/> <arg value="Automated commit - updating version"/>
+			<arg value="version"/> 
+		</exec>
+
+    <!-- You have to do an update after committing, before svn log will show
+         the commit you just made.) -->
+		<exec executable="svn" failonerror="true" output="/dev/null">
+      <arg value="update"/>
+    </exec>
+
+    <echo message="Copying to branches ${rep.branches.ssh}/v${version.major}"/>
+		<!-- create the tag (i.e., copy over to branches )-->
+		<exec executable="svn" output="/dev/null">
+			<arg value="copy"/>
+			<arg value="-m"/> <arg value="Automated copy - release candidate"/>
+			<arg value="."/> <arg value="${rep.branches.ssh}/v${version.major}"/>
+		</exec>
+
+    <!-- update current link -->
+    <echo message="Updating current link"/>
+    <antcall target="setExternals"> 
+       <param name="externals" 
+              value="${package.name} ${rep.branches}/v${version.major}"/>
+       <param name="relSvnPath" value="branches/${package.name}/current"/>
+    </antcall>
+
+    <!-- freeze lib dependencies -->
+    <echo message="Freezing lib dependencies"/>
+    <antcallback target="getSvnProjectInfo" return="svn.current.version"/> 
+    <copy file="${build.dependencyfile}" tofile="Dependencies.tmp"/>
+    <replaceregexp file="Dependencies.tmp" byline="true"
+                   match="^(\w.*)" replace="\1 @${svn.current.version}"/>
+    <exec executable="svn" failonerror="true" output="/dev/null">
+      <arg value="delete"/>
+      <arg value="-m"/> <arg value="Automated commit - deleting Dependencies"/>
+      <arg value="${rep.branches.ssh}/v${version.major}/Dependencies"/>
+    </exec>
+    <exec executable="svn" failonerror="true" output="/dev/null">
+      <arg value="import"/>
+      <arg value="-m"/> <arg value="Automated commit - updating Dependencies"/>
+      <arg value="Dependencies.tmp"/>
+      <arg value="${rep.branches.ssh}/v${version.major}/Dependencies"/>
+    </exec>
+    <delete file="Dependencies.tmp"/>
+    <!-- freeze inca script -->
+    <echo message="Freezing script dependencies"/>
+    <propertyfile file="version.svn" comment="common version info">
+      <entry key="inca" value="${svn.current.version}"/>
+    </propertyfile>
+    <exec executable="svn" failonerror="true" output="/dev/null">
+      <arg value="import"/>
+      <arg value="-m"/> <arg value="Automated commit - version.svn"/>
+      <arg value="version.svn"/>
+      <arg value="${rep.branches.ssh}/v${version.major}/version.svn"/>
+    </exec>
+    <delete file="version.svn"/>
+    <!-- freeze etc/common -->
+    <echo message="Freezing etc/common dependencies"/>
+    <antcall target="setExternals"> 
+       <param name="externals" 
+       value="etc/common -r${svn.current.version} ${rep.trunk}/devel/common/etc"/>
+       <param name="relSvnPath" 
+              value="branches/${package.name}/v${version.major}"/>
+    </antcall>
+
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Clover targets                                                      -->
+	<!-- =================================================================== -->
+	<target name="with-clover" depends="define-clover">
+		<fail unless="have.clover" message="Could not find Clover library"/>
+		<clover-setup/>
+	</target>
+
+	<target name="clover-html" depends="define-clover">
+		<clover-html-report outdir="coverage_html" title="Inca"/>
+	</target>
+
+	<target name="clover-pdf" depends="define-clover">
+		<clover-pdf-report outfile="coverage.pdf"/>
+	</target>
+
+	<target name="clover-log" depends="define-clover">
+		<clover-log/>
+	</target>
+
+	<target name="clover-xml" depends="define-clover">
+		<clover-report>
+			<current outfile="coverage.xml">
+				<format type="xml"/>
+			</current>
+		</clover-report>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- run the ant tests                                                   -->
+	<!-- =================================================================== -->
+	<target name="run-tests"
+		description="run the unit tests included in this package">
+		<mkdir dir="${tests.output}"/>
+
+		<junit printsummary="yes" fork="yes" timeout="3600000" showoutput="no"
+           haltonfailure="true">
+      <jvmarg value="-Djava.awt.headless=true"/>
+			<sysproperty key="inca.test" value="${inca.test}"/>
+			<classpath>
+				<path refid="clover.lib" />
+				<path refid="classpath" />
+			</classpath>
+			<formatter type="xml"/>
+			<batchtest todir="${tests.output}">
+				<fileset dir="${build.src}">
+					<include name="**/*Test.java"/>
+					<exclude name="**/PersistentTest.java"/>
+				</fileset>
+			</batchtest>
+		</junit>
+
+		<junitreport toFile="junitReport.xml">
+			<fileset dir="${tests.output}">
+			</fileset>
+		</junitreport>
+
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- create jsp source files -->
+	<!-- =================================================================== -->
+	<target name="jsp" description="compile jsp pages" if="war.name">
+    <property name="webapp" value="${basedir}/webapps/inca"/>
+    <delete>
+      <fileset dir="${basedir}/src" includes="**/*_jsp.*" />
+    </delete>
+    <antcall target="compile"/> 
+    <taskdef classname="org.apache.jasper.JspC" name="jasper2" 
+             classpathref="classpath"/>
+    <jasper2 verbose="0" package="${jsp.package}" uriroot="${webapp}" 
+             webXmlFragment="generated_web.xml" outputDir="src" />
+    <antcall target="compile"/> 
+    <loadfile property="web" srcFile="${basedir}/generated_web.xml"/>
+    <copy file="${webapp}/WEB-INF/web.template.xml"
+          tofile="${webapp}/WEB-INF/web.xml" overwrite="true" />
+    <replace file="${webapp}/WEB-INF/web.xml" token="@@@" value="${web}" />
+    <copy file="${webapp}/WEB-INF/web.template.xml"
+          tofile="${webapp}/WEB-INF/web.dyn.xml" overwrite="true" />
+    <replace file="${webapp}/WEB-INF/web.dyn.xml" token="@@@" value="" />
+    <!-- <delete file="${basedir}/generated_web.xml"/> -->
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- Create source distribution                                          -->
+	<!-- =================================================================== -->
+	<target name="srcdist"
+          depends="populate-depends,getChangeLog,getCopyright,javadoc"
+		      description="creates a source distribution of this component" >
+
+		<property file="${basedir}/version" prefix="version"/>
+    <!-- set version.minor if not set in file -->
+    <antcallback target="getSvnProjectInfo" return="svn.current.version"/> 
+    <property name="version.minor" value="${svn.current.version}"/>
+		<property name="tmpdir" value="installdir-srcdist"/>
+		<property name="prefix"
+      value="${package.name}-${version.major}.${version.minor}"/>
+		<property name="tarname" value="${prefix}-src.tar.gz"/>
+
+    <delete dir="${tmpdir}"/>
+    <delete file="${tarname}"/>
+		<tar destfile="${tarname}" compression="gzip">
+			<tarfileset dir="${basedir}" prefix="${prefix}">
+				<exclude name="*bin"/>
+				<exclude name="*bin/*"/>
+				<exclude name="Dependencies"/>
+			</tarfileset>
+			<tarfileset dir="${basedir}" prefix="${prefix}" mode="755">
+				<include name="*bin"/>
+				<include name="*bin/*"/>
+			</tarfileset>
+		</tar>
+    <delete dir="${tmpdir}"/>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- create the a war file -->
+	<!-- =================================================================== -->
+	<target name="war" description="create a war file if applicable to project" 
+          if="war.name" depends="jar">
+		<delete file="webapps/${war.name}.war"/>
+    <mkdir dir="webapps"/>
+		<war destfile="webapps/${war.name}.war"
+         webxml="${basedir}/webapps/inca/WEB-INF/web.xml">
+      <fileset dir="webapps/inca"/> 
+			<lib file="inca-consumers.jar"/>
+			<lib dir="${basedir}/lib">
+        <include name="batik*"/>
+        <include name="cewolf*"/>
+        <include name="jfreechart*"/>
+        <include name="jcommon*"/>
+      </lib>
+		</war>
+		<war destfile="webapps/root.war" 
+         webxml="${basedir}/webapps/root/WEB-INF/web.xml">
+      <fileset dir="webapps/root"/>
+    </war>
+	</target>
+
+	<!-- =================================================================== -->
+	<!-- UTILITY TASKS (i.e., functions)                                     -->
+	<!-- =================================================================== -->
+
+	<!-- ................................................................... 
+       copyContribFileFromSVN - copy a file from the contrib directory to lib
+  
+       Properties:
+
+       fileSpec   specifies the file and version to copy
+
+                  <fileInContrib> [@<version>] 
+
+                  fileInContrib  file that exists svn at inca/trunk/contrib
+                  version        optional version to select    
+	     ................................................................... -->
+	<target name="copyContribFileFromSVN">
+    <property name="fileSpecRegex" value="(\S+)\s*(@\d+)*"/>
+
+    <fail unless="fileSpec" message="fileSpec undef in copyContribFileFromSVN"/>
+
+		<propertyregex property="file" override="true" 
+                   input="${fileSpec}" regexp="${fileSpecRegex}" select="\1"/>
+    <fail unless="file" message="file undef in copyContribFileFromSVN"/>
+
+		<propertyregex property="version" override="true" 
+                   input="${fileSpec}" regexp="${fileSpecRegex}" select="\2"/>
+
+    <antcall target="copyFileFromSVN"> 
+       <param name="relSvnPath" value="contrib/${file}"/>
+       <param name="relPath" value="lib/${file}"/>
+       <param name="version" value="${version}"/>
+       <param name="perm" value="644"/>
+    </antcall>
+  </target>
+  <target name="testCopyContribFileFromSVN">
+    <antcall target="copyContribFileFromSVN"> 
+       <param name="fileSpec" value="inca-common.jar"/>
+    </antcall>
+    <delete file="inca-common.jar"/>
+  </target>
+
+	<!-- ................................................................... -->
+  <!-- copyFileFromSVN - copy a file from the svn repository to local file
+  
+       Properties:
+
+       relSvnPath   relative path to the svn repository's inca/trunk 
+       relPath      relative path to base dir 
+       version      optional version to select -->
+	<!-- ................................................................... -->
+	<target name="copyFileFromSVN">
+
+    <fail unless="relSvnPath" message="relSvnPath undef in copyFileFromSVN"/>
+    <fail unless="relPath" message="relPath undef in copyFileFromSVN"/>
+
+		<echo message="Copying ${rep.trunk}/${relSvnPath} to ${relPath}"/>
+		<echo message="version: ${version}"/>
+
+    <touch file="${basedir}/${relPath}" mkdirs="true"/>
+		<exec executable="svn" failonerror="true">
+			<arg line="export --force ${rep.trunk}/${relSvnPath}${version} ${basedir}/${relPath}"/>
+		</exec>
+    <if><isset property="perm" />
+      <then>
+      <chmod file="${basedir}/${relPath}" perm="${perm}"/>
+      </then>
+    </if>
+	</target>
+
+	<!-- ................................................................... 
+       createSvnDirectory - create a directory in the svn repo if it does
+                            not exist
+       Properties:
+
+       relSvnPath  Specifies a path in the SVN repository relative to
+                   the project directory.
+	     ................................................................... -->
+	<target name="createSvnDirectory" >
+    <fail unless="relSvnPath" message="relSvnPath undef in createSvnDirectory"/>
+
+    <var name="svn.dir.exists" unset="true"/>
+    <exec executable="svn" resultproperty="svn.dir.exists" 
+          errorproperty="err" outputproperty="out">
+		   <arg value="list"/>
+		   <arg value="${rep.root.ssh}/${relSvnPath}"/>
+    </exec>
+    <if><equals arg1="${svn.dir.exists}" arg2="1" />
+      <then>
+        <echo message="Creating svn directory ${rep.root.ssh}/${relSvnPath}"/>
+        <exec executable="svn">
+			    <arg value="mkdir"/>
+			    <arg value="-m"/> <arg value="Automated commit - making svn dir"/>
+			    <arg value="${rep.root.ssh}/${relSvnPath}"/>
+        </exec>
+    </then></if>
+  </target>
+  <target name="testCreateSvnDirectory">
+    <antcall target="createSvnDirectory"> 
+       <param name="relSvnPath" value="releases/inca-agent/current"/>
+    </antcall>
+  </target>
+
+	<!-- ................................................................... 
+       getChangeLog - Fetch the ChangeLog file
+	     ................................................................... -->
+	<target name="getChangeLog" >
+
+		<exec executable="svn" output="${basedir}/ChangeLog">
+			<arg value="cat"/>
+			<arg value="${rep.trunk}/devel/ChangeLog"/>
+		</exec>
+  </target>
+
+	<!-- ................................................................... 
+       getCopyright - Fetch the COPYRIGHT file
+	     ................................................................... -->
+	<target name="getCopyright" >
+
+		<exec executable="svn" output="${basedir}/COPYRIGHT">
+			<arg value="cat"/>
+			<arg value="${rep.trunk}/devel/COPYRIGHT"/>
+		</exec>
+  </target>
+
+	<!-- ................................................................... 
+       getSvnProjectInfo - Set some properties about the svn repository
+
+       Properties set:
+
+       svn.current.version       The current svn repository version
+       svn.lastmodified.version  The version of the last modified file in this
+                                 project
+	     ................................................................... -->
+	<target name="getSvnProjectInfo" >
+
+    <!-- to get accurate versions, you need to update first -->
+		<exec executable="svn" failonerror="true" output="/dev/null"> 
+      <arg value="update"/> 
+    </exec>
+
+    <!-- get fields from svn info -->
+    <var name="svn.info.output" unset="true"/>
+		<exec executable="svn" outputproperty="svn.info.output">
+			<arg value="info"/>
+		</exec>
+		<exec executable="awk" inputstring="${svn.info.output}"
+			outputproperty="svn.current.version">
+			<arg line=" '/Revision: / {print $2}'"/>
+		</exec>
+		<exec executable="awk" inputstring="${svn.info.output}"
+			outputproperty="svn.lastmodified.version">
+			<arg line=" '/Last Changed Rev: / {print $4}'"/>
+		</exec>
+  </target>
+  <target name="testGetSvnProjectInfo">
+    <antcallback target="getSvnProjectInfo" 
+                 return="svn.current.version,svn.lastmodified.version"/> 
+    <fail unless="svn.current.version" message="svn.current.version not set"/>
+    <fail unless="svn.lastmodified.version" 
+          message="svn.lastmodified.version not set"/>
+  </target>
+
+	<!-- ................................................................... 
+       setExternals - sets the svn:externals property for a svn directory
+
+       Properties:
+
+       relSvnPath  Specifies a path in the SVN repository relative to
+                   the project directory.
+	     ................................................................... -->
+	<target name="setExternals" >
+
+    <fail unless="externals" message="externals property not set"/>
+    <fail unless="relSvnPath" message="relSvnPath property not set"/>
+
+    <!-- since we can't update externals on the repository remotely, we
+         created a script updateExternals which will check out a local copy,
+         make the update and delete it -->
+		<exec executable="svn" output="${basedir}/updateExternals">
+			<arg value="cat"/>
+			<arg value="${rep.common.sbin}/updateExternals"/>
+		</exec>
+		<chmod file="${basedir}/updateExternals" perm="a+x"/>
+
+		<!-- update the svn:externals property -->
+		<echo file="propfile" message="${externals}"/>
+		<exec executable="${basedir}/updateExternals" output="/dev/null">
+			<arg value="${rep.root.ssh}/${relSvnPath}"/>
+			<arg value="propfile"/>
+		</exec>
+
+    <!-- cleanup -->
+		<delete file="${basedir}/propfile"/>
+		<delete file="${basedir}/updateExternals"/>
+  </target>
+  <target name="testSetExternals">
+    <antcall target="setExternals"> 
+       <param name="externals" 
+              value="perlProjTmp ${rep.root}/trunk/admin/templates/perlProject"/>
+       <param name="relSvnPath" value="trunk/admin/templates/javaProject"/>
+    </antcall>
+    <antcall target="setExternals"> 
+       <param name="externals" value=""/>
+       <param name="relSvnPath" value="trunk/admin/templates/javaProject"/>
+    </antcall>
+  </target>
+

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="ComparisonResult" table="INCACOMPARISONRESULT" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native"/>
+    </id>
+
+    <!-- properties -->
+    <property name="result" column="incaresult" type="string" not-null="true"/>
+
+    <!-- relations to other tables -->
+    <!--
+    Note: it might make more sense to declare these two columns as many-to-one
+    mappings, but, for reasons lost to time, they were instead defined as
+    properties.  Adding indexes provides much of the advantage of using
+    mappings without worrying about modifying existing DBs.
+    -->
+    <property name="reportId" column="incareportId" type="long"
+              index="incacomparisonreportindex" not-null="true"/>
+    <property name="seriesConfigId" column="incaseriesConfigId" type="long"
+              index="incacomparisonseriesconfigindex" not-null="true"/>
+
+  </class>
+</hibernate-mapping>

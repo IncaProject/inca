@@ -1,0 +1,58 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use strict;
+use warnings;
+
+my $buffer = 60;
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.amqp.unit',
+  version => 10,
+  description => 'Tests that fresh data is being published to AMQP server',
+  unit_name => 'amqp'
+);
+$reporter->addArg( "auth", "credentials to authenticate to amqp server (format: <cert>:<key>:<trusted>)", "" );
+$reporter->addArg( "host", "amqp host", "" );
+$reporter->addArg( "vhost", "amqp virtual host", "" );
+$reporter->addArg( "exchange", "exchange to check" );
+$reporter->addArg( "listentime", "listen for messages (seconds)" );
+$reporter->addArg( "keys", "comma separated list of key regex to verify" );
+$reporter->addArg( "minkeys", "minimum number of keys to return", "2" );
+$reporter->addDependency('inca-java-amqp');
+$reporter->processArgv(@ARGV);
+my $auth = $reporter->argValue( "auth" );
+my $host = $reporter->argValue( "host" );
+my $vhost = $reporter->argValue( "vhost" );
+my $exchange = $reporter->argValue( "exchange" );
+my $listentime = $reporter->argValue( "listentime" );
+my @keys = split( /,\s*/, $reporter->argValue("keys") );
+my $minkeys = $reporter->argValue( "minkeys" );
+
+$reporter->failPrintAndExit("INSTALL_DIR not defined") if ! exists $ENV{INSTALL_DIR};
+
+my $options = "";
+$options .= "-s $host " if $host ne "";
+$options .= "-v $vhost " if $vhost ne "";
+$options .= "-T $listentime" if $listentime > 0;
+if ( $auth ne "" ) {
+  my ($cert, $key, $trusted) = split( /:/, $auth );
+  $options .= " -c $cert -k $key -t $trusted -p \"\"";
+}
+my $cmd = "java -jar $ENV{INSTALL_DIR}/lib/xsede-messaging.jar $options $exchange";
+my $output = $reporter->loggedCommand( $cmd, $listentime+$buffer );
+$reporter->failPrintAndExit( "No data returned after $listentime secs" ) if $output eq '';
+my @foundKeys = $output =~ /^(\w\S+)/gms;
+my $numFoundKeys = scalar(@foundKeys);
+$reporter->log( 'info', "$numFoundKeys messages read: " . join( ", ", @foundKeys) );
+$reporter->failPrintAndExit("No keys found in output after listening $listentime secs.  Looking for keys matching pattern \"" . $reporter->argValue("keys") . "\"") if ( !defined( $numFoundKeys ) || $numFoundKeys !~ /^\d+$/ );
+$reporter->failPrintAndExit("Expected $minkeys keys but found only $numFoundKeys after listening $listentime secs.  Looking for keys matching pattern \"" . $reporter->argValue("keys") . "\"") if $numFoundKeys < $minkeys;
+my @unmatchedKeys;
+for ( my $i = 0; $i < scalar(@keys); $i++ ) {
+  if ( grep(/$keys[$i]/, @foundKeys) < 1 ) {
+    push( @unmatchedKeys, $keys[$i] );
+  }
+}
+$reporter->failPrintAndExit("No mesages found for the following key patterns after listening $listentime secs: \"" . join( ",", @unmatchedKeys) . "\"") if scalar(@unmatchedKeys) > 0;
+
+$reporter->unitSuccess();
+$reporter->print();

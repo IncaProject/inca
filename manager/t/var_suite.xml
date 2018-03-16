@@ -1,0 +1,37 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<st:suite xmlns:st = "http://inca.sdsc.edu/dataModel/suite_2.0" xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" >
+  <seriesConfigs>
+	<seriesConfig>
+		<series>
+			<name>var_reporter</name>
+			<version>1</version>
+			<args>
+				<arg>
+					<name>verbose</name>
+					<value>0</value>
+				</arg>
+				<arg>
+					<name>help</name>
+					<value>no</value>
+				</arg>
+				<arg>
+					<name>var1</name>
+					<value>$HOME</value>
+				</arg>
+				<arg>
+					<name>var2</name>
+					<value>$HOM</value>
+				</arg>
+			</args>
+			<limits>
+				<wallClockTime>300</wallClockTime>
+			</limits>
+			<context>var_reporter -verbose="0" -help="no" -var1="$HOME" -var2="$HOM"</context>
+		</series>
+    <resourceSetName>localhost</resourceSetName>
+		<schedule/>
+	  <action>add</action>
+	</seriesConfig>
+  </seriesConfigs>
+  <guid>incas://localhost:6323/varSuite</guid>
+</st:suite>

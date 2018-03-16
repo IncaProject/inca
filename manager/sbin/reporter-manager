@@ -1,0 +1,647 @@
+#!/usr/bin/perl
+
+###############################################################################
+
+=head1 NAME
+
+reporter-manager - Executes Inca reporters on a resource
+
+=head1 DESCRIPTION
+
+An Inca reporter manager is responsible for scheduled and on-demand execution
+of reporters and sending the results to a depot for storage. A reporter
+manager trusts one and only one reporter agent who it registers with and
+accepts control changes from. A reporter manager should have a minimal impact
+on the resource it is running on.  The reporter manager can be started in
+one of the following ways:
+
+=over 2 
+
+=item 
+
+a Reporter Agent URI is specified using the -a|--agent option from which the
+Reporter Manager will expect a sequence of commands from.
+
+=item
+
+a suite file is specified using the option -s|--suite in which
+the Reporter Manager will execute it.  This option doesn't involve a
+controlling Reporter Agent.
+
+=back
+
+=head1 SYNOPSIS
+
+reporter-manager [-a|-s] [options] 
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<a|--agent>
+
+A string containing the URI to the Reporter Agent process that will be
+responsible for the reporter manager.  Currently accepted URIs include:
+
+incas://host:port
+inca://host:port
+
+=item B<-c|--cert>
+
+A path to a valid certificate file [default: none]
+
+=item B<-d|--depot>
+
+A string containing the URI of a depot to send its reporter data to.
+Currently accepted URIs include:
+
+incas://host:port
+inca://host:port
+file://path
+
+This option can be specified more than once.  The report will be sent to the
+first specified depot.  If the first depot is unreacheable, the next depots in
+the list will be tried.
+
+=item B<-D|--depot-timeout>
+
+A positive integer indicating the period in seconds of which to time out the
+send of a report to the depot [default: 120]
+
+=item B<-e|--error-reporter>
+
+A string containing a path to the error reporter.  E.g., inca-null-reporter  
+
+=item B<-h|--help>
+
+Print help/usage information
+
+=item B<-i|-id>
+
+The resource identifier supplied by the reporter agent that the reporter
+manager will use to identify itself back to the reporter agent.
+
+=item B<-k|--key>
+
+A path to a valid key file [default: none]
+
+=item B<-l|--logfile>
+
+A string containing a path to the file where the log messages can be stored.
+If not specified, log messages will be printed to the console.
+
+=item B<-L|--level>
+
+A string containing the log message level (i.e., print statements of this
+level and higher).  [default: INFO]
+
+=item B<-m|--manual>
+
+True if the reporter manager is started in manual mode.  This means that if
+the connection to the agent dies, it will attempt to reconnect to the agent
+automatically.  [default: false]
+
+=item B<-M|--manualSleep>
+
+The amount of time to sleep in before attempting to reconnect to the 
+agent.  [default: 60]
+
+=item B<-P|--passphrase>
+
+Read a passphrase for key from stdin 
+
+=item B<-r|--reporter-cache>
+
+A string containing the path to the local cache of reporters. 
+
+=item B<-R|--rim>
+
+A string containing a path to the reporter-instance-manager script.  If not
+specified, this script will look into the directory where itself is
+located.
+
+=item B<-s|--suite>
+
+A string containing a path to the Inca suite file containing the 
+reporters to be executed.
+
+=item B<-S|--suspend>
+
+A string describing when to suspend execution of the reporters when system
+load is high.  Format is load[1,5,15]>[number]. 
+
+=item B<-t|--trusted>
+
+A path to either a directory or file of trusted certificates [default: none]
+
+=item B<-v|--var>
+
+A string containing a path to a temporary file space that Inca can use while
+executing reporters
+
+=item B<-w|--wait>
+
+A positive integer indicating the period in seconds of which to check the
+reporter for a timeout [default: 2]
+
+=back
+
+=head1 EXAMPLES
+
+# run suite.xml and place data to file
+
+reporter-manager -s t/suite.xml --r ./t -d file:/tmp/depot.tmp
+
+# run suite.xml and send to depot on port 6324
+
+reporter-manager -s t/suite.xml --r ./t --depot incas://localhost:6324 -c t/certs/client_ca1cert.pem -k t/certs/client_ca1keynoenc.pem  -t t/certs/trusted
+
+=begin testing
+
+  use File::Copy;
+  use Inca::IO;
+  use Inca::Logger;
+  use Inca::Net::Protocol::Statement;
+  use Inca::Net::MockDepot();
+
+  my $logfile = "/tmp/log4perl.log.$$";
+
+  Inca::Logger->screen_init( "ERROR" );
+
+  sub testSuite {
+    my $suite = shift;
+    my $num_reports = shift;
+    my $encrypted = shift;
+
+    $encrypted = 0 if ( ! defined $encrypted );
+
+    my $port = 8518;
+    my $pid;
+    my $ppid = "$$";
+    my @reports;
+    if ( $pid = fork() ) {
+      my $depot = new Inca::Net::MockDepot();
+      is( 
+        $depot->readReportsFromSSL($num_reports, $port,"ca1","t/certs/trusted"),
+        $num_reports,
+        "$num_reports reports successfully read"
+      );
+      @reports = $depot->getReports();
+      my @files = glob( "/tmp/log4perl.log-*.$ppid" );
+      ok( scalar(@files)==1, "log file was generated" );
+      unlink $files[0];
+    } else {
+      my ($key, $passOpt, $passValue);
+      if ( $encrypted ) {
+        $key = "t/certs/client_ca1key.pem"; 
+        $passOpt = "-P";
+        $passValue = "true";
+        my ($piperead, $pipewrite);
+        pipe $piperead, $pipewrite;
+        open( STDIN, "<&" . fileno($piperead) ) ||
+          die "cannot redirect stdin: $!";
+        print $pipewrite "test";
+        close $pipewrite;
+      } else {
+        $key = "t/certs/client_ca1keynoenc.pem"; 
+        $passOpt = "";
+        $passValue = "";
+      }
+      exec "sbin/reporter-manager", "-s", $suite, "-r", "./t", "-e",
+           "bin/inca-null-reporter", "-d", "incas://localhost:" . $port,
+           "-c", "t/certs/client_ca1cert.pem", "-k", 
+           $key, $passOpt, $passValue, "-t", "t/certs/trusted", 
+           "--logfile=" . $logfile, "--id=resourceA", $ENV{INCA_TEST_SUSPEND};
+    }
+    kill( 3, $pid );
+    return @reports;
+  }
+
+  copy( "sbin/reporter-manager", "/tmp/rm-copy$$" );
+  chmod( 0755, "/tmp/rm-copy$$" );
+  my $stderr = `/tmp/rm-copy$$ 2>&1`;
+  like( $stderr, qr/specify alternative location/, 
+       'fails if no rim and rim not in default location' );
+  ok( unlink("/tmp/rm-copy$$"), "tmp rm copy deleted" );
+
+  $stderr = `sbin/reporter-manager -R "/doesnotexist" 2>&1`;
+  like($stderr, qr/.*path.*to -R|rim.*not exist/, 'fails if bad rim');
+  isnt( $?, 0, "error returns non-zero status" );
+
+  $stderr = `sbin/reporter-manager -s t/suite.xml 2>&1`;
+  like( $stderr, qr/No local cache/, 'fails if no reporter cache' );
+
+  $stderr = `sbin/reporter-manager -s t/suite.xml -r /usr/inca/cache 2>&1`;
+  like( $stderr, qr/not a valid directory path/, 
+        'fails if reporter cache bad dir');
+
+  $stderr = `sbin/reporter-manager -s t/suite.xml -r /tmp 2>&1`;
+  like( $stderr, qr/Path to error reporter/, 'fails if no error reporter');
+
+  $stderr = `sbin/reporter-manager -r /tmp -e bin/inca-null-reporter -d file:/tmp/depot.tmp 2>&1`;
+  like( $stderr, qr/Resource id not specified/, 
+       'fails if no resource id specified');
+
+  $stderr = `sbin/reporter-manager -s t/suite.xml -r /tmp -e bin/inca-null-reporter -i resourceA 2>&1`;
+  like( $stderr, qr/No depot/, 'fails if no depots specified');
+
+  $stderr = `sbin/reporter-manager -r /tmp -e bin/inca-null-reporter -d file:/tmp/depot.tmp -i resourceA 2>&1`;
+  like( $stderr, qr/No suite file/, 'fails if no file specified' );
+
+  $stderr = `sbin/reporter-manager -s t/suite_badxml.xml -r /tmp -e bin/inca-null-reporter -d file:/tmp/depot.tmp -i resourceA 2>&1`;
+  like( $stderr, qr/Error reading/, 'fails if bad file specified' );
+
+  $stderr = `sbin/reporter-manager -r /tmp -e bin/inca-null-reporter -d file:/tmp/depot.tmp -i resourceA 2>&1`;
+  like( $stderr, qr/No suite file or agent/, 
+       'fails if -s and -a are not specified');
+
+  `sbin/reporter-manager -L ERROR -T -c t/certs/client_ca1cert.pem --k t/certs/client_ca1keynoenc.pem --t t/certs/trusted`;
+  ok( ! $?, "test option worked" );
+
+  # test ssl on sequential
+  testSuite( "t/suite.xml", 2 );
+  is( $?, 0, "exit status 0 when sequential suite" );
+
+  # test suspend
+  $ENV{INCA_TEST_SUSPEND} = '--suspend=load1>0.000001';
+  my @suspendReports = testSuite( "t/suite.xml", 2 );
+  like( $suspendReports[0], qr/high load/, 'high load detected');
+  delete $ENV{INCA_TEST_SUSPEND};
+
+  # test ssl on sequential with encrypted key
+  testSuite( "t/suite.xml", 2, 1 );
+
+  # test ssl on cron 
+  my $tmp =  File::Spec->tmpdir();
+  unlink( "$tmp/schedule.xml" ) if -f "$tmp/schedule.xml";
+  @reports = testSuite( "t/cron_suite.xml", 2 );
+  my ($type1) = $reports[0] =~ /(gcc|openssl)/m;
+  my ($type2) = $reports[1] =~ /(gcc|openssl)/m;
+  ok( "$type1$type2" eq "gccopenssl" || "$type1$type2" eq "opensslgcc",
+      "cron thru ssl - gcc and openssl reports found" );
+  ok( -f "$tmp/schedule.xml", "schedule file written" );
+  unlink( "$tmp/schedule.xml" ) if -f "$tmp/schedule.xml";
+
+  # test agent
+  use Inca::Net::MockAgent;
+  use Socket qw(:crlf);
+
+  my $port = 8520;
+  my $pid;
+
+  if ( my $rmpid = fork() ) {
+    my $agent = new Inca::Net::MockAgent( $port, "ca1", "t/certs/trusted" );
+    my ($conn, $numStmts, @responses) = $agent->accept(
+      "REGISTER NEW" => ['OK', undef ]
+    );
+    $conn->close();
+    is( $numStmts, 2, "ping and register received" );
+    is( $responses[0]->toString(), "PING ME$CRLF", "PING sent" );
+    is($responses[1]->toString(), "REGISTER NEW resourceA$CRLF", "REGISTER sent");
+    is( waitpid($rmpid, 0), $rmpid, "manager exitted" );
+    $agent->stop();
+  } else {
+    exec "sbin/reporter-manager -a incas://localhost:$port -L FATAL -r ./t -e bin/inca-null-reporter -d file:///tmp/depot.out -c t/certs/client_ca1cert.pem --k t/certs/client_ca1keynoenc.pem --t t/certs/trusted -i resourceA ";
+  }
+
+  # test agent in manual mode
+  unlink( "$tmp/schedule.xml" ) if -f "$tmp/schedule.xml";
+  if ( my $rmpid = fork() ) {
+    my $agent = new Inca::Net::MockAgent( $port, "ca1", "t/certs/trusted" );
+    my ($conn, $numStmts, @responses) = $agent->accept(
+      "REGISTER NEW" => ['OK', undef ]
+    );
+    $conn->close();
+    is( $numStmts, 2, "manual - ping and register received" );
+    is( $responses[0]->toString(), "PING ME$CRLF", "manual - PING sent" );
+    is($responses[1]->toString(), "REGISTER NEW resourceA$CRLF", "manual - REGISTER sent");
+    $agent->stop();
+    sleep( 10 );
+    $agent = new Inca::Net::MockAgent( $port, "ca1", "t/certs/trusted" );
+    ($conn, $numStmts, @responses) = $agent->accept(
+      "REGISTER NEW" => ['OK', undef ]
+    );
+    is( $numStmts, 2, "manual restart - ping and register received" );
+    is( $responses[0]->toString(), "PING ME$CRLF", "manual restart - PING sent" );
+    is($responses[1]->toString(), "REGISTER NEW resourceA$CRLF", "manual restart - REGISTER sent");
+    ok( kill(INT, $rmpid), "manual restart - kill signal reached manager" );
+    is( waitpid($rmpid, 0), $rmpid, "manager exitted" );
+    $agent->stop();
+  } else {
+    exec "sbin/reporter-manager -a incas://localhost:$port -L FATAL -r ./t -e bin/inca-null-reporter -d file:///tmp/depot.out -c t/certs/client_ca1cert.pem --k t/certs/client_ca1keynoenc.pem --t t/certs/trusted -i resourceA -m";
+  }
+  unlink( "$tmp/schedule.xml" ) if -f "$tmp/schedule.xml";
+
+=end testing
+
+=cut
+
+###############################################################################
+
+#=============================================================================#
+# Usage
+#=============================================================================#
+
+# pragmas
+use strict;
+use warnings;
+
+# Inca
+use Inca::Constants qw(:defaults);
+use Inca::Logger;
+use Inca::ReporterManager;
+use Inca::ReporterManager::ReporterCache;
+use Inca::Config::Suite;
+use Inca::AgentClient;
+
+# Perl standard
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
+use File::Basename;
+use File::Spec;
+use POSIX;
+use File::Path;
+
+# CPAN
+use Pod::Usage;
+use Log::Log4perl;
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+our ($VERSION) = '$Revision: 1.5 $' =~ 'Revision: (.*) ';
+
+my %DEFAULT_ARGS = (
+  'depot' => [],
+  'depot-timeout' => $DEFAULT_DEPOT_TIMEOUT,
+  'level' => "INFO",
+  'manualSleep' => 60,
+  'var'   => File::Spec->tmpdir(),
+  'wait'  => $DEFAULT_CHECK_PERIOD 
+);
+
+my $RIM = "reporter-instance-manager";
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#-----------------------------------------------------------------------------#
+# testInstallation( $credentials, $logger )
+#
+# Test some of the Inca installed required libraries:  XML::Simple and 
+# IO::Socket::SSL.
+#
+# Arguments:
+#
+# credentials   A reference to a hash array containing credential information
+#               (i.e., cert, key, passphrase, trusted)
+#
+# logger        An object of type Log::Log4perl that can be used to log
+#               messages.
+#  
+# Returns: 
+#
+# True if the libraries appear to be installed correctly and false if not
+#-----------------------------------------------------------------------------#
+sub testInstallation {
+  my $logger      = shift;
+
+  my $xmlstatus = 1;
+  $logger->info("Testing XML parsing");
+  my $parse = "";
+  eval {
+    require XML::Simple;
+    $parse = XML::Simple::XMLin( "<testingIncaInstall value=\"good\"/>" );
+  };
+  if ( $@ || (! exists $parse->{value}) || (! $parse->{value} eq "good") ) {
+    $logger->error( "XML::Simple not working" );
+    $xmlstatus = 0;
+  } else {
+    $logger->info( "XML::Simple working" );
+  } 
+
+  $logger->info("Testing IO::Socket::SSL");
+  my $sslstatus = 1;
+  eval "require IO::Socket::SSL";
+  if ( $@ ) {
+    $logger->error( "IO::Socket::SSL not working" );
+    $sslstatus = 0;
+  } else {
+    $logger->info( "IO::Socket::SSL working" );
+  }
+  return $xmlstatus && $sslstatus;
+}
+
+#-----------------------------------------------------------------------------#
+# exitCleanly( $rm )
+#
+# Shutdown the reporter manager
+#
+# Arguments:
+#
+# rm   A reference to an Inca::ReporterManager object that has been 
+#      configured and started.
+#  
+# Returns: 
+#
+# True if the reporter manager was stopped and false if not.
+#-----------------------------------------------------------------------------#
+sub exitCleanly {
+  my $rm = shift;
+
+  $rm->{logger}->info( "Received exit signal...cleaning up" );
+  $rm->stop();
+  $rm->{logger}->info( "Done...exiting" );
+  exit 0;
+}
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+my %args = %DEFAULT_ARGS;
+GetOptions(
+  \%args,               "agent|a=s",
+  "cert|c=s",           "depot|d=s",
+  "depot-timeout|D=i",
+  "error-reporter|e=s", "help|h",
+  "id|i=s",             "key|k=s",
+  "logfile|l=s",        "level|L=s",
+  "manual|m", "manualSleep|M=i",
+  "passphrase|P=s",
+  "reporter-cache|r=s", "rim|R=s",
+  "suite|s=s",   "suspend|S=s",
+  "T|testinstall", "trusted|t=s",        
+  "var|v=s", "wait|w=i"
+  )
+  || pod2usage(1);
+
+if ( exists $args{help} ) {
+  pod2usage( -exitval => 0 );
+}
+
+# configure logging
+my $logLevel = $args{'level'};
+if ( ! exists $args{'logfile'} ) {
+  Inca::Logger->screen_init( $logLevel );
+} else {
+  Inca::Logger->file_init( $logLevel, File::Spec->rel2abs($args{'logfile'}) );
+}
+my $logger = Inca::Logger->get_logger("reporter-manager");
+
+# handle credentials
+my $credentials = {};
+for my $part (qw(cert key trusted)) {
+  $credentials->{$part} = $args{$part} if exists $args{$part};
+}
+my $passphrase = undef;
+if ( exists $args{key} && exists $args{"passphrase"} 
+     && $args{passphrase} =~ /stdin(:.*)?|true|yes/ ) {
+  my ($prompt) = $args{passphrase} =~ /stdin(:.*)?|true|yes/;
+  print $prompt if ( defined $prompt );
+  $passphrase = <STDIN>;
+  chomp($passphrase);
+  $credentials->{passphrase} = $passphrase;
+} else {
+  $credentials->{passphrase} = undef;
+}
+
+# check to see if test was requested
+if ( exists $args{'T'} ) {
+  exit !testInstallation( $logger );
+}
+
+my $rimpath;
+if ( !exists $args{rim} ) {
+  my $mydir = dirname($0);
+  $rimpath = File::Spec->catdir( $mydir, $RIM );
+  if ( !-e $rimpath ) {
+    die
+"Error, '$RIM' not found in '$mydir'; use -R|rim option to specify alternative location";
+  }
+  elsif ( !-x $rimpath ) {
+    die "Error, '$RIM' is not executable";
+  }
+}
+elsif ( exists $args{rim} ) {
+  $rimpath = $args{rim};
+}
+if ( !-e $rimpath ) {
+  die "Error, path specified to -R|rim '$rimpath' does not exist";
+}
+if ( !-x $rimpath ) {
+  die "Error, path specified to -R|rim '$rimpath' is not executable";
+}
+
+my $reporter_cache;
+if ( exists $args{'reporter-cache'} ) {
+  $reporter_cache = $args{'reporter-cache'};
+} else {
+  die "No local cache for reporters specified. Type $0 -help for usage details";
+}
+if ( !-d $reporter_cache ) {
+  eval { mkpath($reporter_cache) };
+  die "Local reporter cache '$reporter_cache' not a valid directory path" if $@;
+}
+if ( !exists $args{'error-reporter'} ) {
+  die "Path to error reporter not specified. Type $0 -help for usage details";
+}
+if ( !-x $args{'error-reporter'} ) {
+  die "Path to error reporter $args{'error-reporter'} is not executable";
+}
+if ( !exists $args{'id'} ) {
+  die "Resource id not specified. Type $0 -help for usage details";
+}
+
+my $manualSleep = $args{'manualSleep'};
+
+# create reporter cache and add directories to the environment
+my $rc = new Inca::ReporterManager::ReporterCache($reporter_cache);
+$rc->setErrorReporterPath( $args{'error-reporter'} );
+
+my $rm = new Inca::ReporterManager();
+$rm->setCheckPeriod( $args{'wait'} );
+$rm->setDepotTimeout( $args{'depot-timeout'} );
+$rm->setId( $args{'id'} );
+$rm->setTmpDirectory( $args{var} );
+$rm->setReporterCache($rc);
+$rm->setRimPath($rimpath);
+$rm->setLogger( $args{'logfile'} ) if ( exists $args{'logfile'} );
+if ( scalar @{ $args{depot} } < 1 ) {
+  die "No depots specified.  Type $0 -help for usage details";
+}
+$rm->setDepots( @{ $args{depot} } );
+$rm->setCredentials($credentials);
+$rm->setSuspend( $args{suspend} ) if exists $args{suspend};
+$rm->setScheduleFilename
+  ( File::Spec->catfile( $rm->getTmpDirectory(), "schedule.xml" ) );
+$logger->info("Starting reporter manager");
+$rm->start(); 
+
+if ( ( !exists( $args{suite} ) ) and ( !exists( $args{agent} ) ) ) {
+  die "No suite file or agent specified.  Type $0 -help for usage details";
+}
+
+# in case this process is interrupted, we want to exit with grace
+local $SIG{INT}  = sub { &exitCleanly($rm) };
+local $SIG{HUP}  = sub { &exitCleanly($rm) };
+local $SIG{TERM}  = sub { &exitCleanly($rm) };
+local $SIG{QUIT} = sub { &exitCleanly($rm) };
+
+if ( exists $args{suite} ) {
+  my $suite = new Inca::Config::Suite();
+  if ( !$suite->read( $args{suite} ) ) {
+    die "Error reading suite file $args{suite}";
+  }
+  my @tmp_args = ( $rc );
+  push( @tmp_args, $args{agent} ) if defined $args{agent};
+  $suite->resolveReporters( @tmp_args );
+  $rm->dispatch($suite, 1);
+  if ( !$rm->start() ) {
+    die "Error, starting RM";
+  }
+  POSIX::pause() if $rm->hasScheduler( "cron" );
+  exit( 0 );
+} else {
+  $logger->info("Connecting to agent '$args{agent}'");
+  my $client;
+  my $status = 0;
+  do {
+    eval {
+      $client =
+        new Inca::AgentClient( $rm, $args{agent}, %{ $rm->getCredentials() });
+    };
+    if ($@) {
+      $logger->error("Unable to connect to agent '$args{agent}': $@");
+    } else {
+      eval {
+        $status = $client->register( $args{id} );
+      };
+      if ( $@ ) {
+        $logger->error( "Reporter manager exited register unexpectly: $@" );
+        $status = 1 if ( ! defined $status );
+      }
+      $client->close();
+    }
+    if (exists $args{manual} and $args{manual} ) {
+      $logger->info
+        ("Waiting $manualSleep secs before attempting to reconnect to agent");
+      sleep($manualSleep);
+    }
+  } while( exists $args{manual} and $args{manual} );
+  $logger->info("Stopping reporter manager");
+  $rm->stop();
+  $logger->info("Exit - complete");
+  exit($status);
+}
+
+
+__END__
+
+=head1 AUTHOR
+
+Shava Smallen <ssmallen@sdsc.edu>
+
+=cut
+

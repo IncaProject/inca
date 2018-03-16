@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.filesystem.gpfs.version',
+  version => 2,
+  description => 'Reports the version of GPFS',
+  url => 'http://www.almaden.ibm.com/cs/gpfs.html',
+  package_name => 'gpfs'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByRpmQuery('gpfs');
+$reporter->print();

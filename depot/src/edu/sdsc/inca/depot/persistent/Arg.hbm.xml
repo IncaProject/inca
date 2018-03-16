@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="Arg" table="INCAARG">
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native"/>
+    </id>
+
+    <!-- properties -->
+    <property name="name" column="incaname" type="string" not-null="true"/>
+    <property name="value" column="incavalue" type="string" not-null="true"/>
+
+  </class>
+</hibernate-mapping>

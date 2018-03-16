@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+
+import sys
+import re
+import string
+import time
+import os
+
+import inca.SimpleUnitReporter
+
+reporter = inca.SimpleUnitReporter.SimpleUnitReporter(
+  name = 'grid.scheduling.condorg.unit.matchmaking',
+  version = 2.0,
+  description = 'Did condor_submit run?',
+  url = 'http://www.cs.wisc.edu/condor/manual/v6.6/condor_submit.html'
+  )
+
+reporter.addDependency('inca.GridProxyReporter')
+
+reporter.addArg('machinequeue')
+reporter.addArg('project')
+reporter.processArgv(sys.argv[1:])
+machinequeue = reporter.argValue('machinequeue')
+project = reporter.argValue('project')
+
+status, output = reporter.loggedCommandStatusOutput('grid-proxy-info -exists -hours 1 2>&1', timeout=60)
+
+if status != 0 :
+    reporter.failPrintAndExit("grid-proxy-info failed: %s %s" % (status, output))
+
+jobtext = """
+executable = /bin/date
+arguments = --universal
+
+transfer_executable = false
+
+output = /dev/null
+error = /dev/null
+log = /dev/null
+
+universe = grid
+x509userproxy=__GRIDPROXYPATH__
+
+# the requirements expression specifies job requirements and evaluates to true or false
+requirements = ((Name=="__MACHINEQUEUE__"))
+
+# the rank expression specifies job preferences, the bigger the rank, the better the machine
+rank = 10 - LoadAvg - CurMatches * 0.5
+grid_resource = $$(GramResource)
+globusrsl = (project=__PROJECT__)(maxWallTime=00:10:00)(count=16)(queue=$$(Queue))
+
+queue 1
+"""
+
+proxypath = os.environ['X509_USER_PROXY']
+
+jobtext = re.sub('__GRIDPROXYPATH__', proxypath, jobtext)
+jobtext = re.sub('__MACHINEQUEUE__', machinequeue, jobtext)
+jobtext = re.sub('__PROJECT__', project, jobtext)
+
+in_FO, out_FO = os.popen2('condor_submit')
+in_FO.write(jobtext)
+in_FO.flush()
+in_FO.close()
+output = out_FO.read()
+status = out_FO.close()
+
+
+if status != None :
+    reporter.failPrintAndExit("condor_submit failed: %s %s" % (status, output))
+else : 
+    #1 job(s) submitted to cluster 298.
+    metajob_pat = r"1 job\(s\) submitted to cluster (?P<metajobfile>\d+)"
+    metajob_ro = re.compile(metajob_pat,re.MULTILINE)
+    metajob_mo = metajob_ro.search(output)
+    if metajob_mo == None :
+        reporter.failPrintAndExit("condor_submit failed: %s (%s)" % (metajob_mo, output))
+    else :
+        metajobfile = metajob_mo.group('metajobfile')
+        # poll here for status PENDING
+        cmd = "condor_q -l %s" % (metajobfile,)
+        pending_reo = re.compile('GridJobStatus = "PENDING"')
+        pending_mo = None
+        attempts = 0
+        stillqueued_reo = re.compile("ClusterId = ")
+        stillqueued_mo = "dummy"
+        while pending_mo == None and attempts < 121 and stillqueued_mo != None:
+            status, output = reporter.loggedCommandStatusOutput(cmd, timeout=600)
+            pending_mo = pending_reo.search(output)
+            stillqueued_mo = stillqueued_reo.search(output)
+            if pending_mo == None and stillqueued_mo != None:
+                attempts = attempts + 1
+                time.sleep(5)
+        if pending_mo == None and stillqueued_mo != None:
+            pending_output = output
+            # clean up the job
+            cmd = "condor_rm %s" % (metajobfile,)
+            status, output = reporter.loggedCommandStatusOutput(cmd, timeout=600)
+            if status != 0 :
+                reporter.failPrintAndExit("condor_rm failed: %s %s" % (status, output))
+            reporter.failPrintAndExit("condor_submit failed (never entered PENDING): %s" % (pending_output,))
+        cmd = "condor_rm %s" % (metajobfile,)
+        status, output = reporter.loggedCommandStatusOutput(cmd, timeout=600)
+        if status != 0 :
+            reporter.failPrintAndExit("condor_rm failed: %s %s" % (status, output))
+        else :
+            reporter.unitSuccess()
+            reporter.printReport()
+

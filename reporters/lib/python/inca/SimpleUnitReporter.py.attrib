@@ -1,0 +1,5 @@
+name: inca.SimpleUnitReporter
+version: 1.0
+description: Inca reporter Python API class for unit test reporters
+url: http://inca.sdsc.edu
+dependencies: inca.Reporter

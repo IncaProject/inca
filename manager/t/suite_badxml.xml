@@ -1,0 +1,13 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<st:suite xmlns:st = "http://inca.sdsc.edu/dataModel/suite_2.0" xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" >
+	<seriesConfigs>
+    <series>
+			<name>cluster.compiler.gcc.version</name>
+			<version>1</version>
+			<limits>
+				<wallClockTime>300</wallClockTime>
+			</limits>
+		<schedule/>
+	  <action/>
+	</seriesConfigs>
+</st:suite>

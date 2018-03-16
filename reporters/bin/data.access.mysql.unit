@@ -1,0 +1,28 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.access.mysql.unit',
+  description => 'Tries to connect to mysql  server and list databases',
+  version => 5,
+  unit_name => 'mysql connect'
+);
+
+$reporter->addArg( 'db', 'database that should be up' );
+$reporter->processArgv(@ARGV);
+my $db = $reporter->argValue( 'db' );
+
+my @output = $reporter->loggedCommand("echo 'show databases' | mysql 2>&1");
+my $joinedOut = join( "", @output );
+$reporter->failPrintAndExit( "psql -l failed: $! $joinedOut" ) if $? != 0;
+if( ! grep(/$db/, @output) ) {
+  $reporter->unitFailure( "Failed to list databases: @output" );
+} else {
+  my @dbnames = map( /^\s*(\S+)/, @output );
+  $reporter->log( 'info', "databases found: " . join(", ", @dbnames) );
+  $reporter->unitSuccess();
+}
+$reporter->print();

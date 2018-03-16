@@ -1,0 +1,201 @@
+#!/bin/sh
+
+#------------------------------------------------------------------------------
+# Globals
+#------------------------------------------------------------------------------
+PASSPHRASE="test"
+
+#------------------------------------------------------------------------------
+# createConfigFile caName
+#
+# Write out a file for openssl to read in configration options from
+# 
+# Arguments:
+#
+#   caName - a string containing the name of CA files 
+#------------------------------------------------------------------------------
+createConfigFile() {
+  caName=$1
+
+  echo "01" > ./serial
+  touch ./${caName}_index.txt
+
+  cat > ${caName}.cnf <<+
+[ ca ]
+default_ca  = CA_default    # The default ca section
+
+[CA_default]
+new_certs_dir = ./
+private_key = ./${caName}key.pem
+certificate = ./${caName}cert.pem
+database  = ./${caName}_index.txt
+serial = ./serial
+default_md = md5 
+policy = policy_match
+default_days = 365
+
+[policy_match]
+countryName   = match
+stateOrProvinceName = match
+organizationName  = match
+organizationalUnitName  = optional
+commonName    = supplied
+emailAddress    = optional
+
+[req]
+prompt=no
+distinguished_name = servername
+
+[servername]
+C=US
+ST=California
+L=San Diego
+O=SDSC
+CN=IncaTestCA_${caName}
+
+[is_ca]
+basicConstraints = CA:true
+
+[not_ca]
+basicConstraints = CA:false
++
+}
+
+#------------------------------------------------------------------------------
+# cleanupConfigFiles caName
+#
+# Cleanup the configuration files created to run the CA
+# 
+# Arguments:
+#
+#   caName - a string containing the name of CA files 
+#------------------------------------------------------------------------------
+cleanupConfigFiles() {
+  caName=$1
+
+  rm -f ${caName}.cnf
+  rm -f ./${caName}_index.txt*
+}
+
+#------------------------------------------------------------------------------
+# createCACert name
+#
+# Generate a CA certificate with a passphrase on it. 
+#
+# Arguments:
+#
+#   name - a string used to generate the CA key and certificate files
+#          (i.e., <name>key.pem and <name>cert.pem.
+#------------------------------------------------------------------------------
+createCACert() {
+  name=$1
+
+  # create the certificate
+  openssl req -config ${name}.cnf -new -x509 -keyout ${name}key.pem -out ${name}cert.pem -days 3650 -passout pass:${PASSPHRASE} -extensions is_ca
+
+  # get the certificate hash
+  hash=`openssl x509 -in ${name}cert.pem -hash -noout`
+
+  # create trusted cert dir if it doesn't exist yet
+  if ( ! test -d "trusted" ); then
+    echo "Making trusted certificate dir"
+    mkdir trusted
+  else 
+    echo "Trusted dir exists"
+  fi
+  # create trusted certificate file
+  openssl x509 -in ${name}cert.pem -trustout -out trusted/${hash}.0
+
+  # create crl list
+  openssl ca -gencrl -config ${name}.cnf -out trusted/${hash}.r0 -passin pass:${PASSPHRASE}
+}
+
+#------------------------------------------------------------------------------
+# signCertRequest caName name 
+#
+# Sign a certificate request 
+#
+# Arguments:
+#
+#   caName - a string containing the name of the CA to use
+#
+#   name - used to generate the key and certificate request files (i.e.,
+#          <name>key.pem and <name>req.pem.
+#------------------------------------------------------------------------------
+signCertRequest() {
+  caName=$1
+  name=$2
+
+  openssl ca -config ${caName}.cnf -in ${name}req.pem -out ${name}cert.pem -extensions not_ca -passin pass:${PASSPHRASE} -days 1095 -batch 
+  rm -f ${name}req.pem
+  openssl rsa -in ${name}key.pem -out ${name}keynoenc.pem -passin pass:${PASSPHRASE}
+  openssl x509 -in ${name}cert.pem -text | grep "Issuer:"
+  openssl x509 -in ${name}cert.pem -text | grep "Subject:"
+}
+
+#------------------------------------------------------------------------------
+# createRegularCertificate caName name
+#
+# Generate a certificate request and key
+#
+# Arguments:
+#
+#   caName - a string containing the name of the CA to use
+#
+#   name - used to generate the key and certificate request files (i.e.,
+#          <name>key.pem and <name>req.pem.
+#------------------------------------------------------------------------------
+createRegularCertificate() {
+  caName=$1
+  name=$2
+  openssl req -new -config ${caName}.cnf -passout pass:${PASSPHRASE} -keyout ${name}key.pem -out ${name}req.pem 
+  signCertRequest ${caName} ${name}
+}
+
+#------------------------------------------------------------------------------
+# changeCN caName newname 
+#
+# Change the common name in the config file to 'newname'
+#
+# Arguments:
+#
+#   caName - a string containing the name of the CA to use
+#
+#   newname - a string indicating the name CN (e.g., IncaTestServer)
+#------------------------------------------------------------------------------
+changeCN() {
+  caName=$1
+  newname=$2
+
+  cat ${caName}.cnf | sed s/CN=.*/CN=${newname}/ > ${caName}.cnf.tmp
+  mv ${caName}.cnf.tmp ${caName}.cnf
+}
+
+###############################################################################
+# MAIN
+###############################################################################
+
+# create two CAs
+createConfigFile ca1
+createConfigFile ca2
+createCACert ca1 
+createCACert ca2
+cat trusted/*.0 > all.pem
+
+# create server cert from CA1 and CA2
+changeCN ca1 localhost
+changeCN ca2 localhost
+createRegularCertificate ca1 server_ca1
+createRegularCertificate ca2 server_ca2
+
+# create server cert from CA1 and CA2
+changeCN ca1 IncaTestClient1
+changeCN ca2 IncaTestClient2
+createRegularCertificate ca1 client_ca1
+createRegularCertificate ca2 client_ca2
+
+# cleanup
+cleanupConfigFiles ca1
+cleanupConfigFiles ca2
+rm -f [0-9][0-9].pem
+rm -f ./serial*

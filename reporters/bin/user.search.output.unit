@@ -1,0 +1,119 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+user.search.output.unit - Module for searching output of a supplied
+                          command for regular expressions.
+
+=head1 SYNOPSIS
+
+user.search.output.unit  -com='command -options' -search='regexp|search|list'
+                        [-delim=<delimiter> default:'|']
+
+This reporter will search the output of the supplied command/option
+for the supplied delimited regular expressions.  The success of the
+search will be reported using the output status of the SimpleUnit
+report schema.  The final success will be a logical AND of the
+individual searches.
+
+=head1 REQUIRED ARGUMENTS
+
+=head2  -com
+
+     The command (with included options) to be executed.  The output
+     of this command is searched for the expression(s) specified.
+
+=head2  -search
+
+     The of the regular expressions used to search the output of the
+     command.  The default delimiter for the list is '|'.
+
+=head2  -delim
+
+     The delimiter for a list of regular expressions.  The default is
+     '|'
+
+=head1 DESCRIPTION
+
+This reporter will run the specified command and search the output
+text for the supplied regular expressions.  The result is reported
+using the Inca SimpleUnit schema, withe the final status being a
+logical AND of the individual searches.
+
+=head1 OUTPUT PARAMETERS
+
+The xml output of the ping reporter consists of the success parameters
+delivered by the Inca::Test::Reporter::SimpleUnit.pm.
+
+=head1 EXAMPLES
+
+=head2 user.search.output.unit -com='tg-policy -a' -search='not backed up|sh.red'
+
+The reporter will check the output of 'tg-policy -a' for the strings
+'not backed up' and a pattern matching the regular expression 'sh.red'
+{'shared', 'shored', 'shired', etc.}  and return success = true if at
+least one sample matching both patterns is found.
+
+=head2 user.search.output.unit -com='df -k' -search='condor,scratch' -delim=,
+
+The reporter will check the output of 'df -ka' for the strings
+'condor' and 'scratch' (using ',' as the delimiter) and exit true if
+both terms were found.
+
+=cut
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'user.search.output.unit',
+  version => 5,
+  description => 'Search result of supplied command for regular expressions',
+  unit_name => 'search_output'
+);
+# Get the options
+$reporter->addArg( "com", "The command to run (including options)" );
+$reporter->addArg( "search", "The expression to search for in the command output" );
+$reporter->addArg( "delim", "The deliminator to use to separate regular expressions", "\\|" );
+$reporter->processArgv( @ARGV );
+my $command = $reporter->argValue( "com" );
+my $regexp = $reporter->argValue( "search" );
+my $delim = $reporter->argValue( "delim" );
+
+my @result = $reporter->loggedCommand( $command );
+#$reporter->{log}->debug( "The result of \"$command\" is:\n@result" );
+if (scalar(@result) == 0) { 
+  my $error = "";
+  $error = $! if ( $? != 0 );
+  $reporter->failPrintAndExit("System call failed: \"$command\" $error"); 
+}
+
+# Get a list of the regular expressions we are to search for
+my @rexp = split(/$delim/, $regexp);
+if (@rexp == 0) { 
+  $reporter->failPrintAndExit("No functional regular expressions specified to search for."); 
+}
+
+# Step through the output looking for each regexp
+my $success = 1;
+foreach (@rexp) {
+  my $thisRexp = $_;
+  my $thisSuccess = 0;
+  foreach (@result) {
+    chomp;
+    if ($_ =~ "$thisRexp") {
+      #print "  Setting success to 1 because $_\n";
+      $thisSuccess = 1;
+    }
+  }  # end loop over test result
+  $success = $success & $thisSuccess;
+}  # end loop over rexp
+
+# Finish up
+if ($success == 0) { 
+  $reporter->failPrintAndExit("Returned: @result \nNot all expressions found in output: \"$regexp\""); 
+}
+$reporter->unitSuccess();
+$reporter->print();
+exit;

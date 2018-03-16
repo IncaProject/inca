@@ -1,0 +1,32 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use warnings;
+use strict;
+use POSIX;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.interactive_access.myproxy.unit',
+  unit_name => 'myproxy_server',
+  url => 'http://grid.ncsa.uiuc.edu/myproxy/',
+  version => 9,
+  description => 'Test myproxy server by checking for proxy after reporter that uses one.  Optionally test that proxy has specified number of days left.'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('mindays', 'minimum days left', '0', '\d+');
+$reporter->processArgv( @ARGV );
+my $mindays = $reporter->argValue('mindays');
+
+my $cmd = "grid-proxy-info -timeleft";
+my $output = $reporter->loggedCommand($cmd);
+if($?) {
+  $reporter->failPrintAndExit("Problem getting proxy: $output $!");
+} elsif ($mindays>0 && $output<($mindays*86400)){
+  my $daysleft = ceil($output/86400);
+  my $txt = "days";
+  if ($daysleft < 2){ $txt = "day"; }
+  $reporter->failPrintAndExit("Proxy will expire within $daysleft $txt.");
+} else {
+  $reporter->unitSuccess();
+  $reporter->print();
+}

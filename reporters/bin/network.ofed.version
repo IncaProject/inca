@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'ofed.version',
+  version => 2,
+  url => 'http://www.openfabrics.org/',
+  description => 'Reports the version OFED libraries',
+  package_name => 'ofed'
+);
+$reporter->addArg('dir', 'path to ofed installation', '');
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue('dir');
+if($dir eq '') {
+  foreach my $place($ENV{OFED_LOCATION}, $ENV{OFED_HOME},
+                    glob('/usr/local/apps/ofed*'), glob('/opt/ofed*'),
+                    glob('/usr/local/ofed*')) {
+    $dir = $place and last
+      if defined($place) && -d $place && -x "$place/bin/ofed_info";
+  }
+}
+$reporter->failPrintAndExit('Cannot locate OFED installation; use -dir')
+  if $dir eq '';
+
+$reporter->setVersionByExecutable("$dir/bin/ofed_info", 'OFED-([\.\d]+)');
+$reporter->print();

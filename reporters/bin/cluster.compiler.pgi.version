@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.compiler.pgi.version',
+  version => 1,
+  description => 'Reports the version of the PGI compiler',
+  url => 'www.pgroup.com',
+  package_name => 'pgi-compiler'
+);
+$reporter->processArgv(@ARGV);
+
+my $log = $reporter->loggedCommand("pgcc -V | grep pgcc");
+my ($version, $junk) = $log =~ /pgcc ((\w|\.|-)*)\s.*/;
+
+if ( !defined($version)  || ($version eq "")) {
+  $reporter->failPrintAndExit( "unable to determine version" );
+} else {
+  $reporter->setPackageVersion( $version );
+}
+
+$reporter->print();

@@ -1,0 +1,16 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'data.transfer.tgcp.version',
+  version => 2,
+  description => 'Reports the version of tgcp',
+  package_name => 'tgcp'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable('tgcp -version', 'tgcp (.*)');
+$reporter->print();

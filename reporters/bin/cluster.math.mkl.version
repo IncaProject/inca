@@ -1,0 +1,34 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.math.mkl.version',
+  version => 1,
+  url => 'http://www.intel.com',
+  description => "Compiles and runs a C program to retrieve the version from Intel's MKL",
+  package_name => 'mkl'
+);
+$reporter->addArg('cc', 'compile C program with this compiler', 'cc');
+$reporter->addArg('libdir', 'mkl libraries directory');
+$reporter->processArgv(@ARGV);
+my $cc = $reporter->argValue('cc');
+my $libdir = $reporter->argValue('libdir');
+my $code = '
+#include<stdio.h>
+
+int main(void)  {
+   int len=100;
+   char buf[100];
+   MKLGetVersionString(buf, len);
+   printf("%s\n",buf);
+   printf("\n");
+   return 0;
+}
+';
+$reporter->setVersionByCompiledProgramOutput
+  (compiler => $cc, code => $code, pattern => 'Version (\S+)',
+   switches => "-L${libdir} -lmkl");
+$reporter->print();

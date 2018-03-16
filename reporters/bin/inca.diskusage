@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'inca.diskusage',
+  description => 'reports the disk usage for specified directory',
+  version => 2,
+  measurement_name => "inca"
+);
+
+$reporter->addArg( "dir", "directory to measure", "" );
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue( "dir" );
+$dir = $ENV{HOME} if $dir eq "";
+my $out = $reporter->loggedCommand( "du -sm $dir");
+$reporter->failPrintAndExit("du cmd failed: $out $!") if $?;
+my ($mb) = $out =~ /^(\d+)/;
+my $benchmark = $reporter->addNewBenchmark( "disk" );
+$benchmark->setStatistic( "usage", $mb, "MB" );
+$reporter->setResult(1);
+$reporter->print();

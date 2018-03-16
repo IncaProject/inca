@@ -1,0 +1,54 @@
+#!/usr/bin/env perl -w
+#
+#   $Id: cluster.os.kernel.unit.tuning,v 1.2 2003/10/31 00:33:56 finley Exp $
+#
+#   Brian Elliott Finley <finley@mcs.anl.gov>
+#
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.os.kernel.unit.tuning',
+  version => 3,
+  description => 'Verifies that kernel tuning parameters are properly set',
+  url => 'http://procps.sourceforge.net',
+  unit_name => 'kernel tuning'
+);
+$reporter->addArg('file', 'comparison file', '/etc/sysctl.conf');
+$reporter->processArgv(@ARGV);
+my $file = $reporter->argValue('file');
+
+# Build hash of tuning parameters from source file
+my %settings;
+$reporter->failPrintAndExit("Couldn't open $file for reading")
+  if !open(INPUT, "<$file");
+while(<INPUT>) {
+  # Parse name=[value] lines; ignore blank/comment (leading # or ;) lines.
+  next if $_ =~ /^\s*([#;].*)?$/;
+  next if $_ !~ /^\s*([^=\s]+)\s*=\s*((\S+)(\s+\S+)*)?\s*$/;
+  $settings{$1} = defined($2) ? $2 : '';
+}
+close(INPUT);
+
+# Compare to tuning parameters from running kernel
+my $output = $reporter->loggedCommand('sysctl -a');
+$reporter->failPrintAndExit("sysctl -a failed: $output $!") if $?;
+my @mismatches;
+foreach my $line(split(/\n/, $output)) {
+  # Parse as above.  Some versions of sysctl use : instead of = in output.
+  next if $line =~ /^\s*([#;].*)?$/;
+  next if $line !~ /^\s*([^=:\s]+)\s*[=:]\s*((\S+)(\s+\S+)*)?\s*$/;
+  my $value = defined($2) ? $2 : '';
+  push(@mismatches, $1) if defined($settings{$1}) && $settings{$1} ne $value;
+}
+
+if($#mismatches >= 0) {
+  $reporter->unitFailure
+    ('The kernel settings for ' . join(' ', @mismatches) .
+     " do not have the values specified in $file");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

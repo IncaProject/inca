@@ -1,0 +1,20 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.devel.gmake.version',
+  version => 2,
+  description => 'Reports the version of gmake',
+  url => 'http://gnu.org',
+  package_name => 'gmake'
+);
+$reporter->processArgv(@ARGV);
+
+my $pattern = "GNU Make ([\\d\\.]+)";
+if (!$reporter->setVersionByExecutable("gmake -n -v", $pattern)){
+  $reporter->setVersionByExecutable("make -n -v", $pattern);
+}
+$reporter->print();

@@ -1,0 +1,74 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use IO::Socket;
+use IO::Socket::SSL;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.httpmds',
+  version => 4,
+  description => 'Reports whether a service is accessible via http(s)',
+  url => 'http://inca.ucsd.edu',
+  unit_name => 'http_mds'
+);
+$reporter->addArg ('protocol', 'hypertext transfer protocol', 'http', 'http|https');
+$reporter->addArg ('host', 'service host', 'mds.teragrid.org');
+$reporter->addArg ('port', 'service port', '80');
+$reporter->addArg ('path', 'service path', '');
+$reporter->addArg ('match', 'string to match in output', 'TeraGrid.*Service');
+$reporter->addArg ('lines', 'minimum number of lines to match in output', '10', '\d+');
+$reporter->processArgv(@ARGV);
+my $protocol = $reporter->argValue('protocol');
+my $host = $reporter->argValue('host');
+my $port = $reporter->argValue('port');
+my $path = $reporter->argValue('path');
+my $match = $reporter->argValue('match');
+my $lines = $reporter->argValue('lines');
+
+my $service = "$host:$port";
+my $sock;
+if ($protocol eq "http"){
+  $sock = IO::Socket::INET->new($service);
+} else {
+  $sock = IO::Socket::SSL->new($service);
+}
+  
+if ( ! $sock ) {
+  $reporter->failPrintAndExit("Couldn't connect to $service: $@\n");
+}
+my $cmd = "GET $protocol://$service/$path";
+$reporter->log('debug', $cmd);
+my $receive;
+my $content;
+if ($protocol eq "http"){
+  $sock->send("$cmd\r\n\r\n");
+  $sock->recv($receive, 1048576);
+  while ( length($receive) > 0 ) {
+    $content .= $receive;
+    $sock->recv($receive, 1048576);
+  }
+} else {
+  print $sock "GET /$path HTTP/1.0\r\n\r\n";
+  while (my $line = $sock->getline){
+    $content .= $line;
+  }
+}
+$sock->close;
+
+if(!defined($content) || $?) {
+  $reporter->failPrintAndExit("get command failed: $! $content");
+} 
+
+my @content_lines = split(/\n/, $content);
+my $content_lines = @content_lines;
+
+if($content_lines < $lines) {
+  $reporter->failPrintAndExit("returned $content_lines lines of content instead of $lines: $content");
+} elsif($content !~ /$match/) {
+  $reporter->failPrintAndExit("\"$match\" not found in returned content: $content");
+} else {
+  $reporter->unitSuccess();
+  $reporter->print();
+}

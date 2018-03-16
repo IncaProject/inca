@@ -1,0 +1,40 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $BACKOFF_SECS = 30;
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.access.postgres.unit.connect',
+  description => 'Tries to connect to postgres server and list databases',
+  version => 8,
+  unit_name => 'postgres connect'
+);
+$reporter->addArg('exec', 'postgres user account', 'psql');
+$reporter->addArg('user', 'postgres user account', '');
+$reporter->addArg('numTries', 'number of connect attempts before giving up', 5);
+$reporter->processArgv(@ARGV);
+my $user = $reporter->argValue( 'user' );
+$user = "-U $user" if $user ne '';
+my $psql = $reporter->argValue( 'exec' );
+my $numTries = $reporter->argValue( 'numTries' );
+
+my $success = 0;
+my @output;
+my $i;
+for( $i = 0; $i < $numTries && ! $success; $i++ ) {
+  sleep( $BACKOFF_SECS * $i ) if $? != 0;
+  @output = $reporter->loggedCommand("$psql $user -l");
+  $success = 1 if $? == 0;
+}
+$reporter->failPrintAndExit( "$psql $user -l failed after $i tries: @output $!" ) if $?;
+if( ! grep(/List of databases/, @output) ) {
+  $reporter->unitFailure( "Failed to list databases: @output" );
+} else {
+  shift @output; shift @output; shift @output; # trim off header (3 lines)
+  my @dbnames = map( /^\s+(\S+)/, @output );
+  $reporter->log( 'info', "databases found: " . join(", ", @dbnames) );
+  $reporter->unitSuccess();
+}
+$reporter->print();

@@ -1,0 +1,642 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+=head1 NAME
+
+user.basicFunctionality.gridJobSubmission.unit:
+Module for submitting jobs to the queue and waiting until completion.
+
+=head1 SYNOPSIS
+
+user.basicFunctionality.gridJobSubmission.unit  -exec=<executable>
+   -type=<{"condor-g", "globus-job-run", "globus-job-submit", "globusrun"}>
+   [-maxRun=<##:##:##>] [-maxWait=<##:##:## or ###>]
+   [-delWait=<##:##:## or ###>] [-project=<ID>]
+
+This reporter will submit the specified executable to the specified
+batch scheduler.  After a specified amount of time the queue will
+again be checked.  If the job has not completed, it is removed from
+the queue.  If the job has completed, then the error and output files
+for the batch job are reported using the Inca::Test::Reporter::Logger
+schema.
+
+The ending status is reported using the Inca SimpleUnit schema.
+
+=head1 ARGUMENTS
+
+=head2  -exec=<path_to_executable>
+
+     The path to the executable to submit to the queue.  This will
+     most likely be a PBS script so the various MPI parameters may be
+     set independent of this reporter.
+
+=head2  -type=<{"condor-g", "globus-job-run", "globus-job-submit",
+"globusrun"}>
+
+     The type of grid job submission mechanism to use.  Currently
+     supported are condor-g, globus-job-run, globus-job-submit, and globusrun.
+
+=head2  -contact=<contact string>
+
+     The contact string.  This defines the jobmanager for the grid
+     job.
+     Examples are:
+          tg-login.sdsc.teragrid.org/jobmanager
+          tg-login.ncsa.teragrid.org/jobmanager-pbs
+
+=head1 OPTIONS
+
+The usage of many of the options below depend upon the specifics of
+the above arguments.
+
+=head2  -maxRun=<##:##:##>  default=00:10:00
+
+     The maximum run time to use when the job is submitted to the
+     queue.  If the job is still not finished by this time the job is
+     deleted from the queue.
+
+     This option has no meaning for job types condor-g, xxx, xxx, xxx
+
+=head2  -maxWait=<##:##:## or ###>  default=00:12:00
+
+     The maximum time to wait for a job in the queue.  If the job is
+     still not finished by this time the job is deleted from the
+     queue.  The format of this option may be hh:mm:ss or just a
+     number (specifying seconds).
+
+=head2  -checkWait=<##:##:## or ###>  default=00:00:60
+
+     The reporter will wait a maximum time for a job in the queue.  We
+		 can periodically probe the queue and check for completion prior to
+		 the max time.  This time indicates the period of time to wait before
+		 checking the job.  The format of this option may be hh:mm:ss or just a
+     number (specifying seconds).
+
+=head2  -delWait=<##:##:## or ###>  default=00:00:60
+
+     Some batch schedulers have long delays when a 'delete/cancel job'
+     command is issued.  This reporter attempts to verify that an
+     unsuccessful job is deleted from the queue before the reporter
+     exits, but after a while the reporter gives up and exits.  This
+     option specifies the total amount of time to wait after a queue
+     delete command before giving up.  The format of this option may
+     be hh:mm:ss or just a number (specifying seconds).
+
+     Since a 'queue delete' command is only issued if the job has not
+     completed by the time the '-wait' period has passed, the reporter
+     will exit and report failure anyway.  If the job cannot be
+     successfully removed from the queue, an error message in the
+     report will indicate this.
+
+=head2  -nodes=<#> default:2
+
+     The number of nodes that the submitted batch job should run on.
+
+=head2  -project=<project charge ID>
+
+     The project charge ID for the job.
+
+=head1 DESCRIPTION
+
+=head1 EXAMPLES
+
+=head2 user.basicFunctionality.gridJobSubmission.unit -type=globus-job-submit
+-exec=myJob -contact=tg-login.ncsa.teragrid.org/jobmanager-pbs
+-maxWait=00:30:00 -maxRun=00:05:00
+
+This example will submit myJob to the PBS batch scheduler at
+tg-login.ncsa.teragrid.org.  It will wait 30 minutes for the job to
+complete, and delete the job from the queue if it is not completed in
+that time.  The job will be submitted with a maximum run time of 5
+minutes.
+
+=head1 OUTPUT PARAMETERS
+
+The resulting output will follow the Inca::Test::Reporter::SimpleUnit
+schema, with the final status reflecting whether the job completed.
+
+=head1 NOTICE
+
+This reporter requires that a current proxy exist.
+
+=cut
+
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'user.basicFunctionality.gridJobSubmission.unit',
+  version => 17,
+  description => 'Submit a job in the queue and wait for result, delete the job after the wait time has elapsed.'
+);
+$reporter->addDependency('sampleGridJob');
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg( "exec", "Path to the executable to submit", "" );
+$reporter->addArg( "type", "The type to use for submitting the job", "globus-job-submit", 
+	"condor-g|globus-job-run|globus-job-submit|globusrun" );
+$reporter->addArg( "contact", "The globus-style contact string <machine/scheduler> indicating the target of the job" );
+$reporter->addArg( "nodes", "Number of nodes", "2", "[0-9]*" );
+$reporter->addArg('nodeTag', 'rsl tag for node count', 'hostCount', '.*');
+$reporter->addArg( "project", "Project charge ID", "", "|.*"  );
+$reporter->addArg( "queue", "Batch queue name to submit to if applicable", "", "|.*" );
+$reporter->addArg( "memory", "Maximum memory to request for job", "", "|.*"  );
+$reporter->addArg( "maxRun", "The maximum run time for the job in the queue", "00:10:00", "[0-9]{2}:[0-9]{2}:[0-9]{2}" );
+$reporter->addArg( "maxWait", "The maximum time to wait for the job to complete", "00:12:00", "[0-9]{2}:[0-9]{2}:[0-9]{2}" );
+$reporter->addArg( "checkWait", "The time to wait for the check for the job to complete", "00:00:60", "[0-9]{2}:[0-9]{2}:[0-9]{2}" );
+$reporter->addArg( "delWait", "The maximum time in seconds to wait after a 'queue delete' command is issued to verify it's gone", 
+	"00:00:60", "[0-9]{2}:[0-9]{2}:[0-9]{2}" );
+
+$reporter->processArgv( @ARGV );
+
+my $exec = $reporter->argValue( "exec" );
+my $type = $reporter->argValue( "type" );
+my $project = $reporter->argValue( "project" );
+my $nodes = $reporter->argValue( "nodes" );
+my $nodeTag = $reporter->argValue( "nodeTag" );
+my $maxRun = $reporter->argValue( "maxRun" );
+my $maxWait = $reporter->argValue( "maxWait" );
+my $checkWait = $reporter->argValue( "checkWait" );
+my $delWait = $reporter->argValue( "delWait" );
+my $contact = $reporter->argValue( "contact" );
+my $memory = $reporter->argValue( "memory" );
+my $queue= $reporter->argValue( "queue" );
+
+my $workdir = cwd();
+if ($exec eq ""){
+  $exec="$workdir/var/reporter-packages/build/sampleGridJob";
+}
+
+# There's a chance the specified executable was not an absolute path
+# name, so we have to prepend the path
+$exec =~ m/(^.{1})/;
+my $cwd = `pwd`;
+chomp($cwd);
+if ( $1 ne "/" ) { $exec = "$cwd/$exec"; }
+if (! -e "$exec" ) { dieNice("Specified executable file \"$exec\" not found." ); }
+if (! -x "$exec" ) { dieNice("Specified executable file \"$exec\" not executable." ); }
+
+# Check the run time has the right format and parse it
+my ($hours, $minutes, $seconds) = 0;
+my @tChunk = split(":", $maxRun);
+$seconds = $tChunk[$#tChunk];
+if ($#tChunk > 0) { $minutes = $tChunk[$#tChunk - 1]; }
+if ($#tChunk > 1) { $hours = $tChunk[$#tChunk - 2]; }
+my $maxRun_seconds = $seconds;
+if ($minutes) { $maxRun_seconds = $maxRun_seconds + ($minutes * 60); }
+if ($hours) { $maxRun_seconds = $maxRun_seconds + ($hours * 3600); }
+
+# Check the wait time has the right format and parse it
+($hours, $minutes, $seconds) = 0;
+@tChunk = split(":", $maxWait);
+$seconds = $tChunk[$#tChunk];
+if ($#tChunk > 0) { $minutes = $tChunk[$#tChunk - 1]; }
+if ($#tChunk > 1) { $hours = $tChunk[$#tChunk - 2]; }
+my $maxWait_seconds = $seconds;
+if ($minutes) { $maxWait_seconds = $maxWait_seconds + ($minutes * 60); }
+if ($hours) { $maxWait_seconds = $maxWait_seconds + ($hours * 3600); }
+
+# Check the check time has the right format and parse it
+($hours, $minutes, $seconds) = 0;
+@tChunk = split(":", $checkWait);
+$seconds = $tChunk[$#tChunk];
+if ($#tChunk > 0) { $minutes = $tChunk[$#tChunk - 1]; }
+if ($#tChunk > 1) { $hours = $tChunk[$#tChunk - 2]; }
+my $checkWait_seconds = $seconds;
+if ($minutes) { $checkWait_seconds = $checkWait_seconds + ($minutes * 60); }
+if ($hours) { $checkWait_seconds = $checkWait_seconds + ($hours * 3600); }
+
+# Same for the delWait
+($hours, $minutes, $seconds) = 0;
+@tChunk = split(":", $delWait);
+$seconds = $tChunk[$#tChunk];
+if ($#tChunk > 0) { $minutes = $tChunk[$#tChunk - 1]; }
+if ($#tChunk > 1) { $hours = $tChunk[$#tChunk - 2]; }
+my $delWait_seconds = $seconds;
+if ($minutes) { $delWait_seconds = $delWait_seconds + ($minutes * 60); }
+if ($hours) { $delWait_seconds = $delWait_seconds + ($hours * 3600); }
+
+#======================================================================
+# Before we actually access remote machines, check for a valid proxy
+#======================================================================
+my $command = "grid-proxy-info";
+my $result = $reporter->loggedCommand( $command );
+$reporter->log('debug', "Checking for grid proxy:\nResult of command \"$command\":\n$result" );
+if ($? || $result =~ /timeleft : 0:00:00/) { dieNice("ERROR: Valid proxy needed for file transfer."); }
+
+# Set up the particulars of the type and make sure it exists on this machine.
+my $user = $ENV{'USER'};
+my ($submit_command, $status_command, $cleanup_command, $cancel_command);
+my ($pending_flag, $running_flag, $completed_flag, $cancelled_flag);
+my ($startLineIndex, $jobIdIndex, $statusIndex);
+if ($type eq "condor-g") {
+  # Example: condor_submit ...
+  $submit_command = "condor_submit";
+  $cancel_command = "condor_rm";
+  $status_command = "condor_q";  
+  # Response in pattern <jobID> <User> <queue> <jobName> <sessionID> <NDS> 
+  #<TSK> <Req'd memory> <Req'd time> <Status> <Elapsed Time>
+  $startLineIndex = 4;
+  $jobIdIndex = 0;
+  $statusIndex = 5;
+  $pending_flag = "I";
+  $running_flag = "R";
+  $completed_flag = "C";
+  $cancelled_flag = "X";
+}
+elsif ($type eq "globus-job-run") {
+  # For running small jobs in the foreground
+  # Example: globus-job-run tg-login.ncsa.teragrid.org/jobmanager /bin/ls
+  # Example: globus-job-run tg-login.ncsa.teragrid.org/jobmanager /bin/ls -la
+  $submit_command = "globus-job-run";
+  $cancel_command = "globus-job-cancel -f";
+  $status_command = "globus-job-status";
+  $startLineIndex = 2;
+  $jobIdIndex = 0;
+  $statusIndex = 4;
+  $pending_flag = "I";
+  $running_flag = "R";
+  $completed_flag = "C";
+  $cancelled_flag = "CA";
+}
+elsif ($type eq "globus-job-submit") {
+  # For running jobs in the background
+  # Example: globus-job-submit tg-login.ncsa.teragrid.org/jobmanager /bin/ls
+  # Example: globus-job-submit tg-login.ncsa.teragrid.org/jobmanager /bin/ls
+  # -la
+  $submit_command = "globus-job-submit";  # returns a job id "https://address/file"
+  $cancel_command = "globus-job-cancel -f";
+  $status_command = "globus-job-status";
+  $cleanup_command = "globus-job-clean -f";
+  $startLineIndex = 0;
+  $jobIdIndex = 0;
+  $statusIndex = 0;
+  $pending_flag = "PENDING";
+  $running_flag = "ACTIVE";
+  $completed_flag = "DONE";
+  $cancelled_flag = "DONE";
+}
+elsif ($type eq "globusrun") {
+  # For submitting jobs using an RSL
+  # Sample RSL:
+  #&
+  #(executable="/home/rswartz/exercise_3/bin/mcell")
+  #(arguments=/home/rswartz/exercise_3/nmj_recon.main.mdl)
+  #(count=1)
+  #(maxtime=2)
+  #(directory="/home/rswartz/exercise_3")
+  #(stdout="globus.out")
+  #(stderr="globus.err")
+  # Example: globusrun -r tg-login.ncsa.teragrid.org -o "&(executable=/bin/ls)
+  # (arguments=-l -a)"
+  # Example: globusrun -r tg-login.ncsa.teragrid.org/jobmanager -o
+  # "&(executable=/bin/ls) (arguments=-l -a)"
+  # Example: globusrun -r tg-login.ncsa.teragrid.org/jobmanager-pbs -o
+  # "&(executable=/bin/ls) (arguments=-l -a)"
+  # Option -b nakes it a background job
+  # job ID will be of the form "https://..."
+  $submit_command = "globusrun";
+  $cancel_command = "globusrun -kill";
+  $status_command = "globusrun -status";
+  $cleanup_command = "globus-job-clean";
+  $startLineIndex = 0;
+  $jobIdIndex = 0;
+  $statusIndex = 0;
+  $pending_flag = "PENDING";
+  $running_flag = "ACTIVE";
+  $completed_flag = "DONE";
+  $cancelled_flag = "DONE";
+}
+else {
+  dieNice("Unknown batch type \"$type\".");
+}
+
+# Check that the submit command exists on this machine
+$command = "which $submit_command";
+my @result = $reporter->loggedCommand( $command );
+$reporter->log('debug', "Result of command \"$command\":\n@result" );
+foreach (@result) {
+  if ($_ =~ "Command not found" || $_ =~ "no $submit_command in") { 
+    dieNice("Submit command \"$submit_command\" for specified type \"$type\" not found on this machine.");
+  }
+}
+
+# Time to make a submit script for the batch job
+# How we do this depends on which system we are submitting to.
+my $options = "";
+my $submitPre = "$type.";
+my $submitFile = $submitPre.$$;
+my $failSubmitFile = $submitPre."PID";
+$reporter->tempFile($submitFile);
+$reporter->tempFile("$submitFile.OUT");
+$reporter->tempFile("$submitFile.ERR");
+$reporter->tempFile("$submitFile.LOG");
+
+if ($type eq "condor-g") {
+  # This is the condor RSL file
+  my $msg;
+  $msg = $msg . "universe = globus\n";
+  $msg = $msg . "output = $submitFile.OUT\n";
+  $msg = $msg . "error = $submitFile.ERR\n";
+  $msg = $msg . "log = $submitFile.LOG\n";
+  $msg = $msg . "transfer-executable = true\n";
+  $msg = $msg . "globusscheduler = $contact\n";
+  $msg = $msg . "executable = $exec\n";
+  $msg = $msg . "queue\n";
+  open (SUBMITFILE, ">$submitFile") or dieNice("Unable to open $type submit script \"$failSubmitFile\"");
+  print SUBMITFILE "$msg";
+  close(SUBMITFILE);
+  $command = "$submit_command $options $submitFile";
+  $reporter->log('info',"This is the condor submit file:\n$msg");
+}
+elsif ($type eq "globus-job-run") {
+  $options = "$contact -np $nodes -maxtime " . int($maxRun_seconds/60 + 0.5);
+  if ($project) { $options = "$options -project $project"; }
+  if ($queue && $queue ne "") { $options = "$options -queue $queue"; }
+  if ($memory && $memory ne "") { $options = "$options -x (maxmemory=$memory)";}
+  $command = "$submit_command $options -s $exec";
+}
+elsif ($type eq "globus-job-submit") {
+  $options = "$contact -np $nodes -maxtime " . int($maxRun_seconds/60 + 0.5);
+  if ($project) { $options = "$options -project $project"; }
+  if ($queue && $queue ne "") { $options = "$options -queue $queue"; }
+  if ($memory && $memory ne "") { $options = "$options -x \"(maxmemory=$memory)\"";}
+  $command = "$submit_command $options -s $exec";
+}
+elsif ($type eq "globusrun") {
+  my $maxRun_minutes = int($maxRun_seconds/60 + 0.5);
+  my $msg = "&\n($nodeTag=$nodes)\n(maxtime=$maxRun_minutes)\n(count=$nodes)\n";
+  if ($project && $project ne "") { 
+    $msg .= "(project=$project)\n"; 
+  }
+  if ($queue && $queue ne "") { 
+    $msg .= "(queue=$queue)\n"; 
+  }
+  $msg .= "(executable=$exec)\n";
+  open (SUBMITFILE, ">$submitFile") or dieNice("Unable to open $type submit script \"$failSubmitFile\"");
+  print SUBMITFILE "$msg";
+  close(SUBMITFILE);
+  $options = "-o -r $contact";
+  $command = "$submit_command $options -f $submitFile";
+  $reporter->log('info',"This is the globusrun submit rsl file:\n$msg");
+}
+
+#===============================================================================
+# Run the job
+#===============================================================================
+my $jobID;
+# Globusrun jobs are special, since they run interactively
+my $tmpOutputFilePre = "user.basicFunctionality.gridJobSubmission.unit.";
+my $tmpOutputFile = $tmpOutputFilePre.$$;
+my $failTmpOutputFile = $tmpOutputFilePre."PID";
+$reporter->tempFile($tmpOutputFile);
+if ($type eq "globusrun") {
+  # For these we have to run using an eval/alarm setup
+  eval {
+    # Create the alarm process
+    local $SIG{ALRM} = sub {
+      # Tell the present process to ignore kill signals (so it doesn't
+      # die) and then kill the process family.
+      local $SIG{HUP} = 'IGNORE';
+      kill  1, -$$;
+      dieNice("globusrun call timed out ($maxRun limit)");
+    };
+
+    # Set alarm and run job, resetting alarm when finished
+    # In the meantime we save the result of the job
+    alarm($maxRun_seconds);
+    @result = $reporter->loggedCommand( $command );
+    $reporter->log('debug',"Result of command \"$command\":\n@result");
+    open (FD, "> $tmpOutputFile") or dieNice("Could not open temp output file \"failTtmpOutputFile\"");
+    print FD @result;
+    close(FD);
+    alarm(0);
+  };
+
+}
+else {
+  # For all the rest we submit it and check the queue every now and then
+  @result = $reporter->loggedCommand( $command );
+  $reporter->log('debug', "Result of command \"$command\":\n@result" );
+  foreach (@result) {
+    if ($_ =~ "This job has not been submitted") {
+      dieNice("Error submitting job to queue.");
+    }
+  }
+
+  # Get the job ID
+  my @line;
+  if ($type eq "condor-g") {
+    @line = grep(/job\(s\) submitted to cluster/, @result);
+    $line[0] =~ /job\(s\) submitted to cluster (\d+)\./;
+    $jobID = "$1";
+  } else {
+    # For the globus commands, a one-line response is expected.
+    @line = grep(/https/, @result);
+    if (($#line != 0)) {
+      dieNice("After \"$type\", result different than expected: @result");
+    }
+    chomp($line[0]);
+    $jobID = $line[0];
+  }
+  $reporter->log('info',"Submitted job ID = $jobID");
+
+  # Let's wait a bit before checking the job.
+  # We do this because 'globusrun -status' has problems with immediately
+  # checking job status
+  sleep(5);
+
+  # Check to see that the job has been submitted (it should be waiting or
+  # running in the queue by now)
+  $command = "$status_command $jobID";
+  @result = $reporter->loggedCommand( $command );
+  $reporter->log('debug', "Result of command \"$command\":\n@result" );
+  foreach (@result) {
+    if ($_ =~ "There is currently no job status to report." || 
+        $_ =~ "Unknown Job Id" || $_ =~ "UNKNOWN JOB") {
+      dieNice("Job submitted, got job ID but can't find job in the queue.");
+    }
+  }
+  if ($#result != $startLineIndex) {
+    dieNice("Queue status report has unexpected number of lines.");
+  }
+  chop($result[$startLineIndex]);
+  my @fields = split(" ", $result[$startLineIndex]);
+  if (($fields[$statusIndex] ne $pending_flag) & 
+      ($fields[$statusIndex] ne $running_flag) & 
+      ($fields[$statusIndex] ne $completed_flag)) {
+    dieNice("Job was just submitted and should be in the queue, but it isn't.");
+  }
+  $reporter->log('info',"Job is verified in the queue.");
+  my $starttime = time();
+  while ( time() - $starttime < $maxWait_seconds ) {
+    sleep($checkWait_seconds);
+    $command = "$status_command $jobID";
+    @result = $reporter->loggedCommand( $command );
+    if ($#result == $startLineIndex) {
+      my @fields = split(" ", $result[$startLineIndex]);
+      if (($fields[$statusIndex] ne $pending_flag) && 
+          ($fields[$statusIndex] ne $running_flag)) {
+        last;
+      }
+    } elsif ($#result > $startLineIndex) {
+    # There are extra lines in the output - don't understand this!
+      dieNice("The result of the command \"$status_command\" has more lines than expected.  Do not understand.");
+    }                             
+  }
+
+  # Check queue status for the job
+  # This takes finesse because with PBS a completed job isn't in the status report.
+  # It looks like it is sometimes still in the report for loadleveller.
+  $command = "$status_command $jobID";
+  @result = $reporter->loggedCommand( $command );
+  $reporter->log('debug', "Result of command \"$command\":\n@result" );
+  # See if the job is still in the queue
+  if ($#result == $startLineIndex) {
+    # There is a line pertaining to this job - but it could just be
+    # reporting that the job is completed.  Let's look at the status
+    # that was reported.
+    my @fields = split(" ", $result[$startLineIndex]);
+
+    # Is this job still pending or running?
+    if (($fields[$statusIndex] eq $pending_flag) | 
+        ($fields[$statusIndex] eq $running_flag)) {
+      # Yes, job still pending or running
+      $reporter->log('info', "After waiting, job status in queue was \"$fields[$statusIndex]\"." );
+
+      # Delete it.
+      $command = "$cleanup_command $jobID";
+      my @result = $reporter->loggedCommand( $command );
+      $reporter->log('debug', "Cancelled job with command \"$command\", got:\n@result" );
+
+      # Make sure job was deleted
+      if ($?) {
+        dieNice("ERROR: Unable to delete pending job from queue.");
+      }
+
+      # At this point we have commanded the job be deleted.  We signal
+      # failure, since it didn't run.  Let's make sure it's gone by
+      # checking the number of lines in a queue status report
+      # We will do this every few seconds until '-delWait' time has passed
+      my $waitBetweenChecks = 4;
+      for (my $i=0 ; $i<($delWait_seconds/$waitBetweenChecks) ; $i++) {
+        # Sleep for a few seconds before rechecking
+        sleep($waitBetweenChecks);
+
+        # Check the queue
+        $command = "$status_command $jobID";
+        @result = $reporter->loggedCommand( $command );
+        if ($#result < $startLineIndex) {
+          dieNice("Job cancelled since it was not completed at the end of wait time.");
+        }
+        if ($#result > $startLineIndex) {
+          dieNice("After the command \"$cancel_command\", the command \"$status_command\" has more lines than expected.");
+        }
+
+        # The line for this job is reported in the status queue.
+        # Is it reported as dead?
+        @fields = split(" ", $result[$startLineIndex]);
+        if ($fields[$statusIndex] eq $cancelled_flag) {
+          dieNice("Job cancelled because it hasn't completed at end of wait time.");
+        }
+      } # end "deleted job still in queue" wait-recheck loop
+
+      # If we make it here, this job is a zombie.  It refuses to die.
+      dieNice("Job is a queue zombie.  It has been cancelled, but refuses to die.");
+    }  #end "job pending or running"
+    elsif ($fields[$statusIndex] ne $completed_flag) {
+      # It may have been cancelled, terminated, held, or transformed
+      # into a giant cockroach.  Let's just quit.
+      dieNice("At end of wait period job status not pending or running, but not completed either.\nJob status = \"$fields[$statusIndex]\"");
+    }
+  } # end "batch queue status report had the right number of lines"
+  elsif ($#result > $startLineIndex) {
+    # There are extra lines in the output - don't understand this!
+    dieNice("The result of the command \"$status_command\" has more lines than expected.");
+  } 
+} # end "not a globusrun job"
+
+#===============================================================================
+# Check the output
+#===============================================================================
+
+# If it was a globusrun job
+if ( $type eq 'globusrun' ) {
+  # Read the globusrun 'log' file
+  open(FD, "< $tmpOutputFile") or dieNice("Unable to open globusrun \"log\" file");
+  my @tmp = <FD>;
+  close(FD);
+  if (grep(/failed/, @tmp) | grep(/FAILED/, @tmp)) { dieNice("Globusrun reports failure: @tmp"); }
+}
+else {
+  # Now we just have to check the output of the job and clean up
+  if ( $type eq "globus-job-submit" ) {
+    # Gotta call globus-job-get-output to get the errors
+    $command = "globus-job-get-output -err $jobID";
+    @result = $reporter->loggedCommand( $command );
+    $reporter->log('debug', "Result of command \"$command\":\n@result" );
+    if ($#result >= 0) {
+      $reporter->log('warn', "Contents of batch error file:\n@result");
+    } else {
+      $reporter->log('info', "Batch error file was empty" );
+    }
+
+    # Gotta call globus-job-get-output to get the output
+    $command = "globus-job-get-output -out $jobID";
+    @result = $reporter->loggedCommand( $command );
+    $reporter->log('debug', "Result of command \"$command\":\n@result" );
+    if ($#result >= 0) {
+      $reporter->log('info', "Contents of batch output file:\n@result");
+    } else {
+      $reporter->log('info', "Batch output file was empty" );
+    }
+
+    # Now cleanup the job information
+    $command = "globus-job-clean -f $jobID";
+    @result = $reporter->loggedCommand( $command );
+    $reporter->log('debug', "Result of cleanup command \"$command\":\n@result" );
+    my @tmp = grep("Cleanup Successful.", @result);
+    if ($#tmp < 0) {
+      dieNice("Final cleanup of batch output was not successful.");
+    }
+  } else {
+    # Put any error file information into a warning (the job did complete,
+    # after all)
+    if (! -e "$submitFile.ERR") {
+      $reporter->log('info',"No batch job error file exists.");
+    } elsif (! -z "$submitFile.ERR") {
+      open (ERR, "< $submitFile.ERR") or dieNice("Unable to read existing batch job error file \"$failSubmitFile.ERR\".");
+      my @err = <ERR>;
+      close(ERR);
+      $reporter->log('warn',"Contents of batch error file:\n@err");
+    } else {
+      $reporter->log('info', "Batch error file was empty." );
+    }
+
+    # Check the results
+    if (! -e "$submitFile.OUT") { 
+      $reporter->log('info',"No batch job output file exists.");
+    } elsif (! -z "$submitFile.OUT") {
+      open (OUT, "< $submitFile.OUT") or dieNice("Unable to read existing batch job output file \"$failSubmitFile.OUT\".");
+      my @out = <OUT>;
+      close(OUT);
+      $reporter->log('info',"Contents of batch output file:\n@out");
+    } else {
+      $reporter->log('info', "Batch output file was empty." );
+    }
+  }
+}
+
+$reporter->unitSuccess();
+$reporter->print( );
+exit;
+
+sub dieNice {
+  my $msg = shift;
+  
+  my $uptime = $reporter->loggedCommand("uptime");
+  $reporter->log("info", "Uptime: $uptime");
+  $msg =~ s/t0:p\d+: Fatal error:/t0:pxxxx: Fatal error:/g;
+  $reporter->failPrintAndExit($msg);
+}

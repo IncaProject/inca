@@ -1,0 +1,46 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'inca.web',
+  version => 2,
+  description => 'Checks Inca web pages',
+  url => 'http://inca.ucsd.edu',
+  unit_name => 'incaweb'
+);
+$reporter->addArg('consumer', 'URL of Inca consumer server', 'http://capac.sdsc.edu');
+$reporter->addArg('wgetArgs', 'wget arguments (e.g. --no-check-certificate)', '');
+$reporter->processArgv(@ARGV);
+my $consumer = $reporter->argValue('consumer');
+my $args = $reporter->argValue('wgetArgs');
+
+my $viewsURL = "$consumer/inca/xml/views.xml";
+my $wgetCmd = "wget -q $args -O - \"$viewsURL\" 2>/dev/null";
+my $views = $reporter->loggedCommand($wgetCmd);
+my @ids = $views =~ /view id="([^"]*)"/gms;
+my @ssl  = $views =~ /view [^>]+ auth="true"/gms;
+my $errors = "";
+for my $id ( @ids ) {
+  if (grep(/$id/, @ssl)) {
+    next;
+  }
+  my $page = "$consumer/inca/view/$id";
+  my $command = "wget -o /dev/null -O - --header='Accept-Language: en-us,en' \"$page\"";
+  my $pageOutput = $reporter->loggedCommand( $command ); 
+  if ( $? != 0 || ! defined $pageOutput ||
+       $pageOutput !~ /inca-powered-by\.jpg/ ||
+       $pageOutput =~ /Inca Error Page/ ) {
+    $errors .= "\n $page";
+  }
+}
+if ($errors ne ""){
+  print "$errors\n";
+  $reporter->failPrintAndExit( "Following pages have load errors: $errors" );
+}
+
+$reporter->unitSuccess();
+$reporter->print();
+

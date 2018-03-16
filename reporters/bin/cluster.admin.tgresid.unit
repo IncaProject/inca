@@ -1,0 +1,30 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+
+$test = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.admin.tgresid.unit',
+  version => 4,
+  description => "Verifies tgresid \"tgwhatami\" and \"tgwhereami\" commands",
+  unit_name => "tgresid"
+);
+$test->processArgv( @ARGV );
+
+my $what = $test->loggedCommand( "tgwhatami" );
+if ( $? ) {
+  $test->failPrintAndExit( "tgwhatami failed: $what $!" );
+}elsif ( (chomp($what) =~ m/\n/) || ($what eq "") ){
+  $test->failPrintAndExit( "tgwhatami output not expected: $what" );
+}
+
+my $where = $test->loggedCommand( "tgwhereami" );
+my $match = $where =~  m/^.+\..+\.teragrid\.org$/;
+my $nl = chomp($where) =~  m/\n/;
+if ( $? ) {
+  $test->failPrintAndExit( "tgwhereami failed: $where $!" );
+}elsif ( $nl || !$match ){
+  $test->failPrintAndExit( "tgwhereami output not expected: $where" );
+}
+$test->unitSuccess();
+$test->print( );
+

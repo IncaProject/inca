@@ -1,0 +1,586 @@
+#!/usr/bin/env perl
+
+################################################################################
+
+=head1 NAME
+
+cluster.batch.wrapper -- a tool for running an Inca reporter via a batch queue
+
+=head1 SYNOPSIS
+
+  cluster.batch.wrapper [opts] --scheduler=name --exec='command'
+
+=head1 DESCRIPTION
+
+  This program submits an Inca reporter invocation to a batch scheduler and,
+  after it runs, prints any stdout/stderr output from the reporter.  It reports
+  any submission failure via the Reporter module failPrintAndExit method.
+  Recognized options:
+
+=over 13
+
+=item --account=string
+
+The account to charge for the batch submission; default none
+
+=item --exec=string
+
+The reporter invocation--path to the reporter and arguments; default is a
+simple performance reporter that reports the queue wait time in seconds.
+Multiple values for this option are incorporated on separate lines of the
+batch submission script.
+
+=item --nodes=int[:int[:int]]
+
+The total number of nodes to allocate, optional processes per node to
+specify, and total processors.  E.g., '8:4' starts up 4 processes per node for
+a total of 32 processes.  This is equivalent to ':4:32'.  default is 1.
+
+=item --poll=int
+
+The frequency, in seconds, with which to check the submission for completion;
+default 10
+
+=item --queue=string
+
+The name of the queue to submit to; default none
+
+=item --randomwait=int
+
+Introduce a random wait time before submitting job.  Default is 0 hours
+indicating no random wait time while a non-zero hours indicates the 
+maximum number of hours to wait.
+
+=item --scheduler=cobalt|condor|dqs|loadleveler|lsf|pbs|sge|shell|slurm
+
+The scheduler to submit to (shell is supported for testing); required
+
+=item --shell=string
+
+The name of the shell to use to execute the submit script; default /bin/sh
+
+=item --showscript=yes|no
+
+Do not submit the reporter; generate and print the submission script, then
+exit; default no
+
+=item --submitparam=string
+
+An additional, host-specific batch parameter to place into the submission
+script.  May be repeated for additional batch parameters; default none
+
+=item --timeout=int
+
+The maximum time, in minutes, that the submission may wait in the queue.
+Default 0 (unlimited).
+
+=item --type=string
+
+The submission type required by some installations of some schedulers.  Used
+with the job_type batch parameter in LoadLeveler, the -pe parameter in SGE,
+and the -l nodes parameter in PBS.
+
+=item --var=path
+
+Path to a directory to use for temp files; default current working directory
+
+=item --walllimit=int
+
+The maximum time, in minutes, that the reporter may run.  Default 10.
+
+=back
+
+  Options with a default value that are not applicable to a particular batch
+  scheduler can be suppressed by giving an empty value for the option
+  (e.g., --nodes='').
+
+#head1 EXAMPLES
+
+  cluster.batch.wrapper --scheduler=pbs --account=alf63 --exec='cluster.compiler.gcc.version'
+
+  cluster.batch.wrapper --scheduler=loadleveler --queue=normal --type=parallel --exec='network.ping.unit --host=ufo.edu'
+
+  cluster.batch.wrapper --scheduler=sge --submitparam='-js 1' --submitparam='-l h_vmem=600' --exec='cluster.ps.unit --process=init --psargs=-x'
+
+=cut
+
+################################################################################
+
+use strict;
+use warnings;
+use Cwd;
+use POSIX ':sys_wait_h';
+use Inca::Reporter::Performance;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'cluster.batch.wrapper',
+  version => 18,
+  description => 'Submits a reporter to a batch queue',
+  url => 'http://inca.sdsc.edu',
+  measurement_name => 'queuetime'
+);
+$reporter->addArg('account', 'account to charge', '');
+$reporter->addArg('exec', 'reporter execution string', '');
+$reporter->addArg('nodes', 'number of nodes to allocate', "1", '\d*:?\d*:?\d*');
+$reporter->addArg('poll', 'job poll period in seconds', 10, '\d+');
+$reporter->addArg('queue', 'submit queue', '');
+$reporter->addArg('randomwait', 'add random wait time before submit', 0, '\d+' );
+# Support shell "scheduler" for testing
+$reporter->addArg( 'scheduler', 'batch scheduler (cobalt|condor|dqs|loadleveler|lsf|pbs|pbscray|pbssgi|pbsxt|sge|shell|slurm)' );
+$reporter->addArg('shell', 'path to shell', '/bin/sh');
+$reporter->addArg
+  ('showscript', 'print submission script and exit', 'no', 'yes|no');
+$reporter->addArg('submitparam', 'additional batch submission parameters', '');
+$reporter->addArg('timeout', 'max queue wait time in minutes', 0, '[\.\d]+');
+$reporter->addArg('type', 'submission category', '');
+$reporter->addArg('var', 'dir for temp files', '');
+$reporter->addArg('walllimit', 'max wall clock time in minutes', 10, '\d*');
+$reporter->addArg('gateway', 'execute gateway_submit_attributes script to map real user of gateway account (yes|no)', 'no', 'yes|no' );
+$reporter->processArgv(@ARGV);
+
+my $nodeSpec = $reporter->argValue('nodes');
+my ($nodes, $ppn, $cpus) = $nodeSpec =~ /(\d+)?:?(\d+)?:?(\d+)?/;
+if ( defined $nodes && defined $ppn && defined $cpus ) {
+  if ( $nodes * $ppn != $cpus ) {
+    $reporter->failPrintAndExit( "BATCH: nodes * ppn must equal cpus; format for -nodes is \"[nodes][:ppn[:cpus]]\"" );
+  }
+} elsif ( defined $nodes && defined $ppn ) {
+  $cpus = $nodes * $ppn;
+} elsif ( defined $nodes && defined $cpus ) {
+  $ppn = $cpus / $nodes;
+} elsif ( defined $ppn & defined $cpus ) {
+  $nodes = $cpus / $ppn;
+} elsif ( defined $ppn && (! defined $cpus && ! defined $nodes) ) {
+    $reporter->failPrintAndExit( "BATCH: ppn value must be specified with either or both nodes and cpus; format for -nodes is \"[nodes][:ppn[:cpus]]\"" );
+}
+
+my $executable = join("\n", $reporter->argValues('exec'));
+my $pollPeriod = $reporter->argValue('poll');
+my $randomWait = $reporter->argValue('randomwait');
+my $scheduler = $reporter->argValue('scheduler');
+my $showScript = $reporter->argValue('showscript');
+my $timeout = $reporter->argValue('timeout') * 60; # Convert to seconds
+my $var = $reporter->argValue('var');
+my $gateway = $reporter->argValue('gateway');
+$var = cwd() if $var eq '';
+my $scriptPath = "$var/sub$$.sub";
+
+my $randomWaitSecs= rand() * $randomWait * 60 * 60;
+if ( $randomWaitSecs > 0 ) {
+  $ENV{INCA_BATCHWRAPPER_RANDOMWAIT} = $randomWaitSecs;
+  `echo $randomWaitSecs > $ENV{HOME}/.randomsleep`;
+  sleep( $randomWaitSecs );
+}
+
+my %batchParams = (
+  account => $reporter->argValue('account'),
+  cpus => $cpus,
+  executable => $executable,
+  nodes => $nodes,
+  queue => $reporter->argValue('queue'),
+  ppn => $ppn,
+  shell => $reporter->argValue('shell'),
+  stderr => "$var/sub$$.stderr",
+  stdout => "$var/sub$$.stdout",
+  type => $reporter->argValue('type'),
+  walllimit => $reporter->argValue('walllimit'),
+  wd => $var
+);
+
+if($batchParams{executable} eq '') {
+  my $benchmark = $reporter->addNewBenchmark('queuetime');
+  $benchmark->setParameter('nodes', $batchParams{nodes});
+  $benchmark->setParameter('type', $batchParams{type});
+  $benchmark->setStatistic('elapsed', 'TBD', 'seconds');
+  $reporter->setResult(1);
+  $executable = "$var/sub$$.pl";
+  $reporter->failPrintAndExit("BATCH: Unable to write exec script to $var")
+    if(!open(FILE, ">$executable"));
+  print FILE "my \$report = <<ENDREPORT;\n";
+  print FILE $reporter->report();
+  print FILE "\nENDREPORT\n";
+  print FILE "my \$elapsed = time() - " . time() . ";\n";
+  print FILE "\$report =~ s/TBD/\$elapsed/;\n";
+  print FILE "print \"\$report\\n\";\n";
+  close(FILE);
+  $reporter->tempFile($executable);
+  if ( $scheduler eq 'condor' ) {
+    $batchParams{executable} = "/usr/bin/env"; 
+    $batchParams{arguments} = "perl sub$$.pl";
+  } else {
+    $batchParams{executable} = "perl $executable";
+  }
+}
+
+my %paramFormats = (
+  cobalt => "%s\n",
+  condor => "%s\n",
+  dqs => "#\$ %s\n",
+  loadleveler => "#\@ %s\n",
+  lsf => "#BSUB %s\n",
+  pbs => "#PBS %s\n",
+  pbscray => "#PBS %s\n",
+  pbssgi => "#PBS %s\n",
+  pbsxt => "#PBS %s\n",
+  sge => "#\$ %s\n",
+  shell => '', # N/A
+  slurm => "#SBATCH %s\n"
+);
+my @additionalParams;
+foreach my $sp($reporter->argValues('submitparam')) {
+  push(@additionalParams, $paramFormats{$scheduler}, $sp);
+}
+
+# Add reporter bin directory to path
+if(defined($ENV{INSTALL_DIR})) {
+  if(defined($ENV{PATH})) {
+    $ENV{PATH} .= ":$ENV{INSTALL_DIR}/bin";
+  } else {
+    $ENV{PATH} = "$ENV{INSTALL_DIR}/bin";
+  }
+}
+# Environment settings for schedulers that use a shell script
+my $envSettings = '';
+foreach my $envvar(('INSTALL_DIR', 'PYTHONPATH', 'PERL5LIB', 'LD_LIBRARY_PATH',
+                    'X509_USER_PROXY', 'PATH')) {
+  next if !defined $ENV{$envvar};
+  if($batchParams{shell} =~ /csh/) {
+    $envSettings .= "setenv $envvar $ENV{$envvar}\n";
+  } else {
+    $envSettings .= "$envvar=$ENV{$envvar}; export $envvar\n";
+  }
+}
+
+my %submitScripts = (
+
+  cobalt => [
+    "-p %s\n", $batchParams{account},
+    "-n %s\n", $batchParams{nodes},
+    "%s", defined $batchParams{ppn} ? "-c $batchParams{ppn}\n" : "",  
+    "-q %s\n", $batchParams{queue},
+    "-E %s\n", $batchParams{stderr},
+    "-o %s\n", $batchParams{stdout},
+    "-t 00:%s:00\n", $batchParams{walllimit},
+    "-C %s\n", $batchParams{wd},
+    @additionalParams,
+    "%s\n", $batchParams{executable}
+  ],
+
+  condor => [
+    "universe = %s\n", "vanilla",
+    "should_transfer_files=%s\n", "YES",
+    "WhenToTransferOutput = %s\n", "ON_EXIT",
+    "transfer_input_files =  %s\n", $executable,
+    "+ProjectName = \"%s\"\n", $batchParams{account},
+    "%s", defined $batchParams{ppn} ? "request_cpus=$batchParams{ppn}\n" : "",  
+    "notification=%s\n", "Never",
+    "error=%s\n", $batchParams{stderr},
+    "output=%s\n", $batchParams{stdout},
+    "getenv=%s\n", "True",
+    @additionalParams,
+    "executable=%s\n", $batchParams{executable},
+    "arguments=%s\n", $batchParams{arguments},
+    "queue %s\n", $batchParams{nodes}
+  ],
+
+  dqs => [
+    "#!%s\n", $batchParams{shell},
+    "#\$ -A %s\n", $batchParams{account},
+    "#\$ -l qty.eq.%s\n", $batchParams{nodes},
+    "#\$ -m %s\n", "n",
+    "#\$ -q %s\n", $batchParams{queue},
+    "#\$ -e %s\n", $batchParams{stderr},
+    "#\$ -o %s\n", $batchParams{stdout},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ],
+
+  loadleveler => [
+    "#!%s\n", $batchParams{shell},
+    "#\@ account_no=%s\n", $batchParams{account},
+    "#\@ node=%s\n", $batchParams{nodes},
+    "%s", defined $batchParams{ppn} ? "#\@ tasks_per_node=$batchParams{ppn}\n" : "",  
+    "#\@ notification=%s\n", "never",
+    "#\@ class=%s\n", $batchParams{queue},
+    "#\@ shell=%s\n", $batchParams{shell},
+    "#\@ error=%s\n", $batchParams{stderr},
+    "#\@ output=%s\n", $batchParams{stdout},
+    "#\@ wall_clock_limit=00:%s:00\n", $batchParams{walllimit},
+    "#\@ initialdir=%s\n", $batchParams{wd},
+    "#\@ job_type=%s\n", $batchParams{type},
+    "#\@ environment=%s\n", "COPY_ALL",
+    @additionalParams,
+    "#\@ %s\n", "queue",
+    "%s\n", $batchParams{executable}
+  ],
+
+  lsf => [
+    "#!%s\n", $batchParams{shell},
+    "#BSUB -P %s\n", $batchParams{account},
+    "#BSUB -n %s\n", defined $batchParams{cpus} ? $batchParams{cpus} : $batchParams{nodes},
+    "%s", defined $batchParams{ppn} ? "#BSUB -R 'span[ptile=$batchParams{ppn}]'\n" : "",  
+    "#BSUB -q %s\n", $batchParams{queue},
+    "#BSUB -L %s\n", $batchParams{shell},
+    "#BSUB -e %s\n", $batchParams{stderr},
+    "#BSUB -o %s\n", $batchParams{stdout},
+    "#BSUB -W %s\n", $batchParams{walllimit},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ],
+
+  pbs => [
+    "#!%s\n", $batchParams{shell},
+    "#PBS -A %s\n", $batchParams{account},
+    "#PBS -l nodes=%s", $batchParams{nodes}, # No newline
+    "%s", defined $batchParams{ppn} ? ":ppn=$batchParams{ppn}" : "",  
+    ":%s", $batchParams{type},
+    "%s", "\n",
+    "#PBS -m %s\n", "n",
+    "#PBS -q %s\n", $batchParams{queue},
+    "#PBS -S %s\n", $batchParams{shell},
+    "#PBS -e %s\n", $batchParams{stderr},
+    "#PBS -o %s\n", $batchParams{stdout},
+    "#PBS -l walltime=00:%s:00\n", $batchParams{walllimit},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ],
+
+  pbscray  => [
+    "#!%s\n", $batchParams{shell},
+    "#PBS -A %s\n", $batchParams{account},
+    "#PBS -l size=%s\n", $batchParams{cpus}, # No newline
+    "#PBS -m %s\n", "n",
+    "#PBS -q %s\n", $batchParams{queue},
+    "#PBS -S %s\n", $batchParams{shell},
+    "#PBS -e %s\n", $batchParams{stderr},
+    "#PBS -o %s\n", $batchParams{stdout},
+    "#PBS -l walltime=00:%s:00\n", $batchParams{walllimit},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ],
+
+  pbssgi => [
+    "#!%s\n", $batchParams{shell},
+    "#PBS -A %s\n", $batchParams{account},
+    "#PBS -l ncpus=%s\n", $batchParams{cpus}, # No newline
+    "#PBS -m %s\n", "n",
+    "#PBS -q %s\n", $batchParams{queue},
+    "#PBS -S %s\n", $batchParams{shell},
+    "#PBS -e %s\n", $batchParams{stderr},
+    "#PBS -o %s\n", $batchParams{stdout},
+    "#PBS -l walltime=00:%s:00\n", $batchParams{walllimit},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ],
+
+  pbsxt => [
+    "#!%s\n", $batchParams{shell},
+    "#PBS -A %s\n", $batchParams{account},
+    "#PBS -l mppwidth=%s\n", defined $batchParams{cpus} ? $batchParams{cpus} :  $batchParams{nodes}, 
+    "%s", defined $batchParams{ppn} ? "#PBS -l mppnppn=$batchParams{ppn}\n" : "",  
+    "#PBS -l %s", $batchParams{type},
+    "%s", "\n",
+    "#PBS -m %s\n", "n",
+    "#PBS -q %s\n", $batchParams{queue},
+    "#PBS -S %s\n", $batchParams{shell},
+    "#PBS -e %s\n", $batchParams{stderr},
+    "#PBS -o %s\n", $batchParams{stdout},
+    "#PBS -l walltime=00:%s:00\n", $batchParams{walllimit},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ],
+
+  sge => [
+    "#!%s\n", $batchParams{shell},
+    "#\$ -A %s\n", $batchParams{account},
+    "#\$ -m %s\n", "n",
+    "#\$ -pe %s", $batchParams{type}, # No newline
+    " %s", defined $batchParams{cpus} ? $batchParams{cpus} :  $batchParams{nodes},
+    "%s", "\n",
+    "#\$ -q %s\n", $batchParams{queue},
+    "#\$ -S %s\n", $batchParams{shell},
+    "#\$ -e %s\n", $batchParams{stderr},
+    "#\$ -o %s\n", $batchParams{stdout},
+    "#\$ -l h_rt=00:%s:00\n", $batchParams{walllimit},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ],
+
+  shell => [
+    "#!%s\n", '/bin/sh',
+    "cd %s;", $batchParams{wd},
+    "(%s)", $batchParams{executable},
+    " > %s", $batchParams{stdout},
+    " 2> %s", $batchParams{stderr},
+    "%s", "\n"
+  ],
+
+  slurm => [
+    "#!%s\n", $batchParams{shell},
+    "#SBATCH -A %s\n", $batchParams{account},
+    "%s\n", defined $batchParams{nodes} ?  "#SBATCH -N " . $batchParams{nodes} : "",
+    "%s\n", defined $batchParams{cpus} ?  "#SBATCH -n " . $batchParams{cpus} : "",
+    "%s\n", defined $batchParams{ppn} ?  "#SBATCH --ntasks-per-node=" . $batchParams{ppn} : "",
+    "#SBATCH -p %s\n", $batchParams{queue},
+    "#SBATCH -e %s\n", $batchParams{stderr},
+    "#SBATCH -o %s\n", $batchParams{stdout},
+    "#SBATCH -t 00:%s:00\n", $batchParams{walllimit},
+    @additionalParams,
+    "%s", $envSettings,
+    "cd %s\n", $batchParams{wd},
+    "%s\n", $batchParams{executable}
+  ]
+
+);
+
+my %submitCommands = (
+  cobalt => "cqsub `cat $scriptPath`",
+  condor => "condor_submit $scriptPath",
+  dqs => "qsub $scriptPath",
+  loadleveler => "llsubmit $scriptPath",
+  lsf => "bsub < $scriptPath",
+  pbs => "qsub $scriptPath",
+  pbscray => "qsub $scriptPath",
+  pbssgi => "qsub $scriptPath",
+  pbsxt => "qsub $scriptPath",
+  sge => "qsub $scriptPath",
+  shell => "/bin/sh $scriptPath",
+  slurm => "sbatch $scriptPath"
+);
+
+my @script = @{$submitScripts{$scheduler}};
+my $scriptText = '';
+# Ignore batch parameters w/no value specified
+for(my $i = 1; $i <= $#script; $i += 2) {
+  $scriptText .= sprintf($script[$i - 1], $script[$i])
+    if defined($script[$i]) && $script[$i] ne '';
+}
+
+if($showScript eq 'yes') {
+  print $scriptText;
+  exit(1);
+}
+
+$reporter->failPrintAndExit("BATCH: Unable to write submit script to $var")
+  if(!open(FILE, ">$scriptPath"));
+print FILE $scriptText;
+close(FILE);
+$reporter->tempFile($scriptPath, $batchParams{stdout}, $batchParams{stderr});
+
+my $jobId;
+# Patterns that extract the job id (as $1) from submission program output
+my %jidExtractPatterns = (
+  cobalt => '^(\d+)',
+  condor => 'submitted to cluster (\d+)',
+  dqs => 'job (\d+)',
+  loadleveler => '"([^"]+)" has been submitted',
+  lsf => '<(\d+)',
+  pbs => '^(\d+\S+)',
+  pbscray => '^(\d+)',
+  pbssgi => '^(\d+)',
+  pbsxt => '^(\d+)',
+  sge => 'job (\d+)',
+  shell => '', # N/A
+  slurm => 'job (\d+)'
+);
+
+if($scheduler eq 'shell') {
+  if(($jobId = fork()) == 0) {
+    $reporter->log('system', $submitCommands{$scheduler});
+    exec($submitCommands{$scheduler}) or die "exec failed";
+  }
+} else {
+  my $submitOut = $reporter->loggedCommand($submitCommands{$scheduler});
+  $submitOut = '' if !defined($submitOut);
+  $reporter->failPrintAndExit
+    ("BATCH: Unable to submit reporter $batchParams{executable}: $! $submitOut")
+    if $? != 0;
+  ($jobId) = $submitOut =~ /$jidExtractPatterns{$scheduler}/ms;
+  $reporter->failPrintAndExit
+    ("BATCH: Unable to submit reporter $batchParams{executable}: " .
+     "jobid pattern $jidExtractPatterns{$scheduler} not found in $submitOut")
+    if !defined($jobId);
+}
+
+# Submit to gateway attributes script to test gateway user to real user mapping
+if ( $gateway eq 'yes' )
+{
+	my $result = $reporter->loggedCommand( "gateway_submit_attributes -gateway_user inca\@sdsc.edu -submit_time \"`date '+%F %T %:z'`\" -jobid $jobId" );
+	if ( $? ) 
+	{ 
+		$reporter->log( 'debug', "Could not execute gateway_submit_attributes script: $result" );
+	}
+}
+
+# Commands to kill the job
+my %killExprs = (
+  cobalt => "`cqdel $jobId`",
+  condor => "`condor_rm $jobId`",
+  dqs => "`qdel $jobId`",
+  loadleveler => "`llcancel $jobId`",
+  lsf => "`bkill $jobId`",
+  pbs => "`qdel $jobId`",
+  pbscray => "`qdel $jobId`",
+  pbssgi => "`qdel $jobId`",
+  pbsxt => "`qdel $jobId`",
+  sge => "`qdel $jobId`",
+  shell => "kill(9, $jobId)",
+  slurm => "`scancel $jobId`"
+);
+# Commands to detect that the job is still queued or running
+my %waitExprs = (
+  cobalt => "`cqstat 2>&1` =~ /^ *$jobId /m",
+  condor => "`condor_q 2>&1` =~ /^ *$jobId/m",
+  dqs => "`qstat $jobId 2>&1` =~ /-----/",
+  loadleveler => "`llq $jobId` =~ /[1-9] job step/",
+  lsf => "`bjobs $jobId` =~ /PEND|RUN|SUSP/",
+  pbs => "`qstat $jobId 2>&1` =~ /-----/",
+  pbscray => "`qstat $jobId 2>&1` =~ /-----/",
+  pbssgi => "`qstat $jobId 2>&1` =~ /-----/",
+  pbsxt => "`qstat $jobId 2>&1` =~ /-----/",
+  sge => "`qstat 2>&1` =~ /^ *$jobId /m",
+  shell => "waitpid($jobId, &WNOHANG) == 0",
+  slurm => "`squeue 2>&1` =~ /^ *$jobId /m"
+);
+
+my $submitTime = time();
+do {
+  if($timeout > 0 && time() > $submitTime + $timeout) {
+    $reporter->log('system', $killExprs{$scheduler} );
+    eval($killExprs{$scheduler});
+    $reporter->failPrintAndExit("BATCH: Reporter submission timed out");
+  }
+  sleep($pollPeriod);
+} while eval($waitExprs{$scheduler});
+
+# Copy reporter stdout/stderr to our stdout/stderr
+$/ = undef; # enable slurp
+$reporter->failPrintAndExit("BATCH: Unable to retrieve reporter output")
+  if(!open(FILE, "<$batchParams{stdout}"));
+my $out = <FILE>;
+# Discard PBS (and others?) stdout pro/epilog
+$out =~ s#^.*?(<[\?!\w])#$1#s;
+my ($tag) = $out =~ m#<([\w:\-\.]+)#;
+$out =~ s#(<\/$tag>).*#$1\n#s if defined($tag);
+close(FILE);
+print $out;
+if(open(FILE, "<$batchParams{stderr}")) {
+  $out = <FILE>;
+  print STDERR $out;
+  close(FILE);
+}
+exit(0);

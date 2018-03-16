@@ -1,0 +1,49 @@
+#! /usr/bin/perl -w
+
+################################################################################
+
+=head1 NAME
+
+LogNotifier -- an Inca Depot notifier that appends to a log
+
+=head1 SYNOPSIS
+
+  perl LogNotifier path
+
+=head1 DESCRIPTION
+
+  This is an Inca Depot notifier that writes a message to a log file when the
+  results of a series comparison change.  The format of the log message can be
+  modified by changing the value of the $log variable defined below.
+
+=cut
+
+################################################################################
+
+use strict;
+use warnings;
+use Cwd qw(abs_path getcwd);
+
+die "Usage: LogNotifier path" if !defined($ARGV[0]);
+
+my $name = $ENV{incanickname} || $ENV{incareporter};
+my $log =
+  "Test '$ENV{incacomparison}' on output of series $name on " .
+  "$ENV{incaresource} now produces '$ENV{incacomparisonResult}'";
+my @timeBits = localtime;
+my $timestamp =
+  sprintf('%02d:%02d:%02d ', $timeBits[2], $timeBits[1], $timeBits[0]);
+
+# Check to see if the path has either a temporary directory or the working
+# directory as an ancestor; other paths are disallowed for security.
+# Check target for initial /tmp, but check cononical path for wd to avoid
+# potential problems with ../ in path.
+my $cwd = getcwd();
+my $path = abs_path($ARGV[0]);
+my $tmpPath = abs_path('/tmp');
+die "Invalid log file path $path" if $path !~ m#^($tmpPath|$cwd)#;
+
+open(LOG, ">>$path") || die "Unable to open log $path";
+print LOG "$timestamp" if defined($timestamp);
+print LOG "$log\n";
+close(LOG);

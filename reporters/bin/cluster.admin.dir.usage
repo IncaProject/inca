@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+
+import re
+import sys
+
+from inca.UsageReporter import UsageReporter
+
+reporter = UsageReporter(
+  name='cluster.admin.dir.usage',
+  version=1,
+  description='Reports details of a directory\'s contents',
+  url='http://inca.sdsc.edu'
+)
+reporter.addArg('dir', 'directory to report', '/tmp/')
+reporter.processArgv(sys.argv[1:])
+dir = reporter.argValue('dir')
+(status, listing) = reporter.loggedCommandStatusOutput('ls -l ' + dir)
+if status != 0:
+  reporter.setResult(0, listing)
+else:
+  for item in listing.split('\n'):
+    pieces = re.split('\s+', item)
+    if len(pieces) < 5:
+      continue
+    reporter.addEntry({
+      'type' : 'file',
+      'name' : pieces[-1],
+      'stats' : {
+        'flags' : pieces[0],
+        'owner' : pieces[2],
+        'group' : pieces[3],
+        'size' : pieces[4]
+      }
+    })
+  reporter.success()
+reporter.printReport()

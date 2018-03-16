@@ -1,0 +1,20 @@
+#!/usr/bin/env python
+
+import sys
+from inca.SimpleUnitReporter import SimpleUnitReporter
+
+reporter = SimpleUnitReporter(
+  name='cluster.admin.posixps.unit',
+  version=2,
+  description='Tests that ps supports POSIX syntax',
+  url='http://www.unix.org/single_unix_specification/'
+)
+reporter.processArgv(sys.argv[1:])
+reporter.setUnitName('posixps')
+
+(status, output) = reporter.loggedCommandStatusOutput('ps -Af')
+if status == 0:
+  reporter.unitSuccess()
+else:
+  reporter.unitFailure(output)
+reporter.printReport()

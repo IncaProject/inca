@@ -1,0 +1,52 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use POSIX 'EINTR';
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.transfer.gridftp.unit.copy',
+  version => 14,
+  description => 'Verifies the globus-url-copy service',
+  url => 'http://www.ncsa.uiuc.edu/People/jbasney/teragrid-setup-test.html',
+  unit_name => 'gridftp_test'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('source', 'URL of source file', '');
+$reporter->addArg('dest', 'URL of destination file', '');
+$reporter->addArg('opts', 'options to globus-url-copy', '');
+$reporter->processArgv(@ARGV);
+my $source = $reporter->argValue('source');
+my $dest = $reporter->argValue('dest');
+my $opts = $reporter->argValue('opts');
+
+if ($source eq ''){
+  $source = "file:///tmp/testin.$$";
+}
+if ($dest eq ''){
+  $dest = "file:///tmp/testout.$$";
+}
+my $tempSource;
+if($source =~ m#^file://(.+)# && ! -e $1) {
+  $tempSource = $1;
+  if (!open(SRC, ">$tempSource")){
+    my $pid = $$;
+    $tempSource =~ s/$pid/PID/g;
+    $reporter->failPrintAndExit("Unable to create $tempSource")
+  }
+  print SRC "test\n";
+  close SRC;
+  $reporter->tempFile($tempSource);
+  $reporter->tempFile($1) if $dest =~ m#^file://(.+)#;
+}
+my $guc = "globus-url-copy $opts $source $dest";
+my $output = $reporter->loggedCommand($guc, 60);
+if($? != 0 && $! == EINTR) {
+  $reporter->failPrintAndExit("call to globus-url-copy exceeded 60 seconds");
+} elsif($?) {
+  $reporter->unitFailure("globus-url-copy failed: $output $!");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

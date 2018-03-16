@@ -1,0 +1,5 @@
+name: sampleGridJob
+version: 2.0
+description: Sample grid job - sleeps then executes /bin/hostname
+url: http://inca.sdsc.edu
+dependencies:

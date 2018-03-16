@@ -1,0 +1,5 @@
+name: Inca::Reporter
+version: 9
+description: Inca reporter API base class
+url: http://inca.sdsc.edu
+dependencies:

@@ -1,0 +1,14 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::Version;
+my $reporter = new Inca::Reporter::Version( 
+  name => 'cluster.admin.tgpolicy.version',
+  url => "http://www.teragrid.org/userinfo/guide_tgpolicy.html",
+  version => 2,
+  description => "Reports the version of tg-policy in the user's path."
+);
+$reporter->processArgv( @ARGV );
+$reporter->setPackageName( "tg-policy" );
+$reporter->setVersionByExecutable( "tg-policy -v", "tg-policy v([\\w\\.]+)" );
+
+$reporter->print();

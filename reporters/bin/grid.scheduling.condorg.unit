@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.scheduling.condorg.unit',
+  version => 3,
+  description => 'Checks output of condor_q',
+  url => 'http://www.ncsa.uiuc.edu/People/jbasney/teragrid-setup-test.html',
+  unit_name => 'condorq_test'
+);
+$reporter->processArgv(@ARGV);
+
+my $output = $reporter->loggedCommand('condor_q');
+if($?) {
+  $reporter->unitFailure("condor_q failed: $output $!");
+} elsif($output !~ /\d+ jobs; \d+ idle, \d+ running, \d+ held/) {
+  $reporter->unitFailure("condor_q failed: $output");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

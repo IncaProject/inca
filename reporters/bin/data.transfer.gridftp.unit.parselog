@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.transfer.gridftp.unit.parselog',
+  version => 2,
+  description => 'Checks that backend striped gridftp servers are running correctly by parsing a log file for errors',
+	unit_name => 'gridftp_parselog'
+);
+$reporter->addArg('host', 'grid-ftp-host', 'tg-gridftp1');
+$reporter->addArg('log', 'log location', '/usr/admin/gftpb/secondary-log');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+my $log = $reporter->argValue('log');
+
+if (!-e $log){
+  $reporter->failPrintAndExit("$log not found");
+}
+if (!-r $log){
+  $reporter->failPrintAndExit("$log not readable");
+}
+my $cmd = "cat $log | grep $host";
+my $output = $reporter->loggedCommand($cmd);
+$reporter->log("debug", "grep returned:\n" . $output);
+if(!$output) {
+  $reporter->unitSuccess();
+  $reporter->print();
+} else {
+  $reporter->failPrintAndExit("gridftp-backend-test failed: $output");
+}

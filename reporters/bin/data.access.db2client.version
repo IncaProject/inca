@@ -1,0 +1,37 @@
+#!/usr/bin/env perl
+#
+# $Id: data.access.db2client.version,v 1.1 2004/02/06 22:39:46 veytser Exp $
+# Vladimir Veytser <veytser@sdsc.edu>
+#
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'data.access.db2client.version',
+  version => 3,
+  description => 'Reports the version and fix pack for DB2 client',
+  url => 'http://www.ibm.com/software/data/db2/udb/',
+  package_name => 'db2client'
+);
+$reporter->processArgv(@ARGV);
+
+my $output = $reporter->loggedCommand('db2level');
+$reporter->failPrintAndExit("db2level failed: $output $!") if $?;
+my ($fix_pack, $version);
+foreach my $line(split(/\n/, $output)) {
+  if($line =~ /^Informational tokens/i) {
+    $version = $1 if $line =~ /"DB2\sv([^"]+)"/i;
+    $fix_pack = $1 if $line =~ /FixPak\s"(\d+)".$/i;
+  }
+}
+
+if(!defined($version)) {
+  $reporter->setResult(0, 'Could not locate db2level to get version');
+} else {
+  $reporter->setSubpackageVersion('DB2 Version', $version);
+  $reporter->setSubpackageVersion('FixPack', $fix_pack) if defined $fix_pack;
+  $reporter->setResult(1);
+}
+$reporter->print();

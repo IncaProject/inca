@@ -1,0 +1,13 @@
+^Makefile.inc$
+\B\.svn\b
+^MANIFEST\.
+^blib/
+^MakeMaker-\d
+~$
+\.old$
+^#.*#$
+^\.#
+\.swp$
+^Dependencies$
+\.tar\.gz$
+version.svn

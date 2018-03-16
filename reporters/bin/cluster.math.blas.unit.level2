@@ -1,0 +1,74 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.math.blas.unit.level2',
+  version => 8,
+  description => 'This test runs the level2 tests on blas',
+  url => 'http://www.netlib.org/blas/index.html',
+  unit_name => 'blasLevel2'
+);
+$reporter->addDependency('blasTestSuite');
+$reporter->addArg('compiler', 'compiler to use', 'g77');
+$reporter->addArg('compiler_opts', 'options to pass to the compiler', '', '|.*');
+$reporter->addArg('link', 'linking options to send to compiler', '-lblas');
+$reporter->processArgv(@ARGV);
+my $compiler = $reporter->argValue('compiler');
+my $compiler_opts = $reporter->argValue('compiler_opts');
+my $link = $reporter->argValue('link');
+
+$ENV{CFLAGS} = $compiler_opts;
+$ENV{FC} = $compiler;
+$ENV{F77} = $compiler;
+$ENV{LINK} = $link;
+$ENV{TESTS} = 'cblat2 dblat2 sblat2 zblat2';
+
+# TODO: The Inca RM should tell the reporter where to find the installation,
+# rather than the reporter knowing implicitly.
+my $workdir = cwd();
+my $dirPre = "/tmp/blas-level2.";
+my $SRC = $dirPre . $$;
+my $failSrc = $dirPre . "PID";
+$reporter->failPrintAndExit("mkdir $failSrc failed")
+  if !mkdir($SRC);
+$reporter->tempFile($SRC);
+$reporter->failPrintAndExit("chdir $failSrc failed")
+  if !chdir($SRC);
+$reporter->loggedCommand
+  ("cp $workdir/var/reporter-packages/build/blasTestSuite.tar* .");
+$reporter->loggedCommand
+  ("gunzip -f blasTestSuite.tar.gz; tar xvf blasTestSuite.tar");
+my $tmp = $SRC . "/blasTestSuite";
+$reporter->failPrintAndExit("cd to $failSrc/blasTestSuite failed")
+  if !chdir($tmp);
+$reporter->loggedCommand("./configure");
+my $output = $reporter->loggedCommand("make tests");
+if($? == 0) {
+  $reporter->unitSuccess();
+  foreach my $test(split(/\s/, $ENV{TESTS})) {
+    $output = $reporter->loggedCommand("./$test < ${test}d");
+    $reporter->failPrintAndExit
+      ("Error during execution of $test: '$!' output: '$output'")
+      if $? != 0;
+    my $sumname = uc("$test.SUMM");
+    $reporter->failPrintAndExit("Unable to open summary file for $test")
+      if !open(RES, $sumname);
+    while(defined(my $line = <RES>)) {
+      if($line =~ /THE COMPUTATIONAL TESTS/) {
+        my @toks = split(/\s+/, $line);
+        $reporter->failPrintAndExit
+          ("At least one of the tests in $test failed.  output: $line")
+          if $toks[2] ne 'PASSED';
+      }
+    }
+    close RES;
+  }
+} else {
+  $reporter->failPrintAndExit
+    ( "Error during compilation: '$!' output: '$output'");
+}
+$reporter->print();

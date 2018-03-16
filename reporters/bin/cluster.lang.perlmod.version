@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.lang.perlmod.version',
+  version => 3,
+  description => 'Reports versions of installed Perl modules',
+  url => 'http://www.cpan.org'
+);
+$reporter->processArgv(@ARGV);
+
+my $output = $reporter->loggedCommand('perldoc -t perllocal');
+$reporter->failPrintAndExit("perldoc -t perllocal failed: $output $!") if $?;
+my $currentModule = '';
+foreach my $line(split(/\n/, $output)) {
+  if($line =~ s/^.*"Module"\s*//) {
+    $currentModule = $line;
+  } elsif($line =~ /VERSION: ([^"]+)/) {
+    $reporter->setSubpackageVersion($currentModule, $1);
+  }
+}
+$reporter->print();

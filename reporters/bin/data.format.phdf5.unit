@@ -1,0 +1,165 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+=head1 NAME
+
+data.format.phdf5.unit
+
+=head1 SYNOPSIS
+
+data.format.phdf5.unit
+
+A quick test to determine of the PHDF5 package is present and usable.
+
+=head1 ARGUMENTS & OPTIONS
+
+     None
+
+=head1 DESCRIPTION
+
+This reporter will test the PHDF5 package by checking for the
+compilers and them testing them by compiling a simple program which
+generates an output file.  The output file is then examined to
+determine if it is an appropriate PHDF data structure.
+
+=head1 EXAMPLE
+
+=head2 data.format.phdf5.unit
+
+The reporter will use the gnu compiler to build a simple c program
+that calls a c function.  Once built the program will be run.  If the
+program gives the expected output the report will signal success.  If
+the build fails or if the program output is garbage, the report will
+indicate failure.
+
+=head1 OUTPUT
+
+The succcess of compiling and running the language option will be
+reported in the status of the output following the SimpleUnit schema.
+
+If the native Inca::Test::Reporter::Logger option '-log' was specified
+as 4 or greater, an info message will report the version number of the
+PHDF5 executables.
+
+=cut
+
+
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.format.phdf5.unit',
+  url => "http://hdf.ncsa.uiuc.edu/HDF5/PHDF5",
+  description => "Test for the presense of PHDF5 on the system",
+  version => 7
+);
+$reporter->processArgv( @ARGV );
+
+my $preDir = "/tmp/phdf5.";
+my $tmpdir = $preDir.$$;
+my $failtmpdir = $preDir."PID";
+$reporter->failPrintAndExit("mkdir $failtmpdir failed")
+  if !mkdir($tmpdir);
+$reporter->tempFile($tmpdir);
+$reporter->failPrintAndExit("cd to $failtmpdir failed")
+  if !chdir($tmpdir);
+$reporter->failPrintAndExit("Couldn't open $failtmpdir/h5_crtdat.c for writing")
+  if !open(H5, "> h5_crtdat.c");
+print H5 getFile();
+close H5;
+
+# Check that the compiler is now there
+my $command = "which h5pcc";
+my $result = $reporter->loggedCommand( $command );
+$reporter->log
+  ('debug', "Checking for PHDF5 c compiler: \"$command\":\n$result" );
+if ($result =~ /Command not found/) { 
+  $reporter->failPrintAndExit
+    ('Could not find compiler "h5pcc", so PHDF5 not usable'); 
+}
+
+# Check that h5dump is there.  We can use it to get the version number
+$command = "h5dump -V";
+$result = $reporter->loggedCommand( $command );
+$reporter->log
+  ('debug', "Getting version number from  h5dump: \"$command\":\n$result" );
+if ($result !~ /Version/) { 
+  $reporter->failPrintAndExit("Could not get version number from h5dump"); 
+}
+$reporter->log('info', $result );
+
+# Create the executable
+$command = "h5pcc -o h5_crtdat h5_crtdat.c";
+$result = $reporter->loggedCommand( $command );
+$reporter->log('debug', "Compiling test executable: \"$command\":\n$result");
+if (! -e "h5_crtdat") { 
+  $reporter->failPrintAndExit
+    ("Could not create executable: \"$command\":\n$result"); 
+}
+
+# Run the executable
+$command = "./h5_crtdat";
+$result = $reporter->loggedCommand( $command );
+$reporter->log('debug', "Running test executable: \"$command\":\n$result" );
+if (! -e "dset.h5") { 
+  $reporter->failPrintAndExit
+    ("Running executable did not create expected data file for output"); 
+}
+# This should create the data file dset.h5
+
+# Examine the resulting dataset
+$command = "h5ls dset.h5";
+$result = $reporter->loggedCommand( $command );
+$reporter->log
+  ('debug', "Examining output of test executable: \"$command\":\n$result" );
+if ($result !~ /Dataset/) { 
+  $reporter->failPrintAndExit
+    ("Unable to understand output data file \"dset.h5\" with h5ls"); 
+}
+# Expected Result:
+# dset                     Dataset {4, 6}
+
+$reporter->unitSuccess();
+$reporter->print();
+
+sub getFile {
+  my $file = "
+/*
+ *   Creating and closing a dataset.
+ */
+
+#include \"hdf5.h\"
+#define FILE \"dset.h5\"
+
+main() {
+
+   hid_t       file_id, dataset_id, dataspace_id;  
+   /* identifiers */
+   hsize_t     dims[2];
+   herr_t      status;
+
+   /* Create a new file using default properties. */
+   file_id = H5Fcreate(FILE, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+   /* Create the data space for the dataset. */
+   dims[0] = 4;
+   dims[1] = 6;
+   dataspace_id = H5Screate_simple(2, dims, NULL);
+
+   /* Create the dataset. */
+   dataset_id = H5Dcreate(file_id, \"/dset\", H5T_STD_I32BE, dataspace_id, H5P_DEFAULT);
+
+   /* End access to the dataset and release resources used by it. */
+   status = H5Dclose(dataset_id);
+
+   /* Terminate access to the data space. */
+   status = H5Sclose(dataspace_id);
+
+   /* Close the file. */
+   status = H5Fclose(file_id);
+}
+";
+  return $file;
+}

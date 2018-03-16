@@ -1,0 +1,41 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  version => 4,
+  unit_name => 'tgproxy',
+  description => 'Verifies that user\'s proxy is stored in $HOME',
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->processArgv(@ARGV);
+
+my $proxy_loc = $ENV{'X509_USER_PROXY'};
+my $expected_loc = "$ENV{'HOME'}/.globus/userproxy.pem";
+#$reporter->log("debug", "X509_USER_PROXY is $proxy_loc and should be $expected_loc");
+my $infoCmd = "grid-proxy-info";
+my $infoOut = $reporter->loggedCommand($infoCmd);
+if(!defined($infoOut) || $? || ($infoOut !~ m/subject(.|\n)*path/) ) {
+  $reporter->log("debug", "$infoCmd output:\n $infoOut");
+  failClean("$infoCmd did not succeed: $!");
+}
+my ($pre, $infoPath, $post) = $infoOut =~ m/(.|\n)*path\s*:\s*(.[^\s]*)/;
+#$reporter->log("debug", "$infoCmd path is $infoPath and should be $expected_loc");
+if( $proxy_loc ne $expected_loc) {
+  failClean("X509_USER_PROXY is $proxy_loc but should be $expected_loc");
+} elsif ( $infoPath ne $expected_loc) {
+  failClean("$infoCmd path is $infoPath but should be $expected_loc");
+} else {
+  $reporter->unitSuccess();
+  $reporter->loggedCommand("grid-proxy-destroy");
+  $reporter->print();
+}
+
+sub failClean{
+  my $err = shift;
+  $err =~ s/inca\.rm\.\d+\.p\.\d+\.0/inca.rm.PID.p.PID.0/g;
+  $reporter->loggedCommand("grid-proxy-destroy");
+  $reporter->failPrintAndExit($err);
+}

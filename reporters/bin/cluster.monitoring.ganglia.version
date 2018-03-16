@@ -1,0 +1,20 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.monitoring.ganglia.version',
+  version => 2,
+  description => 'Reports the version of Ganglia',
+  package_name => 'ganglia'
+);
+
+$reporter->addArg
+  ( 'gmondPath', 'path to gmond executable', 'gmond' );
+$reporter->processArgv(@ARGV);
+my $gmondPath = $reporter->argValue( 'gmondPath' );
+
+$reporter->setVersionByExecutable( "$gmondPath -V", 'gmond ([\d.]+)' );
+$reporter->print( );

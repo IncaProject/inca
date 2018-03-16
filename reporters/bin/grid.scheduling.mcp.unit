@@ -1,0 +1,43 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.scheduling.mcp.unit',
+  version => 3,
+  description => 'Tests whether MCP runs',
+  url => 'http://www.sdsc.edu/scheduler/mcp/mcp.html',
+  unit_name => 'mcp'
+);
+
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addDependency('mcpTestSuite');
+
+$reporter->addArg('fullauto_path', 'path to fullauto.py file in MCP install', 'fullauto.py');
+$reporter->processArgv(@ARGV);
+my $fullauto_path = $reporter->argValue('fullauto_path');
+
+my $workdir = cwd();
+my $dirPre = "/tmp/mcp.";
+my $SRC = $dirPre . $$;
+my $failSrc = $dirPre . "PID";
+$reporter->failPrintAndExit("mkdir $failSrc failed")
+  if !mkdir($SRC);
+$reporter->tempFile($SRC);
+$reporter->failPrintAndExit("chdir $failSrc failed")
+  if !chdir($SRC);
+$reporter->loggedCommand("cp $workdir/var/reporter-packages/build/mcpTestSuite.tar* .");
+$reporter->loggedCommand("gunzip -f mcpTestSuite.tar.gz; tar xvf mcpTestSuite.tar");
+$reporter->failPrintAndExit("cd to $failSrc/mcpTestSuite failed")
+  if !chdir($SRC);
+my $output = $reporter->loggedCommand("$fullauto_path --debug --autojobfile=$SRC/autojob.py", "600");
+if ( $? || ($output !~ /^The job is running on/m)) {
+  $reporter->failPrintAndExit( "fullauto.py failed: $! $output" );
+} else {
+  $reporter->log('debug', "Output:\n$output" );
+  $reporter->unitSuccess();
+  $reporter->print();
+}

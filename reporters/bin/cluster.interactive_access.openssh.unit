@@ -1,0 +1,32 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.interactive_access.openssh.unit',
+  version => 6,
+  description => 'This test verifies that you can login and run commands via the SSH service on the remote machine',
+  url => 'http://www.ncsa.uiuc.edu/People/jbasney/teragrid-setup-test.html',
+  unit_name => 'remoteLogin'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('host', 'remote host to access');
+$reporter->addArg('login', 'login id on remote host', '');
+$reporter->addArg('ssh', 'ssh command', 'ssh');
+$reporter->processArgv(@ARGV);
+
+my $sshArgs = '-T -o BatchMode=yes -o StrictHostKeyChecking=no';
+my $host = $reporter->argValue('host');
+my $login = $reporter->argValue('login');
+$login = getlogin() if $login eq '';
+my $ssh = $reporter->argValue('ssh');
+
+my $output = $reporter->loggedCommand("echo exit 0 | $ssh $sshArgs $host");
+if($?) {
+  $reporter->unitFailure("ssh command failed: $output $!");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

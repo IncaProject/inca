@@ -1,0 +1,18 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.scripting.tcl.version',
+  version => 2,
+  description => 'Reports the version of tcl',
+  url => 'http://www.tcl.tk',
+  package_name => 'tcl'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable
+  ("echo 'puts \$tcl_version' | tclsh", '([\d\.]+)');
+$reporter->print();

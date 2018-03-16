@@ -1,0 +1,432 @@
+#!/usr/bin/perl
+
+###############################################################################
+
+=head1 NAME
+
+inca-run-now - Invoke one or more Inca reporter series manually
+
+=head1 SYNOPSIS
+
+inca-run-now [options] <pattern>...
+
+=head1 DESCRIPTION
+
+Allows a system administrator to invoke one or more reporter series manually
+(rather than waiting for a reporter series' regularly scheduled time of 
+execution).  This is useful for debugging purposes when you want to see the
+result of a test immediately.  The arguments can be either the nickname
+of a particular reporter series, a pattern to match one or more reporter
+series' nicknames, or a suite name.  In the case that a pattern matches both a
+series nickname and a suite, the pattern will be assumed to match the
+nickname.  Use the -suite flat to force the script to recognize it as a
+suite pattern.
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<a|--agent>
+
+A string containing the URI to the agent that can be contacted for
+proxy information:
+inca[s]://<host>:<port> [default: none]
+
+=item B<-c|--cert>
+
+A path to a valid certificate file [default: none]
+
+=item B<-d|--depot>
+
+A string containing the URI of the Inca depot server to send the results to:
+inca[s]://<host>:<port> [default: none]
+
+=item B<-i|-id>
+
+The resource identifier supplied by the reporter agent that the reporter
+manager will use to identify itself back to the reporter agent.
+
+=item B<-k|--key>
+
+A path to a valid key file [default: none]
+
+=item B<-L|--level>
+
+A string containing the log message level (i.e., print statements of this
+level and higher).  [default: INFO]
+
+=item B<-l|--list>
+
+List the series nicknames that would be executed but do not run them.
+
+=item B<-P|--passphrase>
+
+=item B<-r|--reporter-cache>
+
+A string containing the path to the local cache of reporters. 
+
+Read a passphrase for key from stdin 
+
+=item B<-s|--schedule>
+
+Path to filename containing the current execution schedule for this
+reporter manager [default:  <INCA_DIST>/var/schedule.xml]
+
+=item B<-S|--suite>
+
+Force the patterns to be matched against suite names.
+
+=item B<-t|--trusted>
+
+A path to either a directory or file of trusted certificates [default: none]
+
+=item B<-T|--testmode>
+
+Starts reporter manager w/o a fresh login so the test scripts can pick up the
+needed libraries correctly.
+
+=item B<-u|--user>
+
+The name of the account that the Inca deployment is running under 
+[default: inca]
+
+=back
+
+=begin testing
+
+  use Inca::IO;
+  use Socket qw(:crlf);
+  use Inca::Net::MockDepot;
+  use Inca::Net::MockAgent;
+
+  Inca::Logger->screen_init( "FATAL" );
+
+  my $stderr = `bin/inca-run-now 2>&1`;
+  isnt( $?, 0, "error code returned" );
+  like($stderr, qr/Error, script must be run/, 'catches user error');
+
+  my $user = getlogin();
+  $stderr = `bin/inca-run-now -u $user 2>&1`;
+  isnt( $?, 0, "error code returned" );
+  like($stderr, qr/Missing .* pattern argument/, 'fails if no pattern');
+
+  $stderr = `bin/inca-run-now -u $user "NoMatch" 2>&1`;
+  like($stderr, qr/Missing resource/, 'resource id caught');
+
+  $stderr = `bin/inca-run-now -u $user -i XX -s t/config.xml -L FATAL "NoMatch" 2>&1`;
+  like($stderr, qr/No matches/, 'read in schedule and no matches');
+
+  $stderr = `bin/inca-run-now -u $user -i XX -l -s t/config.xml ".*" 2>&1`;
+  like($stderr, qr/Suite:  sampleSuite \(10 series\)/, 'list all' );
+  like($stderr, qr/wget_page_test/, 'list all - series nickname found' );
+
+  $stderr = `bin/inca-run-now -u $user -i XX -l -s t/config.xml sampleSuite 2>&1`;
+  like($stderr, qr/Suite:  sampleSuite \(10 series\)/, 'suite specified' );
+  like($stderr, qr/wget_page_test/, 'suite - series nickname found' );
+
+  $stderr = `bin/inca-run-now -u $user -i XX -l -s t/config.xml ant_version 2>&1`;
+  like($stderr, qr/Suite:  sampleSuite \(1 series\)/, 'series specified' );
+  like($stderr, qr/ant_version/, 'series - series nickname found' );
+
+  $stderr = `bin/inca-run-now -u $user -i XX -l -s t/config.xml ".*a.*" 2>&1`;
+  like($stderr, qr/Suite:  sampleSuite \(5 series\)/, 'nickname preference' );
+
+  $stderr = `bin/inca-run-now -u $user -i XX -l -S -s t/config.xml ".*a.*" 2>&1`;
+  like($stderr, qr/Suite:  sampleSuite \(10 series\)/, 'suite preference' );
+
+  unlink "var/schedule.xml";
+  my $DEPOT_PORT = 6346;
+  if ( my $pid = fork() ) {
+    my $depot = new Inca::Net::MockDepot();
+    my $numReports = $depot->readReportsFromSSL(
+      2, $DEPOT_PORT, "ca1", "t/certs/trusted"
+    );
+    is( $numReports, 2, "2 report received" );
+    my @reports = $depot->getReports();
+    for my $report ( @reports ) {
+      ok( $report =~ /<completed>true<\/completed>/, "found completed tag" );
+    } 
+  } else {
+     `cp t/config_suite.xml var/schedule.xml`;
+     `bin/inca-run-now -T -u $user -i XX -r t -d "incas://localhost:$DEPOT_PORT" -c t/certs/client_ca1cert.pem --k t/certs/client_ca1keynoenc.pem --t t/certs/trusted ant_version -P false '.*'`;
+     exit;
+  }
+  my $numFiles = glob( "inca.run_now*" );
+  is( $numFiles, undef, "no leftover inca.run_now" );
+  unlink "var/schedule.xml";
+
+  # check reporters with proxies
+  $DEPOT_PORT++;
+
+  # check proxy reporter
+  ok( defined $ENV{GLOBUS_LOCATION}, "GLOBUS_LOCATION found for testing" );
+  ok( -f "$ENV{HOME}/.inca.myproxy.info", "proxy information found" );
+  open( FD, "<$ENV{HOME}/.inca.myproxy.info" ) ||
+    fail( "Unable to open proxy info" );
+  my ($mp_hostname, $mp_port, $mp_username, $mp_password);
+  while( <FD> ) {
+    eval $_;
+  }
+  close FD;
+  `grid-proxy-info 2>/dev/null`;
+  cmp_ok( $?, "!=", 0, "grid-proxy-info returned error" );
+
+  my $AGENT_PORT = 7345;
+  my $agent = new Inca::Net::MockAgent($AGENT_PORT, "ca1", "t/certs/trusted");
+  if ( my $pid = fork() ) {
+    if ( my $ppid = fork() ) {
+      my $depot = new Inca::Net::MockDepot();
+      my $numReports = $depot->readReportsFromSSL(
+        1, $DEPOT_PORT, "ca1", "t/certs/trusted"
+      );
+      is( $numReports, 1, "1 report received" );
+      my @reports = $depot->getReports();
+      ok( $reports[0] =~ /validproxy/, "found validproxy tag" ) || diag( $reports[0] );
+    } else {
+      my @myproxyArgs = ( "HOSTNAME $mp_hostname" );
+      push( @myproxyArgs, "DN $ENV{MYPROXY_SERVER_DN}" ) if exists $ENV{MYPROXY_SERVER_DN};
+      push( @myproxyArgs, "PORT $mp_port", "USERNAME $mp_username", "PASSWORD $mp_password", 
+                          "LIFETIME 1"),
+      my ($conn, $numStmts, @responses ) = $agent->accept(
+        "PROXY" => [ @myproxyArgs ],
+        "OK" => []
+      );
+      $agent->stop();
+      exit;
+    }
+  } else {
+     sleep 2;
+     `bin/inca-run-now -T -u $user -i XX -a "incas://localhost:$AGENT_PORT" -r t -s t/config_grid_suite.xml -d "incas://localhost:$DEPOT_PORT" -c t/certs/client_ca1cert.pem --k t/certs/client_ca1keynoenc.pem --t t/certs/trusted ant_version -P false '.*'`;
+     exit;
+  }
+  $numFiles = glob( "inca.run_now*" );
+  is( $numFiles, undef, "no leftover inca.run.now" );
+  unlink "/tmp/schedule.xml";
+
+=end testing
+
+=cut
+###############################################################################
+
+#=============================================================================#
+# Usage
+#=============================================================================#
+
+# pragmas
+use strict;
+use warnings;
+
+# Inca
+use Inca::IO;
+use Inca::Net::Protocol::Statement;
+use Inca::ReporterManager::Scheduler::Cron;
+use Inca::Config::Suite;
+
+# Perl standard
+use Cwd;
+use Data::Dumper;
+use File::Temp qw(tempfile);
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev);
+
+# CPAN
+use Pod::Usage;
+use XML::Simple;
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+our ( $VERSION ) = '$Revision: 1.5 $' =~ 'Revision: (.*) ';
+
+my %DEFAULT_ARGS = ( 
+  level => "INFO", "reporter-cache" => "var/reporter-packages", user => "inca" 
+);
+my %XML_OPTIONS = ( ForceArray => [ qw(suite seriesConfig arg) ],
+                    KeyAttr => { },
+                    SuppressEmpty => undef );
+my $TMPDIR = "var";
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#-----------------------------------------------------------------------------#
+# getIncaBaseDir()
+#
+# Determine the base directory of the Inca installation from the path of this
+# executable.
+#
+# Returns:
+#
+# A string containing the absolute path of the inca base directory.
+#-----------------------------------------------------------------------------#
+sub getIncaBaseDir {
+  my $baseDir = $0 =~ m#^(.*)/[^/]+$# ? "$1/.." : '..';
+  if($baseDir !~ m#^/#) {
+    $baseDir = getcwd() . "/$baseDir";
+  }
+  return $baseDir;
+}
+
+#-----------------------------------------------------------------------------#
+# getRunNowByPattern()
+#
+# Return a run now suite that contains all matched series and suites in the
+# specified configuration file.
+#
+# Returns:
+#
+# An object of type Inca::Config::Suite containing all matched series for run now
+# execution.
+#-----------------------------------------------------------------------------#
+sub getRunNowByPattern {
+  my ( $config, $suiteOnly, @patterns ) = @_;
+
+  my $runNowSuite = new Inca::Config::Suite( guid => "_runNow" );
+  for my $suite ( $config->getSuites() ) {
+    my @scs = $suite->getSeriesConfigs();
+    for my $pattern ( @patterns ) {
+      my $nicknameMatched = 0;
+      if ( ! $suiteOnly ) {
+        for my $sc ( @scs ) {
+          if ( $sc->getNickname() =~ /$pattern/ ) {
+            $nicknameMatched = 1;
+            $runNowSuite->addSeriesConfig( $sc );
+          }
+        }
+      }
+      if ( ! $nicknameMatched && $suite->getGuid() =~ /$pattern/ ) {
+        for my $sc ( @scs ) {
+          $runNowSuite->addSeriesConfig( $sc );
+        }
+      } 
+    }
+  }
+
+  return $runNowSuite;
+}
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+my %args = %DEFAULT_ARGS;
+GetOptions( 
+  \%args, 
+  "agent|a=s", "cert|c=s", "depot|d=s", "key|k=s", "help|h", "id|i=s", 
+  "level|L=s", "list|l", "passphrase|P=s", "reporter-cache|r=s", "schedule|s=s",
+  "suite|S", "trusted|t=s", "testmode|T", "user|u=s" 
+) || pod2usage(1);
+
+if ( exists $args{help} ) {
+  pod2usage(1);
+}
+
+my %logConfig = ( 
+  'log4perl.rootLogger' => "$args{level}, Screen",
+  'log4perl.appender.Screen' => 'Log::Log4perl::Appender::Screen',
+  'log4perl.appender.Screen.stderr' => 1,
+  'log4perl.appender.Screen.layout' => 'Log::Log4perl::Layout::SimpleLayout'
+);
+Inca::Logger::init( \%logConfig );
+
+my $logger = Inca::Logger->get_logger( "inca-run-now" );
+
+# check that this script is being run as the inca user or supplied username
+my $username = exists $ENV{USER} ? $ENV{USER} : $ENV{LOGNAME};
+if ( $username ne "$args{user}" ) {
+  $logger->logdie
+    ( "Error, script must be run as $args{user} user and not as '$username'" );
+}
+
+# check for pattern of reporter series to match
+if ( scalar(@ARGV) < 1 ) {
+  $logger->fatal( "Missing nickname or suite pattern argument" ); 
+  pod2usage(1);
+}
+
+my $dir = getIncaBaseDir();
+if ( ! defined $dir ) {
+  $logger->logdie( "Unable to determine Inca installation directory" );
+}
+
+if ( ! exists $args{id} || ! defined $args{id} ) {
+  $logger->logdie( "Missing resource identifier argument" );
+}
+
+my $scheduleFilename;
+if ( exists $args{schedule} ) {
+  $scheduleFilename = $args{schedule};
+} else {
+  $scheduleFilename = "$dir/$TMPDIR/schedule.xml";
+}
+print "SCHED ==> $scheduleFilename\n";
+
+my $config = new Inca::Config();
+if ( ! $config->read( $scheduleFilename ) ) {
+  exit(1);
+}
+
+my $runNowSuite = getRunNowByPattern( $config, $args{suite}, @ARGV );
+
+if ( scalar($runNowSuite->getSeriesConfigs()) < 1 ) {
+  $logger->logdie( "No matches found for specified patterns" );
+}
+
+for my $config ( $runNowSuite->getSeriesConfigs() ) {
+  $config->setSchedulerName( "sequential" );
+  $config->setSchedulerArgs( {} );
+}
+
+if ( $args{list} ) {
+  # sort by suite
+  my $config = new Inca::Config();
+  for my $sc ( $runNowSuite->getSeriesConfigs() ) {
+    $config->addSeriesConfig( $sc );
+  }
+  for my $suite ( $config->getSuites() ) {
+    my ($name) = $suite->getGuid() =~ /([^\/]+)$/;
+    print "Suite:  $name (" . scalar( $suite->getSeriesConfigs()) . 
+          " series)\n";
+    for my $sc ( $suite->getSeriesConfigs() ) {
+      print "  " . $sc->getNickname() . "\n";
+    }
+  }
+} else {
+  my ($fh, $filename) = tempfile( "inca.run_now.XXXX" ); 
+  $runNowSuite->write( $filename );
+  my %newEnv;
+  for my $var ( qw(HOME LOGNAME PERL5LIB USER GLOBUS_LOCATION) ) {
+    $newEnv{$var} = $ENV{$var} if exists $ENV{$var};
+  }
+  %ENV = %newEnv; # clear environment
+  # determine 
+  `bash -l -c 'echo hi' 2>&1 >/dev/null`;
+  my $login = ""; 
+  if ( ! exists $args{testmode} ) {
+    $login = $? == 0 ? "-l" : "--login";
+  }
+  $logger->debug( "PERL5LIB=$ENV{PERL5LIB}" );
+  my $cmdline = "cd $dir; bash $login -c \"sbin/inca reporter-manager -i $args{id} -l var/run-now.log -e bin/inca-null-reporter -r $args{'reporter-cache'} -R sbin/reporter-instance-manager -v var -w 1 -s $filename";
+  $cmdline .= " -a $args{agent}" if exists $args{agent};
+  $cmdline .= " -d $args{depot}" if exists $args{depot};
+  $cmdline .= " -c $args{cert}" if exists $args{cert};
+  $cmdline .= " -k $args{key}" if exists $args{key};
+  $cmdline .= " -t $args{trusted}" if exists $args{trusted};
+  $cmdline .= " -P $args{passphrase}" if exists $args{passphrase};
+  $cmdline .= " -L $args{level}" if exists $args{level};
+  $cmdline .= "\"";
+  $logger->debug( $cmdline );
+  exec $cmdline || $logger->fatal("Error running reporter-manager script: $!");
+}
+
+
+
+__END__
+
+=head1 AUTHOR
+
+Shava Smallen <ssmallen@sdsc.edu>
+
+=cut
+

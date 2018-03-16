@@ -1,0 +1,12 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::Version;
+my $reporter = new Inca::Reporter::Version( 
+  version => 2,
+  description => "Reports the version of tgproxy in the user's path."
+);
+$reporter->processArgv( @ARGV );
+$reporter->setPackageName( "tgproxy" );
+$reporter->setVersionByExecutable( "grep set-user-proxy $ENV{'HOME'}/.soft.v3.cache.sh", ".*X509_USER_PROXY=.*tgproxy-([\\d\\.]*)" );
+
+$reporter->print();

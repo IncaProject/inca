@@ -1,0 +1,28 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.middleware.globus.unit.wsrfquery',
+  version => 5,
+  description => 'Tests whether a resource has a DefaultIndexService available via web services',
+  url => 'http://www.globus.org/toolkit/docs/4.0/common/javawscore/rn01re07.html',
+  unit_name => 'wsrf_query'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('host', 'Hostname to query');
+$reporter->processArgv(@ARGV);
+my $host = $reporter->argValue('host');
+
+$ENV{'GLOBUS_OPTIONS'} = "-Xmx256M";
+my $service = "https://" . $host . "/wsrf/services/DefaultIndexService";
+my $cmd = "wsrf-query -s \"$service\"";
+my $output = $reporter->loggedCommand($cmd);
+if($?) {
+  $reporter->unitFailure("wsrf-query failed: $output $!");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

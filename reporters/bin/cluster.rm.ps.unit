@@ -1,0 +1,42 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.rm.ps.unit',
+  description => 'Checks RM process count',
+  version => 3,
+  unit_name => 'rmPs'
+);
+
+$reporter->addArg( "maxSched", "maximum number of Schedule::Cron ps", "2" );
+$reporter->addArg( "maxMan", "maximum number of sbin/reporter-manager ps", "3" );
+$reporter->addArg( "psArgs", "arguments to pass to ps", "-x -o pid,command" );
+$reporter->processArgv(@ARGV);
+my $maxSched = $reporter->argValue( "maxSched" );
+my $maxMan = $reporter->argValue( "maxMan" );
+my $psArgs = $reporter->argValue( "psArgs" );
+
+my $psCmd = "ps $psArgs";
+my @output = $reporter->loggedCommand( $psCmd );
+$reporter->failPrintAndExit("$psCmd failed: @output $!") if $?;
+my $schedCount = 0;
+my $manCount = 0;
+for my $ps (@output){
+  if ($ps =~ m/Schedule::Cron/){
+    $schedCount++;
+  }
+  if ($ps =~ m/sbin\/reporter-manager/){
+    $manCount++;
+  }
+}
+if ($schedCount > $maxSched || $manCount > $maxMan) {
+  $reporter->log("debug", "Schedule::Cron count: $schedCount");
+  $reporter->log("debug", "sbin/reporter-manager count: $manCount");
+  $reporter->failPrintAndExit("Num of Schedule::Cron ps exceeds $maxSched 
+     or sbin/reporter-manager ps exceeds $maxMan");
+}
+$reporter->unitSuccess();
+$reporter->print();

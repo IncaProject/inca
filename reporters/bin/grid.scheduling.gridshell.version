@@ -1,0 +1,36 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'grid.scheduling.gridshell.version',
+  version => 2,
+  description => 'Reports GridShell with Condor package version',
+  url => 'http://www.gridshell.net',
+  package_name => 'gridshell'
+);
+$reporter->processArgv(@ARGV);
+
+my $ver;
+my $gtcsh_home = $ENV{'GRIDSHELL_LOCATION'};
+if (defined ($gtcsh_home)) {
+  if(!open(VER_FILE,"<$gtcsh_home/package_version")) {
+    $reporter->failPrintAndExit('could not open $GRIDSHELL_LOCATION/package_version');
+	} else {
+		my $line = <VER_FILE>;
+		close(VER_FILE);
+		if ($line =~ /Version/i) {
+			$ver = substr($line, 8);
+			chop($ver);  
+		}
+	}
+}
+if  (!defined ($ver)) {
+  $reporter->failPrintAndExit('could not locate GridShell with Condor to get version information');
+}
+$reporter->setPackageVersion($ver);
+$reporter->print( );
+exit;
+

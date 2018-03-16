@@ -1,0 +1,84 @@
+#!/usr/bin/env perl
+
+############################################################################3
+
+=head1 NAME
+
+cluster.filesystem.info - checks out the amount of space in filesystem
+
+=head1 SYNOPSIS
+
+cluster.filesystem.info [option1] [option2] ...
+
+=head1 DESCRIPTION
+
+using df finds out information on filespace for the cluster
+
+=head1 OPTIONS
+
+=over 5
+
+=item B<-filesystem>
+
+the env var that contains the location of the filesystem
+
+=back
+
+=cut
+############################################################################3
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'cluster.filesystem.info',
+  version => 7,
+  description => 'Gets filesystem data',
+  measurement_name => 'filesystem'
+);
+$reporter->addArg('path', 'path to filesystem', '');
+$reporter->addArg('dfpath', 'path to df', 'df');
+$reporter->addArg('remotehost', 'get filesystem info from remote host', '');
+$reporter->addArg('max', 'maximum percentage used for any filesystem (e.g. "90")', '');
+$reporter->processArgv(@ARGV);
+my $df = $reporter->argValue('dfpath');
+my $path = $reporter->argValue('path');
+my $remotehost = $reporter->argValue('remotehost');
+my $max = $reporter->argValue('max');
+
+my $cmd = $df; 
+if ($path ne ''){ $cmd .= " -P $path"; }
+$cmd = "ssh $remotehost $cmd" if $remotehost ne ''; 
+my $output = $reporter->loggedCommand($cmd);
+if($?) {
+  $reporter->failPrintAndExit("$cmd failed: $output $!");
+} elsif($output =~ /No such file or directory/) {
+  $reporter->failPrintAndExit( "No such file or directory" );
+} else {
+  $output =~ s/.*\n//;
+  my @fs = split(/\n/, $output);
+  foreach my $fs (@fs){
+    my @data = split(/\s+/, $fs);
+    my $fsname = $data[0];
+    $data[4] =~ m/(\d+)/;
+    my $used = $1;
+    my $benchmark = $reporter->addNewBenchmark($fsname);
+    $benchmark->setStatistic('Size', $data[1]);
+    $benchmark->setStatistic('Used', $data[2]);
+    $benchmark->setStatistic('AvailableSpace', $data[3]);
+    $benchmark->setStatistic('UsedPercent', $used);
+    if ($max ne '' && $used > $max){
+      $reporter->failPrintAndExit("$fsname is $used% full (max is $max%)");
+    }
+  }
+}
+$reporter->setResult(1);
+$reporter->print();
+
+__END__
+
+=head1 AUTHOR
+
+Catherine Mills Olschanowsky <cmills@sdsc.edu>
+Shava Smallen <ssmallen@sdsc.edu>

@@ -1,0 +1,32 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use strict;
+use warnings;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+	name => 'grid.cert.diagnostics.unit',
+	version => 3,
+	description => 'Runs the grid-cert-diagnostics tool to verify rfc2812 compliance',
+	unit_name => 'grid-cert-diagnostics'
+);
+$reporter->addArg( 'flag', 'grid-cert-diagnostics flag: options are "g" for GridFTP server, "s" for MyProxy or GRAM server, and "c" for GSI-OpenSSH server', undef, 'g|s|c' );
+$reporter->addArg( 'check', 'The hostname:port or certificate to verify' );
+$reporter->processArgv(@ARGV);
+my $flag = $reporter->argValue( 'flag' );
+my $check = $reporter->argValue( 'check' );
+
+$ENV{GLOBUS_GSSAPI_NAME_COMPATIBILITY} = 'STRICT_RFC2818';
+
+my $cmd = "grid-cert-diagnostics -$flag $check";
+my $output = $reporter->loggedCommand( $cmd );
+
+$reporter->failPrintAndExit( "\"$cmd\" failed: $! $output" ) if $? || $output eq '';
+my @output = split( /\n/, $output );
+$reporter->log( 'debug', "Last 15 lines of output: " . join( "\n", @output[-15..-1] ) );
+
+my $grep = 'Performing name comparison... ok';
+$reporter->failPrintAndExit( "Didn't find \"$grep\" in output" ) if $output !~ /$grep/ms;
+
+$reporter->unitSuccess();
+$reporter->print();

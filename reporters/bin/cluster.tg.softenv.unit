@@ -1,0 +1,24 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.tg.softenv.unit',
+  version => 3,
+  description => 'Checks for the macro "@teragrid" in softenv output',
+  url => 'http://www-unix.mcs.anl.gov/systems/software/msys',
+  unit_name => 'check_teragrid_macro'
+);
+$reporter->processArgv(@ARGV);
+
+my $output = $reporter->loggedCommand('softenv');
+if($?) {
+  $reporter->unitFailure("softenv failed: $output $!");
+} elsif($output !~ /\@teragrid/) {
+  $reporter->unitFailure('macro @teragrid not set in softenv');
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

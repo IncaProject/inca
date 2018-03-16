@@ -1,0 +1,66 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Date::Parse;
+use File::Temp qw(tempfile);
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'security.hostcert.unit',
+  version => 11,
+  description => 'Checks whether a certificate has at least <days> life left on it',
+  unit_name => 'host_cert'
+);
+$reporter->addDependency("TimeDate");
+$reporter->addArg('minimum', 'minimum days left', '14');
+$reporter->addArg('cert', 'path to certificate to check for expiration', '/etc/grid-security/hostcert.pem');
+$reporter->addArg('remotecert', 'server and port to get certificate to check for expiration (e.g. "info.teragrid.org:8444")', '');
+$reporter->addArg ('timeout', 'timeout for openssl command in seconds', 60);
+$reporter->addArg('retries', 'number of command retry attempts after a detected failure', 10);
+$reporter->addArg('sleep', 'amount of time(s) to wait before retrying command', 60);
+$reporter->processArgv(@ARGV);
+my $mindays = $reporter->argValue('minimum');
+my $cert = $reporter->argValue('cert');
+my $remotecert = $reporter->argValue('remotecert');
+my $timeout = $reporter->argValue('timeout');
+my $numtries = $reporter->argValue('retries');
+my $sleep = $reporter->argValue('sleep');
+if ($remotecert){
+  my ( $fh, $tempfile ) = tempfile();
+  $reporter->tempFile($tempfile);
+  my $certout = $reporter->loggedCommandWithRetries("openssl s_client -connect $remotecert > $tempfile < /dev/null", $timeout, $numtries, $sleep);
+  if($?) {
+    $reporter->failPrintAndExit("openssl connect to $remotecert failed: $! $certout");
+  } 
+  $cert = $tempfile; 
+}
+
+my $cmd = "openssl x509 -text -in $cert -noout";
+my $x509 = $reporter->loggedCommandWithRetries($cmd, $timeout, $numtries, $sleep);
+print "X509 $x509\n";
+if($?) {
+  $reporter->failPrintAndExit("openssl failed: $x509 $!");
+} elsif($x509 !~ "Not After") {
+  $reporter->failPrintAndExit("Error executing \"$cmd\"");
+}
+my ($algorithm) = $x509 =~ /(Signature Algorithm: \w+)/; 
+$reporter->log( 'info', "$algorithm" );
+my ($enddate) = $x509 =~ /Not After : (.*)/;
+my $end = str2time($enddate);
+my $daysleft = int( ($end - time())/86400 );
+$reporter->log( 'info', "Not After: $enddate" );
+$reporter->log( 'info', "Days Left:  $daysleft" );
+if($daysleft < $mindays) {
+  my $left = int($daysleft);
+  my $debug = "Certificate expires in ".$left." days";
+  if ($left < 0){
+    my $newleft = 0-$left;
+    $debug = "Certificate expired ".$newleft." days ago";
+  }
+  $reporter->log("debug", $debug);
+  $reporter->unitFailure("Certificate does not have $mindays days left");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

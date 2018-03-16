@@ -1,0 +1,82 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.parallel_tools.mpicc_compile_submit.unit',
+  version => 2,
+  description => 'This test tries to submit cpi.c, an MPI test program from the MPICH2 package.',
+  unit_name => 'mpicc'
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addDependency('cpi');
+$reporter->addArg('mpicc', 'path to mpicc', '');
+$reporter->addArg ('lib', 'libraries', '');
+$reporter->addArg ('timeout', 'timeout in seconds for mpicc command', '600');
+$reporter->addArg ('endpoint', 'resource contact endpoint to submit job to');
+$reporter->addArg ('taskcount', 'task count', '4');
+$reporter->addArg ('hostcount', 'host count', '2');
+$reporter->addArg ('project', 'project to charge job to', 'TG-STA060008N');
+$reporter->addArg ('exe', 'path to cpi executable', '');
+$reporter->processArgv(@ARGV);
+my $mpicc = $reporter->argValue('mpicc');
+my $lib = $reporter->argValue('lib');
+my $timeout = $reporter->argValue('timeout');
+my $endpoint = $reporter->argValue('endpoint');
+my $taskcount = $reporter->argValue('taskcount');
+my $hostcount = $reporter->argValue('hostcount');
+my $project = $reporter->argValue('project');
+my $exe = $reporter->argValue('exe');
+
+my $origDir = getcwd();
+# build executable if none given 
+if ($exe eq ''){
+  if ($mpicc eq ''){
+    $mpicc = `which mpicc`;
+    $mpicc =~ s/\n//g;
+  }
+  $reporter->failPrintAndExit( "Unable to find mpicc") if $mpicc eq '';
+  my $incadir = $ENV{INSTALL_DIR};
+  chomp($incadir);
+  if ( ! -f "$incadir/build/cpi.tar" &&
+     ! -f "$incadir/build/cpi.tar.gz" ) {
+    $reporter->failPrintAndExit( "Unable to locate cpi.tar* in $incadir/build");
+  }
+  my $SRC = "$ENV{HOME}/inca-mpicc.$$";
+  failClean("mkdir $SRC failed")
+    if !mkdir($SRC);
+  $reporter->tempFile($SRC);
+  failClean("chdir $SRC failed")
+    if !chdir($SRC);
+  $reporter->loggedCommand("cp $incadir/build/cpi.tar* .");
+  if ( -f "cpi.tar.gz"){
+    $reporter->loggedCommand("gunzip -f cpi.tar.gz;");
+  }
+  $reporter->loggedCommand("tar xvf cpi.tar");
+  my $cmd = $mpicc . " -o cpi cpi.c " . $lib;
+  $reporter->loggedCommand($cmd, $timeout);
+  if($? || ! -f "cpi"){
+    failClean("Couldn't execute '$cmd': $!");
+  }
+  $exe = "$SRC/cpi";
+}
+my $gr = "globusrun -o -r $endpoint '\&(executable=$exe)(jobtype=mpi)(maxTime=3)(count=$taskcount)(hostcount=$hostcount)(project=$project)'";
+my $output = $reporter->loggedCommand($gr, $timeout);
+if($? || $output !~ "pi is approximately 3.14"){
+  failClean("Couldn't execute \"$gr\": $! \n $output");
+}
+$reporter->log('debug', $output);
+$reporter->unitSuccess();
+chdir($origDir);
+$reporter->print();
+
+sub failClean {
+  my $err = shift;
+  my $pid = $$;
+  $err =~ s/$pid/PID/g;
+  chdir($origDir);
+  $reporter->failPrintAndExit($err);
+}

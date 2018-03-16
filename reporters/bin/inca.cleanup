@@ -1,0 +1,161 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+#=============================================================================#
+# Usage
+#=============================================================================#
+use strict;
+use warnings;
+use Env;
+use File::Path;
+use Inca::Reporter::Performance;
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+our ( $VERSION ) = '$Revision: 1.6 $' =~ 'Revision: (.*) ';
+my $LAST_CHANGE_TIME = 9; # element placement in return of stat info
+my $SECS_IN_MIN = 60;
+my $MINS_IN_HOUR = 60;
+my $HOURS_IN_DAY = 24;
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#-----------------------------------------------------------------------------#
+# calculateTime( $time, $units );
+#
+# Return the number of secs.  $time is a number and $units is a string of
+# either 'mins', 'hours', or 'secs'.  
+#-----------------------------------------------------------------------------#
+sub calculateTime {
+  my $time = shift;
+  my $units = shift;
+
+  my $multiplier_in_secs;
+  if ( $units eq "mins" ) {
+    $multiplier_in_secs = $SECS_IN_MIN;
+  } elsif ( $units eq "hours" ) {
+    $multiplier_in_secs = $SECS_IN_MIN * $MINS_IN_HOUR;
+  } elsif ( $units eq "days" ) {
+    $multiplier_in_secs = $SECS_IN_MIN * $MINS_IN_HOUR * $HOURS_IN_DAY;
+  }
+  return $time * $multiplier_in_secs;
+}
+
+#-----------------------------------------------------------------------------#
+
+=head2 expand( $string )
+
+Expands any environment variable references inside string and returns the
+newly expanded string.
+
+=cut
+#-----------------------------------------------------------------------------#
+sub expand {
+  my $string = shift;
+
+  my $expanded_string;
+  if ( defined($string) ) {
+    $string =~ s/\${/\$ENV{/g;
+    eval '$expanded_string = "' . $string . '";';
+  }
+  return $expanded_string;
+}
+
+#-----------------------------------------------------------------------------#
+# expandFiles( @candidates )
+#
+# Returns a new list of filenames with each file pattern being expanded into
+# real files.
+#-----------------------------------------------------------------------------#
+sub expandFiles {
+  my @candidate_files = @_;
+
+  my @files;
+  for my $candidate ( @candidate_files ) {
+    $candidate =~ s/ /\\ /g;
+    push( @files, glob(expand($candidate)) );
+  }
+  return @files;
+}
+
+#-----------------------------------------------------------------------------#
+# deleteOldFiles( $max_age_secs, @files_to_check )
+#
+# Delete any file in @files_to_check older than $max_age_secs.
+#-----------------------------------------------------------------------------#
+sub deleteOldFiles {
+  my $max_age_secs = shift;
+  my @files_to_check = @_;
+
+  my $files_deleted = 0;
+  for my $file ( @files_to_check ) {
+    if ( ! -e $file ) {
+      next;
+    }
+    my @status = stat( "$file" );
+    my $last_change_time = $status[$LAST_CHANGE_TIME];
+    my $file_age_secs = time() - $last_change_time; 
+    # if it's a file and it's too old, delete it
+    if ( -o $file and -f $file and ($file_age_secs > $max_age_secs) ) {
+      if ( unlink $file ) {
+        $files_deleted++;
+      } else {
+        `rm -f $file`;
+        if ( ! -f $file ) {
+          $files_deleted++;
+        }
+      }
+    }
+    if ( -o $file and -d $file and ($file_age_secs > $max_age_secs) ) {
+      my $num_files = rmtree( $file, 0, 1 );
+      if ( ! -d $file ) {
+        $files_deleted += $num_files;
+      } else {
+        `rm -rf $file`;
+        if ( ! -d $file ) {
+          $files_deleted += $num_files;
+        } 
+      }
+    }
+  }
+  return $files_deleted;
+}
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+my $reporter = new Inca::Reporter::Performance(
+  name => 'inca.cleanup',
+  description => 'reports the number of leftover files cleaned up',
+  version => 1,
+  measurement_name => "inca"
+);
+
+$reporter->addArg( "time", "delete any files older than this time", "2", "\\d+" );
+$reporter->addArg( "units", "describes the units of time", "days", "mins|hours|days" );
+$reporter->addArg( "filePatterns", "space separated list of file patterns to delete" );
+$reporter->processArgv(@ARGV);
+my $time = $reporter->argValue( "time" );
+my $units = $reporter->argValue( "units" );
+my $filePatterns = $reporter->argValue( "filePatterns" );
+$reporter->failPrintAndExit("no files specified") if $filePatterns !~ /\S/;
+
+
+my $max_age_secs = calculateTime( $time, $units );
+
+my @files = expandFiles( $filePatterns );
+my $deletedFiles = deleteOldFiles( $max_age_secs, @files );
+
+my $benchmark = $reporter->addNewBenchmark( "files" );
+$benchmark->setStatistic( "numScanned", scalar(@files) );
+$benchmark->setStatistic( "numDeleted", $deletedFiles );
+$reporter->setResult(1);
+$reporter->print();
+

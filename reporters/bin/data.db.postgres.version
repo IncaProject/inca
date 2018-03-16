@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'data.db.postgres.version',
+  version => 1,
+  description => 'Reports the version of Postgres',
+  url => 'http://www.postgresql.org',
+  package_name => 'postgres'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable("psql -V", "PostgreSQL\\)\\s+(.+)");
+$reporter->print();

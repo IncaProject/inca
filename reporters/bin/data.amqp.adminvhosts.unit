@@ -1,0 +1,58 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+use JSON qw( decode_json );
+use Data::Dumper;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+	name => 'data.amqp.adminvhosts.unit',
+	version => 1,
+	description => 'Verifies virtual hosts for Rabbit MQ via the admin interface',
+	unit_name => 'adminvhosts'
+);
+
+$reporter->addDependency( 'JSON' );
+$reporter->addArg( 'url', 'URL to fetch', 'https://info1.dyn.xsede.org:15671/api/vhosts' );
+$reporter->addArg( 'cparam', 'Params to pass to cURL', '-sn' );
+$reporter->addArg( 'vhosts', 'Space separated list of virtual hosts to check', '/ xsede' );
+$reporter->processArgv(@ARGV);
+my $url = $reporter->argValue( 'url' );
+my $cparam = $reporter->argValue( 'cparam' );
+my $vhosts = $reporter->argValue( 'vhosts' );
+
+my $out = $reporter->loggedCommand( "curl $cparam '$url'" );
+if ( $? != 0 || $out !~ /{/ )
+{
+	$reporter->failPrintAndExit( 'cURL command failed: ' . $! . $out );
+}
+
+my $data = decode_json( $out );
+if ( $? != 0 )
+{
+	$reporter->failPrintAndExit( 'Could not decode as JSON data: ' . $! . $out );
+}
+
+my $dump = Dumper( $data );
+$reporter->log( 'debug', "JSON output: $dump" );
+
+my @vhosts = split( / /, $vhosts );
+foreach my $vhost ( @vhosts )
+{
+	my $match = 0;
+	foreach my $vh( @{$data} )
+	{
+		if ( defined $vh->{name} && $vh->{name} eq $vhost )
+		{
+			$match = 1;
+		}
+	}
+	if ( $match == 0 )
+	{
+		$reporter->failPrintAndExit( "Expected vhost $vhost is undefined" );
+	}
+}
+
+$reporter->unitSuccess();
+$reporter->print();

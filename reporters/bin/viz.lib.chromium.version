@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'viz.lib.chromium.version',
+  version => 3,
+  description => 'Reports the version of the Chromium libraries',
+  url => 'http://chromium.sourceforge.net/',
+  package_name => 'chromium'
+);
+$reporter->addArg('dir', 'path to chromium installation', '');
+$reporter->processArgv(@ARGV);
+my $dir = $reporter->argValue('dir');
+if($dir eq '') {
+  foreach my $place($ENV{CHROMIUM_LOCATION}, $ENV{CHROMIUM_HOME},
+                    glob('/usr/local/apps/chromium*'), glob('/opt/chromium*'),
+                    glob('/usr/local/chromium*')) {
+    $dir = $place and last if defined($place) && -d $place;
+  }
+}
+$reporter->failPrintAndExit('Cannot locate CHROMIUM installation; use -dir')
+  if $dir eq '';
+
+$reporter->setVersionByFileContents
+  ("$dir/include/cr_version.h", 'CR_VERSION_STRING "(\S+)"');
+$reporter->print();

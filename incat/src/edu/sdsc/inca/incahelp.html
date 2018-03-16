@@ -1,0 +1,164 @@
+<html>
+
+<head>
+<title>Incat Brief Help</title>
+</head>
+
+<body>
+
+<a name="USERGUIDE-INCAT">
+<p>
+The material below briefly summarizes some of the features of incat.  Detailed
+documentation is available on <a href="http://inca.sdsc.edu/releases/latest/guide/userguide-inca.html">the Inca website</a>.
+</p>
+</a>
+
+<a name="USERGUIDE-INCAT-REPOS">
+<h3>The Repositories Tab</h3>
+<p>
+The incat Repositories tab consists of the following elements
+<ul>
+  <li>
+  The Repositories list shows the set of repositories you have added to your
+  configuration.  Below it are buttons that allow you to add and delete
+  repositories in the list.
+  </li><li>
+  The Reporters list shows the names of reporters available from the
+  repositories.  If the All Repositories box is checked, this list will include
+  reporters from every repository in the Repositories list; otherwise, only the
+  reporters in the currently-selected repository are shown.  Double-clicking a
+  reporter name or pressing the Show button opens a window that contains the
+  source of the currently-selected reporter.
+  </li><li>
+  The Reporter Properties list shows the set of properties associated with the
+  currently-selected reporter--arguments, version, etc.
+  </li>
+</ul>
+</p>
+
+<a name="USERGUIDE-INCAT-RESOURCES">
+<h3>The Resource Configuration Tab</h3>
+<p>
+The incat Resource Configuration tab consists of the following elements
+<ul>
+  <li>
+  The Resource Group list shows the set of resource groups you have added to your configuration.  Below it are buttons that allow you to add, edit, and delete resource groups in the list.
+  </li><li>
+  The Macros list shows the set macros associated with the currently-selected
+  resource group.  Below it are buttons that allow you to add, edit, and
+  delete macros in that resource group.
+  </li><li>
+  The Members list shows the set of hosts associated with the currently-selected
+  resource group.
+  </li>
+</ul>
+</p>
+
+<a name="USERGUIDE-INCAT-RESOURCE-EDITOR">
+<h3>The Resource Editor Dialog</h3>
+<p>
+The incat Resource editor dialog consists of the following elements
+<ul>
+  <li>
+  The Group Name box displays the required, unique identifier for the resource
+  group.
+  </li><li>
+  The Members box displays the required membership list for the resource group.
+  This list consists of a space-separated set of host names and/or other
+  resource group names.
+  </li><li>
+  The Equivalent box, if checked, indicates that an Inca reporter manager
+  should be run on only one of the member hosts.  If the box is unchecked,
+  a separate reporter manager runs on each member host.
+  </li><li>
+  The Access Method pull-down menu indicates whether hosts in the group are
+  accessed via Globus, ssh, local exec, or by manual installation.
+  </li><li>
+  The install directory box indicates the path to the directory where the Inca
+  reporter manager will be installed on member hosts.
+  </li><li>
+  The Proxy Server, Proxy User ID, Proxy Password, and Proxy Lifetime boxes
+  contain information used to retrieve a proxy credential for use with member
+  hosts.
+  </li><li>
+  For Globus resources, the Gram Server and GridFtp Server boxes contain the
+  DNs for the servers used with member hosts to start processes and transfer
+  files.
+  </li><li>
+  For manual resources, the Resource Admin Email box contains the email address
+  of the administrator who should be contacted to change the Inca configuration
+  on member hosts.
+  </li><li>
+  For ssh resources, the User Id, Key File, and Password boxes contain
+  information used to set up ssh/scp connections to member hosts.
+  </li>
+</ul>
+</p>
+
+<a name="USERGUIDE-INCAT-SUITES">
+<h3>The Suites Tab</h3>
+<p>
+The incat Suites tab consists of the following elements
+<ul>
+  <li>
+  The Suites list shows the set of suites you have added to your configuration.
+  Below it are buttons that allow you to add, edit, and delete suites in the
+  list.
+  </li><li>
+  The Series list shows the set of series configurations that are contained in
+  the currently-selected suite.  Below it are buttons that allow you to add,
+  edit, copy, and delete series configurations in the list.  A Run Now button
+  allows you to instruct the Inca agent to immediately execute the
+  currently-selected series configuration.
+  </li>
+</ul>
+</p>
+
+<a name="USERGUIDE-INCAT-SERIES-EDITOR">
+<h3>The Series Editor Dialog</h3>
+<p>
+The incat Series editor dialog consists of the following elements
+<ul>
+  <li>
+  The Reporter list indicates the reporter to be run in the series.  Double
+  clicking on a reporter name in the list opens a window containing the source
+  of the reporter.
+  </li><li>
+  The Resource Group list indicates the resource group where the series is to
+  run.
+  </li><li>
+  The Arguments section includes a reporter-specific set of argument values
+  that should be used for the series.  A Reset to Defaults button resets all
+  arguments to their default values.
+  </li><li>
+  A pair of Use ... Version radio buttons indicates whether a specific version
+  or the latest version of the reporter should be used in the series.
+  </li><li>
+  A series of pull-down menus indicates how often the series should run.  A
+  text box to the right of these menus contains a cron string with the same
+  frequency information.
+  </li><li>
+  The Nickname box contains the name of the series.
+  </li><li>
+  The Context box contains the name of the series reporter, followed by "-args".
+  Adding text before and/or afterwards allows you to determine the context
+  under which the series runs.  You can set environment variables, run the
+  series with a nice value, etc.
+  </li><li>
+  The Limits section contains a set of boxes that allow you to set upper limits
+  on the resource usage of any run of the series.  The Inca reporter manager
+  will kill a series run that exceeds any limit you set.
+  </li><li>
+  The comparison box contains an expression that allows you to compare the
+  output from a series run to an expected value.  Inca flags a failed
+  comparision as an error.
+  </li><li>
+  The Notification Email box contains an email address that Inca will notify
+  whenever the result of the series comparison changes.
+  </li>
+</ul>
+</p>
+
+</body>
+
+</html>

@@ -1,0 +1,34 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.filesystem.pfs.unit.userspace',
+  version => 2,
+  description => 'Checks to see if the supplied parallel filesystem environment variable is a user specific directory',
+  url => 'http://www.teragrid.org/userinfo/guide_environment.html',
+  unit_name => 'user_specific'
+);
+$reporter->addArg('pfsvar', 'environment variable w/path to pfs dir', '');
+$reporter->processArgv(@ARGV);
+my $pfsvar = $reporter->argValue('pfsvar');
+if($pfsvar eq '') {
+  foreach my $env(keys %ENV) {
+    $pfsvar = $env if $env =~ /PFS/;
+  }
+  $reporter->failPrintAndExit('No PFS environment variable found; use -pfsvar')
+    if $pfsvar eq '';
+}
+
+my $path = $ENV{$pfsvar};
+my $username = getlogin();
+if(!defined($path)) {
+  $reporter->unitFailure("Environment variable $pfsvar is not set");
+} elsif($path !~ /$username$/) {
+  $reporter->unitFailure("$pfsvar is not a user-specific directory: $path");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

@@ -1,0 +1,4 @@
+name: dateutil
+version: 1.5.2
+description: Extensions to the standard python 2.3+ datetime module (python-dateutil 1.5)
+dependencies: setuptools

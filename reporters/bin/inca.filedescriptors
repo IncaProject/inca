@@ -1,0 +1,38 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+
+my @REP_TYPES = qw(IPv6 unix DIR CHR IPv4 REG FIFO sock);
+my $reporter = new Inca::Reporter::Performance(
+  name => 'inca.filedescriptors',
+  description => 'reports the number of file descriptors open for specified user',
+  version => 1,
+  measurement_name => "user",
+  short => 1 
+);
+
+$reporter->addArg( "user", "directory to measure", getlogin() );
+$reporter->processArgv(@ARGV);
+my $user = $reporter->argValue( "user" );
+
+my @out = $reporter->loggedCommand( "/usr/sbin/lsof -u $user");
+$reporter->failPrintAndExit("lsof cmd failed: @out $!") if $?;
+shift @out; # take off header
+my %types;
+while( @out ) {
+  my $line = shift @out;
+  my( $cmd, $pid, $user, $fd, $type) = split(/\s+/, $line);
+  $types{$type} = 0 if ! exists $types{$type};
+  $types{$type}++;
+}
+my $benchmark = $reporter->addNewBenchmark( "fileDescriptors" );
+my $total = 0;
+for my $type (@REP_TYPES) {
+  $benchmark->setStatistic( $type, $types{$type});
+  $total += $types{$type};
+}
+$benchmark->setStatistic( "total", $total );
+$reporter->setResult(1);
+$reporter->print();

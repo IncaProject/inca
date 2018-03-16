@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="RunInfo" table="INCARUNINFO" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native"/>
+    </id>
+
+    <!-- properties -->
+    <property name="hostname" column="incahostname" type="string"
+              not-null="true"/>
+    <property name="workingDir" column="incaworkingDir" type="string"
+              not-null="true"/>
+    <property name="reporterPath" column="incareporterPath" type="string"
+              not-null="true"/>
+
+    <!-- relations to other tables -->
+    <many-to-one name="argSignature"
+                 column="incaargSignature_id"
+                 class="edu.sdsc.inca.depot.persistent.ArgSignature"
+                 not-null="true"/>
+
+  </class>
+</hibernate-mapping>

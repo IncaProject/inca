@@ -1,0 +1,112 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use File::Path;
+use strict;
+use warnings;
+use Cwd;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.admin.ant.unit',
+  version => 8,
+  description => 'ant hello world test',
+  unit_name => 'ant_unit'
+);
+$reporter->processArgv(@ARGV);
+
+my $dirPre = "/tmp/cluster.admin.ant.unit.";
+my $tmpdir = $dirPre . $$;
+my $failtmpdir = $dirPre . "PID";
+if ( ! mkpath( "$tmpdir/src" ) ) {
+  $reporter->failPrintAndExit
+    ( "Unable to create temporary file, $failtmpdir/src" );
+}
+$reporter->tempFile($tmpdir);
+if ( ! chdir( "$tmpdir" ) ) {
+  $reporter->failPrintAndExit( "Unable to chdir to $failtmpdir" );
+}
+my $j = "$tmpdir/src/antunit.java";
+if ( open J, ">$j" ) {
+  print J getJavaFile();
+  close J;
+} else {
+  $reporter->failPrintAndExit
+    ( "Unable to create temporary file, $failtmpdir/src/antunit.java" );
+}
+my $x = "$tmpdir/build.xml";
+if ( open X, ">$x" ) {
+  print X getBuildFile();
+  close X;
+} else {
+  $reporter->failPrintAndExit
+    ( "Unable to create temporary file, $failtmpdir/build.xml" );
+}
+my $verify = $reporter->loggedCommand( "ant -q" );
+if( $? ) {
+  $reporter->failPrintAndExit( "ant -q failed: $verify $!" );
+} elsif ( $verify !~ /BUILD SUCCESSFUL(.|\n|\s)*Total time:(.|\s)*second/ ) {
+  $reporter->failPrintAndExit( "build failed: $verify");
+} 
+my $out = $reporter->loggedCommand("java -cp dist/lib/BuildTest-*.jar antunit");
+if ( $? ) {
+  $reporter->failPrintAndExit( "java failed: $out $!" );
+} elsif ( $out !~ /Hello World!/ ) {
+  $reporter->failPrintAndExit( "hello world program returned '$out'" );
+}
+$reporter->unitSuccess();
+$reporter->print();
+
+sub getJavaFile {
+  my $java = "
+class antunit
+{  
+        public static void main(String args[])
+        {
+           System.out.println(\"Hello World!\");
+        }
+}";
+  return $java;
+}
+
+sub getBuildFile {
+  my $xml = "
+<project name=\"BuildTest\" default=\"dist\" basedir=\".\">
+    <description>
+        simple example build file
+    </description>
+  <!-- set global properties for this build -->
+  <property name=\"src\" location=\"src\"/>
+  <property name=\"build\" location=\"build\"/>
+  <property name=\"dist\"  location=\"dist\"/>
+
+  <target name=\"init\">
+    <!-- Create the time stamp -->
+    <tstamp/>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir=\"\${build}\"/>
+  </target>
+
+  <target name=\"compile\" depends=\"init\"
+        description=\"compile the source \" >
+    <!-- Compile the java code from \${src} into \${build} -->
+    <javac srcdir=\"\${src}\" destdir=\"\${build}\"/>
+  </target>
+
+  <target name=\"dist\" depends=\"compile\"
+        description=\"generate the distribution\" >
+    <!-- Create the distribution directory -->
+    <mkdir dir=\"\${dist}/lib\"/>
+
+    <!-- Put everything in \${build} into the BuildTest-\${DSTAMP}.jar file -->
+    <jar jarfile=\"\${dist}/lib/BuildTest-\${DSTAMP}.jar\" basedir=\"\${build}\"/>
+  </target>
+
+  <target name=\"clean\"
+        description=\"clean up\" >
+    <!-- Delete the \${build} and \${dist} directory trees -->
+    <delete dir=\"\${build}\"/>
+    <delete dir=\"\${dist}\"/>
+  </target>
+</project>";
+  return $xml;
+}

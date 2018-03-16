@@ -1,0 +1,396 @@
+<!-- =======================================================================
+
+Build file for the Inca Source Code
+
+Notes:
+This is a build file for use with the Jakarta Ant build tool.
+
+Prerequisites:
+
+jakarta-ant from http://jakarta.apache.org
+
+Build Instructions:
+Invoke "ant help"
+
+============================================================================ -->
+
+<project name="inca" default="help">
+
+    <property name="package.name" value="inca"/>
+    <property name="includefiles" value="build.xml version COPYRIGHT README"/>
+
+    <!-- get environment vars -->
+    <property environment="env"/>
+    <property name="debug" value="on"/>
+
+    <property name="build.dependencyfile" value="${basedir}/Dependencies"/>
+
+    <!-- svn related properties -->
+		<property name="rep.contrib"
+			value="svn+ssh://cuzco.sdsc.edu/misc/inca/subversion/inca/trunk/contrib"/>
+		<property name="rep.root"
+         value="svn+ssh://cuzco.sdsc.edu/misc/inca/subversion/inca"/>
+    <property name="rep.branches" value="${rep.root}/branches"/>
+    <property name="rep.trunk" value="${rep.root}/trunk"/>
+    <property name="rep.releases" value="${rep.root}/releases"/>
+    <property name="rep.common.sbin" value="${rep.trunk}/devel/common/sbin"/>
+
+    <property name="inca.base" value="${basedir}/src"/>
+    <property name="inca.install" value="${installdir}"/>
+    <property name="inca.lib" value="${inca.install}/lib"/>
+    <property name="inca.perllib" value="${inca.install}/lib/perl"/>
+    <property name="inca.tmp" value="${inca.install}/tmp"/>
+    <property name="inca.bin" value="${inca.install}/bin"/>
+
+    <!-- =================================================================== -->
+    <!-- Sets the CLASSPATH                                                  -->
+    <!-- The default here is to include all jar files in the lib dir and the -->
+    <!-- local etc directory as well as the system classpath                 -->
+    <!-- =================================================================== -->
+    <path id="classpath">
+        <pathelement location="${build.classes}"/>
+        <fileset dir="${build.lib}">
+            <exclude name="*.LICENSE"/>
+            <include name="*.jar"/>
+        </fileset>
+        <fileset file="${jar.name}.jar"/>
+        <pathelement location="${build.etc}"/>
+        <pathelement path="${java.class.path}"/>
+    </path>
+
+    <!-- =================================================================== -->
+    <!-- Print usage information                                             -->
+    <!-- =================================================================== -->
+    <target name="help" description="shows help about useful targets">
+        <echo message="target             Description"/>
+        <echo message="------------------------------------------------------"/>
+        <echo message="install            Install"/>
+        <echo message="devel-help         List the targets available only to "/>
+        <echo message="                   developers."/>
+    </target>
+
+    <target name="devel-help" depends="help"
+        description="shows help about developer specific targets">
+        <echo message="realclean          clean up all files that do not belong in svn"/>
+        <echo message="release            Marks this version as stable in svn"/>
+				<echo message="release-candidate  Tag this as a release"/>
+        <echo message="run-tests          Builds and runs the JUnit tests."/>
+        <echo message="                   Requires extra setup:"/>
+        <echo message="                   junit jar must be in $ANT_HOME/lib"/>
+    </target>
+
+    <!-- =================================================================== -->
+    <!-- create a binary server distribution                                 -->
+    <!-- =================================================================== -->
+    <target name="bindist" description="create a binary server distribution">
+      <property prefix="version" file="version"/>
+      <mkdir dir="${basedir}/inca-bindist"/>
+      <ant antfile="build.xml" dir="agent" target="install" inheritAll="false">
+        <property name="installdir" value="${basedir}/inca-bindist"/>
+      </ant>
+      <ant antfile="build.xml" dir="depot" target="install" inheritAll="false">
+        <property name="installdir" value="${basedir}/inca-bindist"/>
+      </ant>
+      <copy file="${basedir}/COPYRIGHT" todir="${basedir}/inca-bindist"/>
+      <mkdir dir="${basedir}/inca-bindist/var"/>
+      <tar destfile="${package.name}_${version.major}.${version.minor}.tar.gz"
+           compression="gzip"> 
+        <tarfileset dir="${basedir}/inca-bindist" prefix="${package.name}">    
+          <exclude name="${basedir}/inca-bindist/*bin"/>
+        </tarfileset>
+        <tarfileset dir="${basedir}/inca-bindist/bin" 
+                    prefix="${package.name}/bin" mode="755"/>    
+        <tarfileset dir="${basedir}/inca-bindist/sbin" 
+                    prefix="${package.name}/sbin" mode="755"/>    
+      </tar>
+      <delete dir="${basedir}/inca-bindist"/>
+    </target>
+
+    <!-- =================================================================== -->
+    <!-- run the ant tests                                                   -->
+    <!-- =================================================================== -->
+    <target name="run-tests"  
+				description="run the unit tests included in this package">
+
+        <exec executable="ant" dir="testsuite"> 
+            <arg value="-Dinstalldir=${installdir}"/>
+            <arg value="compile"/>
+        </exec>
+        <exec executable="ant" dir="testsuite"> 
+            <arg value="-Dinstalldir=${installdir}"/>
+            <arg value="install"/>
+        </exec>
+        <exec executable="ant" dir="testsuite"> 
+            <arg value="-Dinstalldir=${installdir}"/>
+            <arg value="run-tests"/>
+        </exec>
+    </target>
+
+    <!-- =================================================================== -->
+    <!-- clean up down to a base devel snapshot                              -->
+    <!-- =================================================================== -->
+    <target name="clean" description="clean up any files generated by build">
+        <delete quiet="true" includeEmptyDirs="true">
+            <fileset dir="${inca.install}"/>
+        </delete>
+    </target>
+
+    <target name="realclean" depends="clean" 
+        description="clean up all files that do not belong in svn">
+    </target>
+
+    <!-- =================================================================== -->
+    <!-- copy over dependencies if needed                                    -->
+    <!-- =================================================================== -->
+    <target name="populate-lib" 
+        description="Copy the dependencies to a lib dir">
+        <taskdef resource="net/sf/antcontrib/antlib.xml" />
+        <mkdir dir="${build.lib}"/>
+        <loadfile property="depends" srcFile="${build.dependencyfile}"/>
+        <foreach list="${depends}" delimiter="${line.separator}"
+            target="copyFileFromSVN" param="file"/>
+    </target>
+
+    <target name="copyFileFromSVN">
+        <exec executable="svn" failonerror="true" output="${build.lib}/${file}">
+            <arg value="cat"/>
+            <arg value="${rep.contrib}/${file}"/>
+        </exec>
+    </target>
+
+    <!-- =================================================================== -->
+    <!-- Release this version of the component                               -->
+    <!-- =================================================================== -->
+    <target name="release-candidate" description="branch this version">
+        <property name="incafilter" value="incafilter.tmp"/>
+
+        <!-- update the minor version -->
+        <propertyfile file="version" comment="Build version info">
+            <entry key="major" default="0" type="int" operation="+" value="1"/>
+        </propertyfile>
+
+        <property prefix="version" file="version"/>
+
+        <!-- commit the changes -->
+        <exec executable="svn" failonerror="true">
+            <arg value="commit"/>
+            <arg value="version"/>
+            <arg value="-m"/>
+            <arg value="Automated commit - updating version"/>
+        </exec>
+
+        <!-- update to see the changes -->
+        <exec executable="svn" failonerror="true">
+            <arg value="update"/>
+        </exec>
+
+        <!-- copy just the files we need over to branches -->
+        <exec executable="svn" failonerror="false">
+            <arg value="mkdir"/>
+            <arg value="${rep.branches}/${package.name}/v${version.major}/"/>
+            <arg value="-m"/>
+            <arg value="Automated commit - creating inca branch dir"/>
+        </exec>
+        <taskdef resource="net/sf/antcontrib/antlib.xml" />
+        <foreach list="${includefiles}" delimiter=" " inheritall="true"
+            target="copyFileToBranch" param="file"/>
+
+        <!-- link in the Inca modules - we have an externals module that
+        contains the definition of the svn:externals property that we want to
+        use.  'externals' is a template that contains @VERSION@ for the
+        revision numbers.  We then create a temporary file copy of 
+        'externals' and substitute in the right version number based on 'svn
+        info' and feed that to 'svn propset'.  Last we clean up the temporary
+        file -->
+        <exec executable="svn" outputproperty="svninfo">
+            <arg value="info"/>
+        </exec>
+        <exec executable="awk" inputstring="${svninfo}"
+            outputproperty="svn.repversion">
+           <arg line=" '/Revision: / {print $2}'"/>
+        </exec>
+        <exec executable="awk" outputproperty="inca.currents">
+           <arg line="'{print $3}' externals"/>
+        </exec>
+        <taskdef resource="net/sf/antcontrib/antlib.xml" />
+        <foreach list="${inca.currents}" delimiter="${line.separator}"
+                 inheritall="true" target="replaceURL" param="svnurl"/>
+        <copy tofile="externals-tmp" file="externals" overwrite="true">
+            <filterset begintoken="@" endtoken="@">
+                <filter token="VERSION" value="${svn.repversion}"/>
+            </filterset>
+            <filterset begintoken=" " endtoken=" ">
+                <filtersfile file="${incafilter}"/>
+            </filterset>
+        </copy>
+        <exec executable="svn" output="${basedir}/updateExternals">
+          <arg value="cat"/>
+          <arg value="${rep.common.sbin}/updateExternals"/>
+        </exec>
+        <chmod file="${basedir}/updateExternals" perm="a+x"/>
+        <exec executable="${basedir}/updateExternals">
+          <arg value="${rep.branches}/${package.name}/v${version.major}"/>
+          <arg value="externals-tmp"/>
+        </exec>
+
+        <!-- update current link -->
+        <echo file="propfile" 
+            message="${package.name} ${rep.branches}/${package.name}/v${version.major}" />
+        <exec executable="${basedir}/updateExternals">
+          <arg value="${rep.branches}/${package.name}/current"/>
+          <arg value="propfile"/>
+        </exec>
+
+        <delete file="${basedir}/updateExternals"/>
+        <delete file="externals-tmp"/>
+        <delete file="${incafilter}"/>
+        <delete file="propfile"/>
+    </target>
+
+    <target name="replaceURL">
+        <exec executable="svn" outputproperty="inca.current.external">
+            <arg value="propget"/>
+            <arg value="svn:externals"/>
+            <arg value="${svnurl}"/>
+        </exec>
+        <exec executable="awk" inputstring="${inca.current.external}"
+             outputproperty="inca.current.external.url">
+            <arg line=" '{print $2}'"/>
+        </exec>
+        <propertyfile file="${incafilter}">
+          <entry  key="${svnurl}" 
+                  value=" ${inca.current.external.url} "/>
+        </propertyfile> 
+    </target>
+
+    <target name="copyFileToBranch">
+        <exec executable="svn">
+            <arg value="copy"/>
+            <arg value="${file}"/>
+            <arg value="${rep.branches}/${package.name}/v${version.major}/${file}"/>
+            <arg value="-m"/>
+            <arg value="Automated copy - release candidate"/>
+        </exec>
+    </target>
+
+    <!-- =================================================================== -->
+    <!-- Release this version of the component                               -->
+    <!-- =================================================================== -->
+    <target name="release" description="tag this as a release">
+        <exec executable="svn" outputproperty="infooutput">
+            <arg value="info"/>
+        </exec>
+        <exec executable="awk" inputstring="${infooutput}"
+            outputproperty="newminor">
+           <arg line=" '/Revision: / {print $2}'"/>
+        </exec>
+
+        <!-- update the minor version -->
+        <propertyfile file="version" comment="Build version info">
+            <entry key="major" default="0" type="int"/>
+            <entry key="minor" value="${newminor}"/>
+        </propertyfile>
+
+        <!-- commit the changes -->
+        <exec executable="svn" failonerror="true">
+            <arg value="commit"/>
+            <arg value="version"/>
+            <arg value="-m"/>
+            <arg value="-m"/>
+            <arg value="Automated commit - updating version"/>
+        </exec>
+
+        <!-- WHAT! Cathie why are you doing an update? READ ON...
+        (In particular, note that even svn commit doesn't update the
+        revision number in a working copy! You have to do an update after
+        committing, before svn log will show the commit you just made.) -->
+        <exec executable="svn" failonerror="true">
+            <arg value="update"/>
+        </exec>
+
+        <property prefix="version" file="version"/>
+        <!-- create the tag -->
+        <exec executable="svn">
+            <arg value="copy"/>
+            <arg value="."/>
+            <arg value=
+ "${rep.releases}/${package.name}/${package.name}_${version.major}.${version.minor}"/>
+            <arg value="-m"/>
+            <arg value="Automated copy - release"/>
+        </exec>
+    </target>
+
+    <!-- =================================================================== -->
+    <!-- Install this version of the component                               -->
+    <!-- =================================================================== -->
+   <target name="inca-dirs" >
+        <mkdir dir="${inca.install}"/>
+        <mkdir dir="${inca.lib}"/>
+        <mkdir dir="${inca.tmp}"/>
+        <mkdir dir="${inca.perllib}"/>
+        <mkdir dir="${inca.bin}"/>
+    </target>
+
+		<target name="install" depends="inca-dirs"
+            description="install inca to a specified location">
+        <fail unless="installdir"
+              message="run as: ant -Dinstalldir=path install"/>
+        <exec executable="ls" outputproperty="inca.modules">
+           <arg line="src"/>
+        </exec>
+        <taskdef resource="net/sf/antcontrib/antlib.xml" />
+        <foreach list="${inca.modules}" delimiter="${line.separator}"
+                 inheritall="true" target="buildModule" param="module"/>
+		</target>
+
+    <target name="buildModule" 
+         depends="determineModuleType,buildIncaModuleJava,buildIncaModulePerl"/>
+
+    <target name="determineModuleType">
+        <echo message="Examining ${module}..."/>
+        <available file="${inca.base}/${module}/build.xml" 
+                   property="module.isJava" />
+        <available file="${inca.base}/${module}/Makefile.PL" 
+                   property="module.isPerl" />
+    </target>
+
+    <target name="buildIncaModuleJava" if="module.isJava"> 
+        <echo message="Building Java Inca module ${module}"/>
+        <exec executable="ant" dir="${inca.base}/${module}"> 
+            <arg value="populate-lib" />
+        </exec>
+        <exec executable="ant" dir="${inca.base}/${module}"> 
+            <arg value="compile" />
+        </exec>
+        <exec executable="ant" dir="${inca.base}/${module}"> 
+            <arg value="jar" />
+        </exec>
+        <exec executable="ant" dir="${inca.base}/${module}">
+            <arg value="-Dinstalldir=${installdir}" />
+            <arg value="install" />
+        </exec>
+    </target>
+
+    <target name="buildIncaModulePerl" if="module.isPerl">
+        <echo message="Building Perl Inca module ${module}"/>
+        <property name="inca.perl-build-params"
+                  value="-I${inca.install}/lib/perl Makefile.PL PREFIX=${inca.install} LIB=${inca.lib}/perl INSTALLDIRS=perl INSTALLPRIVLIB=${inca.perllib} INSTALLSCRIPT=${inca.bin} PREFIX=${inca.install} INST_LIB=${inca.base}/${module}/blib/lib INST_ARCHLIB=${inca.base}/${module}/blib/arch INST_BIN=${inca.base}/${module}/blib/bin INST_SCRIPT=${inca.base}/${module}/blib/script INST_MAN1DIR=${inca.base}/${module}/blib/man1 INST_MAN3DIR=${inca.base}/${module}/blib/man3"/> 
+        <exec executable="perl" dir="${inca.base}/${module}">
+          <arg line="${inca.perl-build-params}"/>
+        </exec>
+        <exec executable="make" dir="${inca.base}/${module}">
+          <arg value="populate-contrib"/>
+        </exec>
+        <exec executable="make" dir="${inca.base}/${module}">
+          <arg value="inca-wrapper"/>
+        </exec>
+        <exec executable="perl" dir="${inca.base}/${module}">
+          <arg line="${inca.perl-build-params}"/>
+        </exec>
+        <exec executable="make" dir="${inca.base}/${module}"/>
+        <exec executable="make" dir="${inca.base}/${module}">
+          <arg value="install"/>
+        </exec>
+    </target>
+
+</project>

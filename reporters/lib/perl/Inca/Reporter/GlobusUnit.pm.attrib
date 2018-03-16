@@ -1,0 +1,5 @@
+name: Inca::Reporter::GlobusUnit
+version: 1.1
+description: Inca reporter API class for Globus unit test reporters
+url: http://inca.sdsc.edu
+dependencies: Inca::Reporter::SimpleUnit

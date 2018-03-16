@@ -1,0 +1,18 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'grid.middleware.unicore.ucc.version',
+  version => 1,
+  description => 'Reports the version of UNICORE ucc command',
+  url => 'http://www.unicore.eu',
+  package_name => 'ucc'
+);
+$reporter->processArgv(@ARGV);
+
+$reporter->setVersionByExecutable('ucc -help', 'UCC ([\d\.]+)');
+
+$reporter->print( );

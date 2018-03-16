@@ -1,0 +1,1425 @@
+#!/usr/bin/perl -w
+
+###############################################################################
+#
+# NAME: inca
+#
+# DESCRIPTION
+#
+# A wrapper script for Inca command-line tools.  This script does an 'ls'
+# in the sbin directory where it runs and gets a listing of the Inca tools
+# that are available.
+#
+# SYNOPSIS
+#
+# inca [-b path] [-d] [-v] <command> ...
+#
+###############################################################################
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+use constant VERSION_COMMAND => 'version';
+# TODO Figure out how to use constant arrays properly
+my @CONFIG_SUBDIRS = ('etc/common', 'etc');
+my @COMMON_COMMANDS =
+  ('createauth', 'default', 'init', 'help', 'restart', 'start', 'stop', VERSION_COMMAND);
+my $DEFAULT_REPOSITORY = "http://inca.sdsc.edu/repository/latest";
+my $DEFAULT_MEMORY = 256;
+my $DEFAULT_KILL_WAIT = 60;
+my $DEFAULT_RM_LOCATION = '';
+my $PREV_PERL5LIB = undef;
+my $SSL_VERSION = undef;
+use constant DEFAULT_PASSPHRASE => 'test';
+
+use Cwd;
+use File::Basename;
+use Net::Domain 'hostfqdn';
+use Sys::Hostname;
+use POSIX ":sys_wait_h";
+
+
+use vars qw($BASE_DIR $DEBUG $HOSTNAME $PASSWORD $VERBOSE);
+$BASE_DIR = undef;
+$DEBUG = undef;
+$HOSTNAME = undef;
+$PASSWORD = undef;
+$VERBOSE = undef;
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#------------------------------------------------------------------------------
+# createConfigFile caName
+#
+# Write out a file for openssl to read in configration options from
+# 
+# Arguments:
+#   caName - a string containing the name of CA files 
+#------------------------------------------------------------------------------
+sub createConfigFile {
+  my ($caName) = @_;
+
+  &d("/bin/echo '01' > ./serial");
+  &d("touch ./${caName}_index.txt");
+  my $contents = "[ ca ]
+default_ca = CA_default    # The default ca section
+
+[CA_default]
+new_certs_dir = ./
+private_key = ./${caName}key.pem
+certificate = ./${caName}cert.pem
+database  = ./${caName}_index.txt
+serial = ./serial
+default_md = sha512
+policy = policy_match
+default_days = 365
+
+[policy_match]
+countryName   = match
+stateOrProvinceName = match
+organizationName  = match
+organizationalUnitName  = optional
+commonName    = supplied
+emailAddress    = optional
+
+[req]
+prompt=no
+distinguished_name = servername
+
+[servername]
+C=US
+ST=California
+O=UCSD
+OU=SDSC
+CN=IncaDefaultCA_$caName
+
+[is_ca]
+basicConstraints = critical, CA:true
+
+[not_ca]
+basicConstraints = critical, CA:false
+keyUsage = critical, digitalSignature, keyEncipherment";
+  &d("/bin/echo '$contents' > $caName.cnf");
+}
+
+#------------------------------------------------------------------------------
+# cleanupConfigFiles caName
+#
+# Cleanup the configuration files created to run the CA
+# 
+# Arguments:
+#   caName - a string containing the name of CA files 
+#------------------------------------------------------------------------------
+sub cleanupConfigFiles {
+  my ($caName) = @_;
+  &d("/bin/rm -f $caName.cnf");
+  &d("/bin/rm -f ./${caName}_index.txt*");
+  &d("/bin/rm -f etc/[0-9][0-9].pem");
+  &d("/bin/rm -f ./serial*");
+}
+
+#------------------------------------------------------------------------------
+# createCACert name
+#
+# Generate a CA certificate with a passphrase on it. 
+#
+# Arguments:
+#   name - a string used to generate the CA key and certificate files
+#          (i.e., <name>key.pem and <name>cert.pem.
+#------------------------------------------------------------------------------
+sub createCACert {
+  my ($name) = @_;
+  my $caPassword = $PASSWORD eq '' ? DEFAULT_PASSPHRASE : $PASSWORD;
+  # create the certificate
+  &d("openssl req -config $name.cnf -newkey rsa:2048 -x509 -sha512 -keyout ${name}key.pem -out ${name}cert.pem -days 3650 -passout stdin -extensions is_ca << ENDPASS
+$caPassword
+ENDPASS");
+}
+
+#------------------------------------------------------------------------------
+# signCertRequest caName name 
+#
+# Sign a certificate request 
+#
+# Arguments:
+#   caName - a string containing the name of the CA to use
+#   name - used to generate the key and certificate request files (i.e.,
+#          <name>key.pem and <name>req.pem.
+#------------------------------------------------------------------------------
+sub signCertRequest {
+  my ($caName, $name, $reqFile) = @_;
+
+  $reqFile = "${name}req.pem" if ! defined( $reqFile );
+
+  my $caPassword = $PASSWORD eq '' ? DEFAULT_PASSPHRASE : $PASSWORD;
+  my $extension = $name =~ /^agent$/ ? "is_ca" : "not_ca";
+  &d("openssl ca -config $caName.cnf -in $reqFile -out ${name}cert.pem -extensions $extension -passin stdin -batch > /dev/null << ENDPASS
+$caPassword
+ENDPASS");
+  &d("/bin/rm -f ${name}req.pem") if ! defined $reqFile;
+  &d("openssl x509 -in ${name}cert.pem -text | grep 'Issuer:'");
+  &d("openssl x509 -in ${name}cert.pem -text | grep 'Subject:'");
+}
+
+#------------------------------------------------------------------------------
+# createRegularCertificateRequest caName name
+#
+# Generate a certificate and key
+#
+# Arguments:
+#   caName - a string containing the name of the CA to use
+#   name - used to generate the key and certificate request files (i.e.,
+#          <name>key.pem and <name>req.pem.
+#------------------------------------------------------------------------------
+sub createRegularCertificateRequest {
+  my ($caName, $name) = @_;
+
+  my $keyPassword = $PASSWORD eq '' ? DEFAULT_PASSPHRASE : $PASSWORD;
+  &d("openssl req -newkey rsa:2048 -sha512 -config $caName.cnf -passout stdin -keyout ${name}keytmp.pem -out ${name}req.pem << ENDPASS
+$keyPassword
+ENDPASS");
+  if ($SSL_VERSION eq '1.0') {
+   &d("openssl rsa -in ${name}keytmp.pem -out ${name}key.pem -des3 -passin stdin -passout stdin << ENDPASS
+$keyPassword
+$keyPassword
+ENDPASS");
+    &d("/bin/rm -f ${name}keytmp.pem");
+  } else {
+    &d("/bin/mv ${name}keytmp.pem ${name}key.pem");
+  }
+        
+  # remove password if set to blank
+  if($PASSWORD eq '') {
+    &d("openssl rsa -in ${name}key.pem -out ${name}keynoenc.pem -passin stdin << ENDPASS
+$keyPassword
+ENDPASS");
+    &d("/bin/rm -f ${name}key.pem");
+    &d("/bin/mv ${name}keynoenc.pem ${name}key.pem");
+  }
+}
+
+#------------------------------------------------------------------------------
+# createRegularCertificate caName name
+#
+# Generate a certificate request and key
+#
+# Arguments:
+#   caName - a string containing the name of the CA to use
+#   name - used to generate the key and certificate request files (i.e.,
+#          <name>key.pem and <name>req.pem.
+#------------------------------------------------------------------------------
+sub createRegularCertificate {
+  my ($caName, $name) = @_;
+
+  &createRegularCertificateRequest($caName, $name);
+  &signCertRequest($caName, $name);
+}
+
+#------------------------------------------------------------------------------
+# changeCN caName newname 
+#
+# Change the common name in the config file to 'newname'
+#
+# Arguments:
+#   caName - a string containing the name of the CA to use
+#   newname - a string indicating the name CN (e.g., IncaTestServer)
+#------------------------------------------------------------------------------
+sub changeCN {
+  my ($caName, $newName) = @_;
+
+  &d("/bin/cat $caName.cnf | sed s/CN=.*/CN=$newName/ > $caName.cnf.tmp");
+  &d("/bin/mv $caName.cnf.tmp $caName.cnf");
+}
+
+#-----------------------------------------------------------------------------#
+# getSSLVersion
+#
+# Returns major and minor version number of OpenSSL
+#
+#-----------------------------------------------------------------------------#
+sub getSSLVersion {
+  my $output = `openssl version`;
+  my $version = (split(' ', $output))[1];
+  my $offset = index($version, '.');
+
+  $offset = index($version, '.', $offset + 1);
+
+  return substr($version, 0, $offset);
+}
+
+#-----------------------------------------------------------------------------#
+# createNewAuthFiles
+#
+# Create new certificate and key files for all of the components
+#-----------------------------------------------------------------------------#
+sub createNewAuthFiles {
+  # create one CA
+  &createConfigFile($HOSTNAME);
+  &createCACert($HOSTNAME);
+  
+  # create server cert from CA1 and CA2
+  foreach my $component('agent', 'consumer', 'depot', 'incat') {
+    print("$component\n");
+    &changeCN($HOSTNAME, $component);
+    &createRegularCertificate($HOSTNAME, $component);
+  }
+
+  # move over to etc and etc/trusted
+  if(! -d 'etc/trusted') {
+    &d("/bin/mkdir -p etc/trusted");
+  }
+  &d("/bin/mv *.pem etc/");
+  &d("/bin/cp etc/agentcert.pem etc/trusted");
+  &d("/bin/chmod 600 etc/*.pem");
+
+  my $hashArg = $SSL_VERSION eq '1.0' ? '-subject_hash_old' : '-hash';
+
+  chomp(my $hash=`openssl x509 -in etc/${HOSTNAME}cert.pem ${hashArg} -noout`);
+
+  &d("openssl x509 -in etc/${HOSTNAME}cert.pem -trustout -out etc/trusted/$hash.0");
+  &d("/bin/cp etc/${HOSTNAME}cert.pem etc/trusted");
+
+  # cleanup
+  &cleanupConfigFiles($HOSTNAME);
+}
+
+#-----------------------------------------------------------------------------#
+# createRmCert
+#
+# Create new reporter manager certificate from request file
+#-----------------------------------------------------------------------------#
+sub createRmCert{
+  my $rmReqPath = shift;
+  my $rmCertPath = shift;
+
+  die "$rmReqPath is not a file" if ! -f $rmReqPath;
+
+  # all of our certs are in etc and functions expect the files to be in
+  # current path
+  my $cwd = getcwd();
+  $rmReqPath = "$cwd/$rmReqPath" if $rmReqPath !~ /^\//;
+  chdir "$BASE_DIR/etc";
+
+  my $caCert = $HOSTNAME . "cert.pem";
+  &d("/bin/cp $BASE_DIR/etc/trusted/$caCert $BASE_DIR/etc" ) if ! -f $caCert;
+  my $subject = `openssl req -in $rmReqPath -subject -noout 2>/dev/null`;
+  my ( $cn ) = $subject =~ /CN=(.+)$/;
+  &createConfigFile($HOSTNAME);
+  &signCertRequest($HOSTNAME, "rm", $rmReqPath);
+  $rmCertPath = "$cwd/$rmCertPath" if $rmCertPath !~ /^\//;
+  &d("mv rmcert.pem $rmCertPath"); 
+  
+  # cleanup
+  &cleanupConfigFiles($HOSTNAME);
+
+  # change back to where we were
+  chdir $cwd;
+}
+
+#-----------------------------------------------------------------------------#
+# createRmCertRequest
+#
+# Create new reporter manager certificate request and key. 
+#-----------------------------------------------------------------------------#
+sub createRmCertRequest {
+  &createConfigFile($HOSTNAME);
+  &changeCN($HOSTNAME, "rm-$HOSTNAME" );
+  &createRegularCertificateRequest($HOSTNAME, "rm" );
+  
+  &d("/bin/mv *.pem etc/");
+  &d("/bin/chmod 600 etc/*.pem");
+
+  # cleanup
+  &cleanupConfigFiles($HOSTNAME);
+}
+
+#-----------------------------------------------------------------------------#
+# createDefaultConfig
+#
+# Writes out a temporary resources file
+#-----------------------------------------------------------------------------#
+sub createDefaultConfig {
+
+  if(! -d "$BASE_DIR/var") {
+    &d("/bin/mkdir -p $BASE_DIR/var");
+  }
+  my $reporterDir = $DEFAULT_REPOSITORY;
+  my @reporterDirs = glob( "$BASE_DIR/Inca-Reporter-*" );
+  if ( scalar(@reporterDirs) > 0 ) { # use local repository if available
+    $reporterDir = pop @reporterDirs; # in case there are multiple reporter dirs
+    $reporterDir = "file://$reporterDir";
+  }
+  my $contents="<?xml version = \"1.0\"?>
+<in:inca xmlns:in = \"http://inca.sdsc.edu/dataModel/inca_2.0\" xmlns:xsi = \"http://www.w3.org/2001/XMLSchema-instance\" >
+  <repositories>
+    <repository>$reporterDir</repository>
+  </repositories>
+  <resourceConfig> 
+  <resources> 
+    <resource>
+        <name>defaultGrid</name>
+        <xpath>//resource[matches(name, \"localSite\")]</xpath>
+      <macros>
+        <macro>
+          <name>__remoteInvocationMethod__</name>
+          <value>local</value>
+        </macro>
+        <macro>
+          <name>__regexp__</name>
+          <value>localSite</value>
+        </macro>
+        <macro>
+           <name>__equivalent__</name>
+           <value>false</value>
+         </macro>
+        <macro>
+          <name>__groupname__</name>
+          <value>defaultGrid</value>
+        </macro>
+        <macro>
+          <name>pre</name>
+          <value>bash -c \"unset CLASSPATH;</value>
+        </macro>
+        <macro>
+          <name>post</name>
+          <value>\"</value>
+        </macro>
+      </macros>
+    </resource>
+    <resource>
+        <name>localSite</name>
+        <xpath>//resource[matches(name, \"localResource\")]</xpath>
+      <macros>
+        <macro>
+          <name>__remoteInvocationMethod__</name>
+          <value>local</value>
+        </macro>
+        <macro>
+          <name>__regexp__</name>
+          <value>localResource</value>
+        </macro>
+        <macro>
+           <name>__equivalent__</name>
+           <value>false</value>
+         </macro>
+        <macro>
+          <name>__groupname__</name>
+          <value>localSite</value>
+        </macro>
+      </macros>
+    </resource>
+      <resource>
+        <name>localResource</name>
+        <xpath>//resource[matches(name, \"$HOSTNAME\")]</xpath>
+        <macros>
+          <macro>
+            <name>__regexp__</name>
+            <value>$HOSTNAME</value>
+          </macro>
+          <macro>
+            <name>__remoteInvocationMethod__</name>
+            <value>local</value>
+          </macro>
+          <macro>
+            <name>__equivalent__</name>
+            <value>true</value>
+          </macro>
+          <macro>
+            <name>__groupname__</name>
+            <value>localResource</value>
+          </macro>$DEFAULT_RM_LOCATION
+        </macros>
+      </resource>
+      <resource>
+        <name>$HOSTNAME</name>
+      </resource>
+  </resources>
+  </resourceConfig>
+  <suites>
+    <suite>
+      <seriesConfigs>
+          <seriesConfig>
+              <series>
+                  <name>cluster.admin.ant.unit</name>
+                  <args>
+                      <arg><name>version</name><value>no</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                  </args>
+                  <context>\@pre\@\@\@\@post\@</context>
+              </series>
+              <nickname>ant_helloworld_compile_test</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><crontime>1-59/10 * * * *</crontime></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>cluster.admin.ant.version</name>
+                  <args>
+                      <arg><name>version</name><value>no</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                  </args>
+                  <context>\@pre\@\@\@\@post\@</context>
+              </series>
+              <nickname>ant_version</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>2-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>cluster.compiler.any.unit</name>
+                  <args>
+                      <arg><name>compiler</name><value>gcc</value></arg>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>lang</name><value>c</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>version</name><value>no</value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>gcc_hello_world</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>3-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>cluster.compiler.gcc.version</name>
+                  <args>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>version</name><value>no</value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>gcc_version</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>4-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>cluster.compiler.any.unit</name>
+                  <args>
+                      <arg><name>compiler</name><value>javac</value></arg>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>lang</name><value>java</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>version</name><value>no</value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>java_hello_world</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>5-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <acceptedOutput>
+                <comparitor>ExprComparitor</comparitor>
+                <comparison>errorMessage==\"\"</comparison>
+              </acceptedOutput>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>cluster.java.sun.version</name>
+                  <args>
+                      <arg><name>version</name><value>no</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>java_version</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>6-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>cluster.interactive_access.openssh.version</name>
+                  <args>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>version</name><value>no</value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>openssh_version</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>7-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>cluster.security.openssl.version</name>
+                  <args>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>version</name><value>no</value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>openssl_version</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>8-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>viz.lib.vtk-nvgl.version</name>
+                  <args>
+                      <arg><name>dir</name><value></value></arg>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>version</name><value>no</value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>vtk-nvgl_version</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>9-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+          <seriesConfig>
+              <series>
+                  <name>grid.wget.performance</name>
+                  <args>
+                      <arg><name>page</name><value>http://inca.sdsc.edu/</value></arg>
+                      <arg><name>help</name><value>no</value></arg>
+                      <arg><name>log</name><value>3</value></arg>
+                      <arg><name>verbose</name><value>1</value></arg>
+                      <arg><name>version</name><value>no</value></arg>
+                      <arg><name>wgetArgs</name><value></value></arg>
+                  </args>
+                  <context>@@</context>
+              </series>
+              <nickname>wget_performance</nickname>
+              <resourceSetName>defaultGrid</resourceSetName>
+              <schedule><cron>
+                      <min>0-59/10</min>
+                      <hour>*</hour>
+                      <mday>*</mday>
+                      <wday>*</wday>
+                      <month>*</month>
+              </cron></schedule>
+              <action>add</action>
+          </seriesConfig>
+      </seriesConfigs>
+      <name>sampleSuite</name>
+      <guid/>
+      <description/>
+    </suite>
+  </suites>
+</in:inca>
+  ";
+  &d("/bin/echo '$contents' > $BASE_DIR/var/defaultconfig.xml");
+}
+
+#-----------------------------------------------------------------------------#
+# d $command
+#
+# Applies the debug and verbose switches to destructive commands
+#-----------------------------------------------------------------------------#
+sub d {
+  print(join("", @_) . "\n") if defined($VERBOSE);
+  system(join("", @_)) if !defined($DEBUG);
+}
+
+#-----------------------------------------------------------------------------#
+# echoError 
+#
+# Prints out an error message to stderr
+#-----------------------------------------------------------------------------#
+sub echoError {
+  print(STDERR join('', @_) . "\n");
+}
+
+#-----------------------------------------------------------------------------#
+# fileContents $path
+#
+# Returns the contents of a file as an array.
+#
+# Arguments
+#   path  the path to the file
+#
+# Returns
+#   The lines of the file (with newlines) as an array, empty on error.
+#-----------------------------------------------------------------------------#
+sub fileContents {
+  my ($path, $pattern) = @_;
+  my @lines;
+  if(open(INFILE, $path)) {
+    @lines = <INFILE>;
+    close(INFILE);
+  }
+  return @lines;
+}
+
+#-----------------------------------------------------------------------------#
+# configFileContents [$file]
+#
+# Returns the contents of an Inca config file.
+# 
+# Arguments:
+#   file  the file to read, default 'inca.conf'
+#
+# Returns:
+#   The contents of the specified Inca config file as an array, empty on error
+#-----------------------------------------------------------------------------#
+sub configFileContents {
+  my ($file) = @_;
+  $file = 'inca.conf' if !defined($file);
+  my @lines;
+  foreach my $subdir(@CONFIG_SUBDIRS) {
+    @lines = &fileContents("$BASE_DIR/$subdir/$file");
+    last if defined($lines[0]);
+  }
+  return @lines;
+}
+
+#-----------------------------------------------------------------------------#
+# componentExecString $component @args
+#
+# Returns the command for executing the specified Inca component
+#
+# Arguments:
+#   component  the name of the Inca component
+#   args       arguments to pass to the component
+#
+# Returns:
+#   A shell command for executing the component; undef on error
+#
+#-----------------------------------------------------------------------------#
+sub componentExecString {
+  my($component) = shift;
+  my $args = join(' ', map("\"$_\"", @_) );
+
+  if(-f "$BASE_DIR/sbin/$component") {
+    return "$BASE_DIR/sbin/$component $args";
+  } elsif(-f "$BASE_DIR/bin/$component") {
+    return "$BASE_DIR/bin/$component $args";
+  } else {
+    my @lines = grep(/$component/, &configFileContents());
+    if(defined($lines[0])) {
+      chomp($lines[0]);
+      my @columns = split(/:/, $lines[0]);
+      my $class = $columns[1];
+      my $jar = $columns[2];
+      if(defined($jar) && -f "$BASE_DIR/lib/$jar") {
+        my $mem = exists $ENV{INCA_MEMORY} ? $ENV{INCA_MEMORY} : $DEFAULT_MEMORY;
+        my $javaArgs = " -Xmx" . $mem . "m -Djava.library.path=\"$BASE_DIR/lib\" ";
+        my ( $protocol, $host, $port );
+        if ( exists $ENV{http_proxy} && defined $ENV{http_proxy} ) {
+          $protocol = "http";
+          ($host, $port) = $ENV{http_proxy} =~ /http:\/\/([^:]+):(\d+)/;
+        }
+        if ( exists $ENV{HTTPS_PROXY} && defined $ENV{HTTPS_PROXY} ) {
+          $protocol = "https";
+          ($host, $port) = $ENV{HTTPS_PROXY} =~ /https:\/\/([^:]+):(\d+)/;
+        }
+        if ( defined $protocol && defined $host && defined $port ) {
+          $javaArgs .= " -D$protocol.proxySet=true" .
+                      " -D$protocol.proxyPort=$port" .
+                      " -D$protocol.proxyHost=$host";
+        }
+        if ( exists $ENV{GLOBUS_TCP_PORT_RANGE} && 
+             defined $ENV{GLOBUS_TCP_PORT_RANGE} ) {
+          $javaArgs .= " -Dorg.globus.tcp.port.range=" . 
+                       $ENV{GLOBUS_TCP_PORT_RANGE};
+        }
+        $ENV{PERL5LIB} = $PREV_PERL5LIB if defined $PREV_PERL5LIB;
+        delete $ENV{PERL5LIB} if ! defined $PREV_PERL5LIB;
+        return '"' . &findJava() . '"' . "$javaArgs $class $args";
+      }
+    }
+  }
+  return undef;
+}
+
+#-----------------------------------------------------------------------------#
+# knownIncaComponents
+#
+# Get the known Inca components from the inca configuration file
+# 
+# Returns:
+#   An array containing the known Inca components
+#-----------------------------------------------------------------------------#
+sub knownIncaComponents {
+  return map {chomp; (split(/:/))[0]} &configFileContents();
+}
+
+#-----------------------------------------------------------------------------#
+# printUsage
+#
+# Print out the usage for the Inca admininistrative commands and exits
+# 
+#-----------------------------------------------------------------------------#
+sub printUsage {
+  print("Usage:  inca <subcommand> [options] [args]\n\n");
+  print("Type 'inca help <component>' for help on a specific component\n\n");
+  print("Available subcommands:\n");
+  foreach my $command(@COMMON_COMMANDS) {
+    print("  $command\n");
+  }
+  foreach my $component(&knownIncaComponents()) {
+    my $exec = &componentExecString($component);
+    print("  $component" . (!defined($exec) ? " (not installed)" : "") . "\n");
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# checkComponent $component
+#
+# Checks that $component specifies an installed Inca component.
+#
+# Arguments:
+#   component   a string containing the command the user specified on the
+#               command-line
+#-----------------------------------------------------------------------------#
+sub checkComponent {
+  my ($component) = @_;
+
+  foreach my $known(&knownIncaComponents()) {
+    if($component eq $known) {
+      my $exec = &componentExecString($component);
+      if(!defined($exec)) {
+        &echoError("Error, Inca component '$component' is not installed");
+        exit(1);
+      }
+      return;
+    }
+  }
+
+  &echoError("Error, unknown Inca component '$component'");
+  &echoError("Type 'inca --help' for usage details");
+  exit(1);
+}
+
+#-----------------------------------------------------------------------------#
+# checkHelp $command $component
+#
+# Checks the command the user specified for variations of 'help', prints the
+# program usage, and exits.
+#
+# Arguments:
+#   command        the user command from the command line
+#   component      a string containing the component the user specified on the
+#                  command-line, if any
+#-----------------------------------------------------------------------------#
+sub checkHelp {
+  my ($command, $component) = @_;
+  return if $command !~ /^-h$|^-*help$/;
+  if(defined($component)) {
+    &checkComponent($component);
+    my $exec = &componentExecString($component);
+    &d("$exec --help");
+  } else {
+    &printUsage();
+  }
+  exit(0);
+}
+
+#-----------------------------------------------------------------------------#
+# checkVersion $command
+#
+# Checks the command the user specified for the version command and prints the
+# version if specified and exits.
+#
+# Arguments:
+#   command     a string containing the command the user specified on the
+#               command-line
+#-----------------------------------------------------------------------------#
+sub checkVersion {
+  my($command) = @_;
+  return if $command ne VERSION_COMMAND;
+  # grab major and minor fom version file
+  my @contents = &configFileContents('inca-version');
+  if(!defined($contents[0])) {
+    &echoError("Error, unable to locate version file");
+    exit(1);
+  }
+  my($major, $minor) = ('0', '0');
+  foreach my $line(@contents) {
+    $major = $1 if $line =~ /major\s*=\s*(.*)/;
+    $minor = $1 if $line =~ /minor\s*=\s*(.*)/;
+  }
+  print("Inca version $major.$minor\n");
+  exit 0;
+}
+
+#-----------------------------------------------------------------------------#
+# execProcess $exec $outfile
+#
+# Run the specified process and feed it the password via stdin and returns 
+# the pid of the child process.
+#
+# Arguments:
+#   exec     a string containing the command to execute
+#   outfile  optional path to a file to redirect stdout and stderr
+#-----------------------------------------------------------------------------#
+sub execProcess {
+  my($exec, $outfile) = @_;
+
+  pipe(READ, WRITE);
+  my $pid = fork();
+  if($pid == 0) { # child
+    open(STDIN, '<&READ');
+    if ( defined $outfile ) {
+      open( STDOUT, ">$outfile" ) || die "Cannot redirect to $outfile";
+      open( STDERR, ">&STDOUT" ) || die "Cannot redirect stderr to stdout";
+    }
+    if(defined($VERBOSE)) {
+      print("exec(\"$exec 2>&1 >$outfile\")\n");
+    }
+    if(!defined($DEBUG)) {
+      exec($exec) or die $!;
+    }
+    exit(0);
+  }
+  # parent
+  print WRITE $PASSWORD;
+  close(READ);
+  close(WRITE);
+  return $pid;
+}
+
+#-----------------------------------------------------------------------------#
+# setEnvironment
+#
+# Sets relevant environment variables Inca programs will need such as
+# PERL5LIB and CLASSPATH.
+#
+#-----------------------------------------------------------------------------#
+sub setEnvironment {
+
+  # set perl - add <inca install dir>/lib/perl to PERL5LIB
+  if(defined($ENV{PERL5LIB})) {
+    $PREV_PERL5LIB = $ENV{PERL5LIB};
+    $ENV{PERL5LIB} = "$BASE_DIR/lib/perl:$ENV{PERL5LIB}";
+  } else {
+    $ENV{PERL5LIB} = "$BASE_DIR/lib/perl";
+  }
+
+  # set perl - add <inca install dir>/lib to LD_LIBRARY_PATH
+  if(defined($ENV{LD_LIBRARY_PATH})) {
+    $ENV{LD_LIBRARY_PATH} = "$BASE_DIR/lib:$ENV{LD_LIBRARY_PATH}";
+  } else {
+    $ENV{LD_LIBRARY_PATH} = "$BASE_DIR/lib";
+  }
+
+  # set java - add <inca install dir>/lib/*.jar and <inca install dir>/lib/ to
+  # CLASSPATH
+  chomp(my $jars=`/bin/echo $BASE_DIR/lib/*.jar | tr ' ' ':'`);
+  my $classpathAdds = "$BASE_DIR/etc:$BASE_DIR/etc/common:$BASE_DIR/webapps/xsl:$BASE_DIR/webapps/xml:$BASE_DIR/lib:$jars";
+  if(defined($ENV{CLASSPATH})) {
+    $ENV{CLASSPATH} = "$classpathAdds:$ENV{CLASSPATH}";
+  } else {
+    $ENV{CLASSPATH} = $classpathAdds;
+  }
+  if ( $^O =~ /cygwin/ ) {
+    chomp(my $tempcp = `cygpath -wp $ENV{CLASSPATH}`);
+    $ENV{CLASSPATH} = $tempcp;
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# findJava
+#
+# Locate the installation of Java on this system and exit with an error
+# if not found.
+#
+# Returns:
+#   A string containing the path to the java executable
+#-----------------------------------------------------------------------------#
+sub findJava {
+  # check for java set by JAVA_HOME
+  my $java;
+  if ( defined $ENV{JAVA_HOME} ) {
+    $java = "$ENV{JAVA_HOME}/bin/java";
+  } else {
+    chomp($java=`which java`);
+    if($java eq '') {
+      &echoError("Error, cannot locate java on your system.");
+      &echoError("Please add java to your PATH.");
+      exit(1);
+    }
+    my $java_bin = dirname( $java );
+    my $java_base = dirname( $java_bin );
+    $ENV{JAVA_HOME} = $java_base;
+  }
+  if(defined($ENV{CLASSPATH})) {
+    $ENV{CLASSPATH} = "$ENV{JAVA_HOME}/lib/tools.jar:$ENV{CLASSPATH}";
+  } else {
+    $ENV{CLASSPATH} = "$ENV{JAVA_HOME}/lib/tools.jar";
+  }
+  return $java;
+}
+
+#-----------------------------------------------------------------------------#
+# initialize
+#
+# Initialize the depot by running depot -d and the agent by removing contents
+# of var directory.
+#
+#-----------------------------------------------------------------------------#
+sub initialize {
+  print("Initializing Inca configuration...\n",
+        "** Warning: this will erase any previously collected reporter state\n",
+        "   on the Inca depot and configuration on the agent\n",
+        'Do you wish to continue (y/n)? ');
+  chomp(my $response = <STDIN>);
+  if($response eq 'y') {
+    print("Initializing depot...\n");
+    &startComponent('depot', '-d');
+    print("done\n");
+    print("Initializing agent\n");
+    &d("/bin/rm -fr $BASE_DIR/var/*");
+    print("done\n");
+  } else {
+    print("Initialization aborted\n");
+    exit(0);
+  }
+} 
+
+#-----------------------------------------------------------------------------#
+# readTtyNoEcho $prompt
+#
+# Read a line from user w/out echo
+#
+# Arguments:
+#   prompt   a string to print to prompt for input
+#
+# Returns:
+#   The string typed by the user; undef if none (e.g., ^C)
+#-----------------------------------------------------------------------------#
+sub readTtyNoEcho {
+  my ($prompt) = @_;
+  `stty raw -echo`; # Pass all characters through
+  my $char;
+  my $result = '';
+  print $prompt if defined $prompt;
+  while(1) {
+     # getc() continuously returns undef until the user types a char
+     undef $char;
+     $char = getc() while !defined($char);
+     last if $char eq "\n" || $char eq "\r" || $char eq "\cc";
+     if($char eq "\cu") {
+       print "\b \b" while $result =~ s/.$//;
+     } elsif($char eq "\b" || ord($char) == 127) {
+       print "\b \b" if $result =~ s/.$//;
+     } else {
+       $result .= $char;
+       print '*';
+     }
+  }
+  `stty -raw echo`; # Resume normal processing
+  print "\n";
+  return $char eq "\n" || $char eq "\r" ? $result : undef;
+}
+
+#-----------------------------------------------------------------------------#
+# startComponent $component $args
+#
+# Invoke the component that the user specified on the command line.
+#
+# Arguments:
+#   component      a string containing the component the user specified on the
+#                  command-line
+#   args           a list of strings that the user specified as arguments
+#                  to the component
+#-----------------------------------------------------------------------------#
+sub startComponent {
+  my($component) = @_;
+  shift;
+
+  my $outfile = "$BASE_DIR/var/$component.out";
+  # save last 10 outfiles for debug purposes
+  for my $idx ( reverse(1..10) ) {
+    my $oldOutfile = "$outfile." . ($idx-1);
+    rename( $oldOutfile, "$outfile.$idx" ) if ( -f $oldOutfile && $idx > 1);
+    rename( $outfile, "$outfile.$idx" ) if ( -f $outfile && $idx <= 1);
+  }
+  my $exec = &componentExecString($component, @_);
+  return if !defined($exec);
+  # if help or version requested, just exec rather than put it in background
+  if ( grep(/--help|--version|-h|-V/, @_)  ) {
+    exec($exec) or die $!;
+  }
+  &d("/bin/mkdir $BASE_DIR/var") if ! -d "$BASE_DIR/var";
+  my $pid = &execProcess( $exec, $outfile );
+  # Give the component 10 seconds to fail
+  for(my $i = 0; $i < 10; $i++) {
+    sleep 1;
+    if(waitpid($pid, WNOHANG) == $pid) {
+      print("$component failed; check log and $outfile for details\n")
+        if $? >> 8 != 0;
+      return;
+    }
+  }
+  &d("/bin/echo $pid > $BASE_DIR/var/$component.pid");
+  print("Started Inca $component\n");
+}
+
+#-----------------------------------------------------------------------------#
+# startComponents $component $args
+#
+# Invoke the component that the user specified on the command line.
+#
+# Arguments:
+#   component      a string containing the component the user specified on the
+#                  command-line or 'all'
+#   args           a list of strings that the user specified as arguments
+#                  to the component
+#-----------------------------------------------------------------------------#
+sub startComponents {
+  my ($component, @args) = @_;
+
+  if($component eq 'all') {
+    foreach my $known(&knownIncaComponents()) {
+      next if $known =~ /incat|incaws/;
+      my $exec = &componentExecString($known);
+      &startComponent($known, @args) if defined($exec);
+    }
+  } else {
+    &checkComponent($component);
+    &startComponent($component, @args);
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# stopComponent $component $hardStop
+#
+# Send a kill signal to the specified component and wait for it to stop.
+#
+# Arguments:
+#   component      a string containing the component the user specified on the
+#                  command-line 
+#   hardstop       true if kill -9 should be issued after max wait time 
+#                  exceeded
+#-----------------------------------------------------------------------------#
+sub stopComponent {
+  my ($component, $hardStop) = @_;
+
+  my $maxKillTime = 
+    exists $ENV{INCA_KILL_WAIT} ? $ENV{INCA_KILL_WAIT} : $DEFAULT_KILL_WAIT;
+  my $path = "$BASE_DIR/var/$component.pid";
+  if(-f $path) {
+    if ( ! open( FD, "<$path" ) ) {
+      &echoError("Inca $component component stopped\n");
+      return 0;
+    }
+    chomp( my $pid = <FD> );
+    close FD;
+    &d("/bin/kill $pid");
+    local $| = 1;
+    for ( my $i = 0; $i < $maxKillTime && kill(0, $pid); $i++ ) {
+      print ".";
+      sleep(1);
+    }
+    print "\n";
+    if ( kill(0, $pid) ) {
+      if ( $hardStop ) {
+        &echoError("Stop failed for $component...sending abort\n");
+        &d("/bin/kill -9 $pid");
+        for ( my $i = 0; $i < 5 && kill(0, $pid); $i++ ) {
+          sleep(1);
+        }
+        return ! kill(0, $pid);
+      } else {
+        &echoError("Stop failed for $component\n");
+        return 0;
+      }
+    } else {
+      &d("/bin/rm $path");
+      print("Inca $component component stopped\n");
+      return 1;
+    }
+  } else {
+    &echoError("$component pid file $path not found");
+    return 0;
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# stopComponents $component $hardstop
+#
+# Send a kill signal to the specified component(s).
+#
+# Arguments:
+#   component      a string containing the component the user specified on the
+#                  command-line or 'all'
+#   hardstop       true if kill -9 should be issued after max wait time 
+#                  exceeded
+#-----------------------------------------------------------------------------#
+sub stopComponents {
+  my ($component, $hardStop) = @_;
+
+  if($component eq 'all') {
+    foreach my $known(&knownIncaComponents()) {
+      next if $known =~ /incat|incaws/;
+      my $exec = &componentExecString($known);
+      &stopComponent($known, $hardStop) if defined($exec);
+    }
+  } else {
+    &stopComponent($component, $hardStop);
+  }
+}
+
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+# Get an absolute path to the inca installation dir
+$BASE_DIR = $0 =~ m#^(.*)/[^/]+$# ? "$1/.." : '..';
+if($BASE_DIR !~ m#^/#) {
+  chomp(my $cwd = `pwd`);
+  $BASE_DIR = "$cwd/$BASE_DIR";
+}
+
+$SSL_VERSION = getSSLVersion();
+
+# Many commands require that we be in in the base dir; others don't care
+chdir($BASE_DIR);
+
+# get fqdn of this machine
+$HOSTNAME = hostname();
+if ( $HOSTNAME !~ /\./ ) {
+  my $sys_hostname = `hostname -f 2> /dev/null`;
+  if ( $? == 0 ) {
+    chomp $sys_hostname;
+    $HOSTNAME = $sys_hostname;
+  }
+  if ( $HOSTNAME !~ /\./ ) {
+    my $fqdn = hostfqdn();
+    $HOSTNAME = $fqdn if defined $fqdn;
+  }
+}
+print STDERR "WARNING: unable to to determine fqdn of $HOSTNAME\n"
+ if $HOSTNAME !~ /\./;
+&setEnvironment();
+
+# Pick up any switches intended for this program
+while(defined($ARGV[0]) && $ARGV[0] =~ /^-/) {
+  my $switch = shift;
+  if($switch eq '-b' && defined($ARGV[0])) {
+    $BASE_DIR = shift;
+  } elsif($switch eq '-d') {
+    $DEBUG = 1;
+  } elsif($switch eq '-k') {
+    $ENV{INCA_KILL_WAIT} = shift;
+  } elsif($switch eq '-m') {
+    $ENV{INCA_MEMORY} = shift;
+  } elsif($switch eq '-r') {
+    my $loc = shift;
+    $DEFAULT_RM_LOCATION = "
+          <macro>
+            <name>__incaReporterManagerLocation__</name>
+            <value>$loc</value>
+          </macro>";
+  } elsif($switch eq '-v') {
+    $VERBOSE = 1;
+  } else {
+    &printUsage();
+    exit(1);
+  }
+}
+
+# Check the inca config file
+if(! defined((&configFileContents())[0])) {
+  &echoError('Unable to locate inca config file');
+  exit(1);
+}
+
+my $command = defined($ARGV[0]) ? shift : 'help';
+$command = shift if $command eq 'start' && defined($ARGV[0]);
+
+# Check for trivial inca commands
+&checkHelp($command, $ARGV[0]);
+&checkVersion($command);
+
+# Pick up a password for those commands that need it
+if($command ne 'stop' && ! grep(/--help|--version|-h|-V/, @ARGV) ) {
+
+  # Try to get password spec (see Component.java for format) from -P/--password
+  my $initFile = 'inca.properties';
+  for(my $i = 0; $i <= $#ARGV; $i++) {
+    my $arg = $ARGV[$i];
+    if($arg =~ /-P(.+)?/) {
+      $PASSWORD = defined($1) ? $1 : $ARGV[$i + 1];
+    } elsif($arg =~ /--password(=(.+))?/) {
+      $PASSWORD = defined($2) ? $2 : $ARGV[$i + 1];
+    } elsif($arg =~ /--passphrase(=(.+))?/) {
+      $PASSWORD = defined($2) ? $2 : $ARGV[$i + 1];
+    } elsif($arg =~ /^-i(.+)?/) {
+      $initFile = defined($1) ? $1 : $ARGV[$i + 1];
+    } elsif($arg =~ /--init(=(.+))?/) {
+      $initFile = defined($2) ? $2 : $ARGV[$i + 1];
+    }
+  }
+  # Failing that, try to read it from an init file
+  if(!defined($PASSWORD)) {
+    my $passwordComponent = $command;
+    $passwordComponent = $ARGV[0] if $command =~ /restart/;
+    $passwordComponent = 'agent' 
+      if $passwordComponent =~ /^(all|createauth|default)$/;
+    my @lines = grep(/^\s*inca\.$passwordComponent\.password\s*=/,
+                     &configFileContents($initFile));
+    if(defined($lines[0]) && $lines[0] =~ /=\s*(.*)/) {
+      $PASSWORD = $1;
+    }
+  }
+
+  # Using the password spec, get the actual password
+  if(!defined($PASSWORD) || $PASSWORD eq 'false' || $PASSWORD eq 'no') {
+    $PASSWORD = '';
+  } elsif($PASSWORD =~ s/^pass://) {
+    # empty
+  } elsif($PASSWORD =~ /^(stdin(:(.*))?|true|yes)$/) {
+    my $prompt = $3;
+    while(1) {
+      $PASSWORD = &readTtyNoEcho($prompt); 
+      exit(1) if !defined($PASSWORD);
+      last if $command ne 'createauth'; # Only confirm for createauth command
+      my $confirm =
+        &readTtyNoEcho(defined($prompt) ? "Confirm $prompt" : undef);
+      exit(1) if !defined($confirm);
+      last if $PASSWORD eq $confirm;
+      print STDERR "Passwords do not match; please try again\n";
+    }
+  } else {
+    die "Bad password specifier '$PASSWORD'";
+  }
+
+}
+
+# rewrite command: lowerCase[Uppercase]+ command to lowercase[-uppercase]+
+my $oldCommand = $command;
+while ( $command =~ /^(.*?[a-z])([A-Z])(.*)$/ ) {
+  $command = "$1-" . lc($2) . $3;
+}
+# script in bin dir? execute it
+my $binscript = "$BASE_DIR/bin/inca-$command";
+if ( -x $binscript ) {
+  my $argString = join(' ', map("\"$_\"", @ARGV) );
+  my $pid = &execProcess( "$binscript $argString" );
+  waitpid( $pid, 0 );
+  exit( $? );
+}
+$command = $oldCommand; # if not a script it must be an internal command
+
+# Execute the more elaborate commands
+if($command eq 'createauth') {
+  &createNewAuthFiles();
+} elsif($command eq 'createRmCertRequest') {
+  &createRmCertRequest();
+} elsif($command eq 'createRmCert') {
+  my @certArgs;
+  for(my $i = 0; $i <= $#ARGV; $i++) {
+    if ( $ARGV[$i] =~ /-P|--password/ ) {
+      $i++;
+    } else {
+      push( @certArgs, $ARGV[$i] );
+    }
+  }
+  die "Specify cert request file and certificate dest" if scalar(@certArgs) < 2;
+  &createRmCert( @certArgs );
+} elsif($command eq 'default') {
+  print("Preparing to deploy default Inca configuration...\n" );
+  my $java = &findJava();
+  &initialize();
+  &createDefaultConfig();
+  foreach my $known(&knownIncaComponents()) {
+    next if $known =~ /incat|incaws/;
+    my $exec = &componentExecString($known);
+    &startComponent($known) if defined($exec);
+  }
+  print("Sleeping for 20 seconds while the components come online\n");
+  sleep(20);
+  print("Deploying default configuration\n");
+  my $agentPort = 6323;
+  foreach my $line(&configFileContents('inca.properties')) {
+    $agentPort = $1 if $line =~ /inca.agent.port\s*=\s*(.*)/;
+  }
+  my ($piperead, $pipewrite);
+  pipe $piperead, $pipewrite;
+  open( STDIN, "<&" . fileno($piperead) ) || die "cannot redirect stdin: $!";
+  print $pipewrite $PASSWORD;
+  close $pipewrite;
+  &d("$java edu.sdsc.inca.AgentClient -f $BASE_DIR/var/defaultconfig.xml -A localhost:$agentPort -P yes");
+} elsif($command eq 'init') {
+  &initialize();
+} elsif($command eq 'restart') {
+  my $component = shift;
+  exit(0) if !defined($component);
+  &stopComponents($component, 1);
+  &startComponents($component, @ARGV);
+} elsif($command eq 'stop') {
+  my $component = shift;
+  exit(0) if !defined($component);
+  &stopComponents($component, 0);
+} else {
+  &startComponents($command, @ARGV);
+}

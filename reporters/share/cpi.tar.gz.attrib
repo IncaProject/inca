@@ -1,0 +1,4 @@
+name: cpi
+version: 1.0
+description: cpi.c, an MPI test program from the MPICH2 package
+dependencies:

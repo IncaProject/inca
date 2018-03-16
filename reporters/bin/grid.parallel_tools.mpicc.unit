@@ -1,0 +1,72 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'grid.parallel_tools.mpicc.unit',
+  version => 4,
+  description =>
+    'This test tries to compile the sample code distributed with mpicc. ' .
+    'It creates a temporary directory, copies over the example dir, builds ' .
+    'cpitest, then cleans up',
+  url => 'http://www.ncsa.uiuc.edu/People/jbasney/teragrid-setup-test.html',
+  unit_name => 'mpicc'
+);
+$reporter->addArg('device', 'device to find examples dir in', 'NONE');
+$reporter->addArg ('mpivar', 'name of env. variable representing the mpich home dir', '');
+$reporter->addArg ('scratch', 'scratch directory');
+$reporter->processArgv(@ARGV);
+my $device = $reporter->argValue('device');
+my $mpivar = $reporter->argValue('mpivar');
+my $scratch = $reporter->argValue('scratch');
+#get environment var if scratch is a variable
+if($scratch =~ /^\$/) { 
+  $scratch =~ s/^\$//;
+	$scratch = $ENV{$scratch};
+}
+if($mpivar eq '') {
+  foreach my $env(keys %ENV) {
+    $mpivar = $env if $env =~ /MPI.*HOME/;
+  }
+  $reporter->failPrintAndExit('No MPI environment variable found; use -mpivar')
+    if $mpivar eq '';
+}
+
+my $mpiDir = $ENV{$mpivar};
+$reporter->failPrintAndExit("the environment variable $mpivar is not defined")
+  if !defined($mpiDir);
+
+my $examplesDir;
+if(-d "$mpiDir/examples") {
+  $examplesDir = "$mpiDir/examples";
+} elsif($device ne 'NONE' and -d "$mpiDir/$device/examples" ) {
+  $examplesDir = "$mpiDir/$device/examples";
+}
+$reporter->failPrintAndExit
+  ("Cannot find examples dir $mpiDir/examples or $mpiDir/$device/examples")
+  if !defined($examplesDir);
+
+my $scratchDir = "$scratch/$$";
+if (!mkdir($scratchDir)){
+  my $pid = $$;
+  $scratchDir =~ s/$pid/PID/g;
+  $reporter->failPrintAndExit("Unable to create scratch dir $scratchDir");
+}
+$reporter->tempFile($scratchDir);
+
+my $output = $reporter->loggedCommand("cp -r $examplesDir $scratchDir");
+if($?) {
+  $reporter->unitFailure("cp failed: $output $!");
+} else {
+  chdir("$scratchDir/examples");
+  $output = $reporter->loggedCommand('make cpi');
+  if($?) {
+    $reporter->unitFailure("examples make failed: $output $!");
+  } else {
+    $reporter->unitSuccess();
+  }
+}
+chdir($mpiDir);
+$reporter->print();

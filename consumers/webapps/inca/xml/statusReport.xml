@@ -1,0 +1,33 @@
+<statusReport>
+
+  <!-- Displays the following version tests in one graph on the page -->
+  <graph>
+    <!-- Format is:  nickname, resource, target resource, label  
+         The label can be any unique string within this collection of tests -->
+    <series>ant_helloworld_compile_test,localResource,,ant test</series>
+    <series>gcc_hello_world,localResource,,gcc test</series>
+    <series>java_hello_world,localResource,,java test</series>
+    <title></title>
+  </graph>
+
+  <!-- Displays the following performance test in one graph on the page -->
+  <graph>
+    <chart>metric</chart>
+    <metric>bandwidth</metric>
+    <series>wget_performance,localResource,,wget test</series>
+    <titlePrefix>Basic Performance Tests (</titlePrefix>
+    <titleSuffix>)</titleSuffix>
+  </graph>
+
+  <unitPattern>(MB/s)</unitPattern>
+  <mouseovers>true</mouseovers>
+  <links>true</links>
+  <width>500</width>
+  <height>350</height>
+  <pageDescription>The following page displays the history of pass/fail
+  status or metrics of selected tests in this Inca deployment.  Please see the
+  Inca documentation for futher information about how to customize the
+  display.</pageDescription> 
+  <pageTitle>Sample Suite Results</pageTitle>
+
+</statusReport>

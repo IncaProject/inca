@@ -1,0 +1,5 @@
+name: inca.PerformanceReporter
+version: 1.0
+description: Inca reporter Python API class for performance reporters
+url: http://inca.sdsc.edu
+dependencies: inca.Reporter

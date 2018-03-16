@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="Suite" table="INCASUITE" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native"/>
+    </id>
+
+    <!-- properties -->
+    <property name="name" column="incaname" type="string" not-null="true"/>
+    <property name="guid" column="incaguid" type="string" not-null="true"/>
+    <property name="description" column="incadescription" type="string"
+              not-null="false"/>
+    <property name="version" column="incaversion" type="integer"
+              not-null="false"/>
+
+    <!-- relations to other tables -->
+    <set name="seriesConfigs" table="INCASUITESSERIESCONFIGS" cascade="all" lazy="true">
+      <key column="incasuite_id"/>
+      <many-to-many column="incaseriesconfig_id" class="edu.sdsc.inca.depot.persistent.SeriesConfig" />
+    </set>
+
+  </class>
+</hibernate-mapping>

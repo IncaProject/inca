@@ -1,0 +1,5 @@
+name: blasTestSuite
+version: 1.0
+description: Test programs for the BLAS library
+url: http://inca.sdsc.edu
+dependencies:

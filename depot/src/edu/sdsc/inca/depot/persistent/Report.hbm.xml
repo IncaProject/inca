@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping SYSTEM "etc/hibernate-mapping-2.0.dtd">
+
+<hibernate-mapping package="edu.sdsc.inca.depot.persistent">
+  <class name="Report" table="INCAREPORT" >
+
+    <!-- primary key -->
+    <id name="id" column="incaid" type="long">
+      <generator class="native" />
+    </id>
+
+    <!-- properties -->
+    <property name="exit_status" column="incaexit_status" type="boolean"/>
+    <property name="exit_message" column="incaexit_message" type="string"
+              length="4000"/>
+    <!--
+    The report body is split into three fields to allow for the rare long body
+    w/out resorting to DB text type.  The latter has limited functionality on
+    some underlying DBs (e.g., Oracle disallows the use of text fields in a
+    select).
+    -->
+    <property name="bodypart1" column="incabodypart1" type="string"
+              length="4000"/>
+    <property name="bodypart2" column="incabodypart2" type="string"
+              length="4000"/>
+    <property name="bodypart3" column="incabodypart3" type="string"
+              length="4000"/>
+    <property name="stderr" column="incastderr" type="string" length="4000"/>
+
+    <!-- relations to other tables -->
+    <many-to-one name="series"
+                 column="incaseries_id"
+                 class="edu.sdsc.inca.depot.persistent.Series"
+                 not-null="true" />
+    <many-to-one name="runInfo"
+                 column="incarunInfo_id"
+                 class="edu.sdsc.inca.depot.persistent.RunInfo"
+                 not-null="true"/>
+
+  </class>
+</hibernate-mapping>

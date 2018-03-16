@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.compiler.intel.version',
+  version => 5,
+  description => 'Reports the version of the intel compiler',
+  url => 'www.intel.com',
+  package_name => 'intel-compiler'
+);
+$reporter->processArgv(@ARGV);
+
+my $log = $reporter->loggedCommand("ecc -V");
+my ($version, $junk, $build);
+if (! defined $log || $log eq "" || $log=~"not found") {
+  $log = $reporter->loggedCommand("icc -V");
+} 
+($version, $junk, $build) = $log =~ m/Version ((\w|\.)*)\s*Build (\w*)/g;
+
+if ( !defined($version)  || ($version eq "")) {
+  $reporter->failPrintAndExit( "unable to determine version" );
+} else {
+  $reporter->setPackageVersion( $version );
+}
+
+$reporter->print( );

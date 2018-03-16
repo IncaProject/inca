@@ -1,0 +1,39 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Version;
+
+my $reporter = new Inca::Reporter::Version(
+  name => 'cluster.math.atlas.version',
+  version => 2,
+  url => 'http://math-atlas.sourceforge.net',
+  description => 'Compiles and runs a C program to retrieve the atlas version from ATL_buildinfo()',
+  package_name => 'atlas'
+);
+$reporter->addArg('cc', 'compile C program with this compiler', 'cc');
+$reporter->addArg('dir', 'atlas installation directory', '');
+$reporter->processArgv(@ARGV);
+my $cc = $reporter->argValue('cc');
+my $dir = $reporter->argValue('dir');
+if($dir eq '') {
+  foreach my $place($ENV{ATLAS_LOCATION}, $ENV{ATLAS_HOME},
+                    glob('/usr/local/apps/atlas*'), glob('/opt/atlas*'),
+                    glob('/usr/local/atlas*')) {
+    $dir = $place and last if defined($place) && -d $place;
+  }
+}
+$reporter->failPrintAndExit('Cannot locate ATLAS installation; use -dir')
+  if $dir eq '';
+
+my $code = '
+int main(int argc, char **argv) {
+  void ATL_buildinfo(void);
+  ATL_buildinfo();
+  return 0;
+}
+';
+$reporter->setVersionByCompiledProgramOutput
+  (compiler => $cc, code => $code, pattern => 'ATLAS version (\S+)',
+   switches => "-L${dir}/lib -latlas");
+$reporter->print();

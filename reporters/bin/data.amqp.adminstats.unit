@@ -1,0 +1,68 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Inca::Reporter::Performance;
+use JSON qw( decode_json );
+use Data::Dumper;
+
+my $reporter = new Inca::Reporter::Performance(
+	name => 'data.amqp.adminstats.unit',
+	version => 3,
+	description => 'Report Rabbit MQ overview statistics',
+	measurement_name => 'rabbitmq'
+);
+
+$reporter->addDependency( 'JSON' );
+$reporter->addArg( 'url', 'URL to fetch', 'https://info1.dyn.xsede.org:15671/api/overview' );
+$reporter->addArg( 'cparam', 'Params to pass to cURL', '-sn' );
+$reporter->addArg( 'minexchanges', 'Minimum number of exchanges', '6', '[0-9]+' );
+$reporter->addArg( 'minqueues', 'Minimum number of queues', '4', '[0-9]+' );
+$reporter->addArg( 'maxmsgready', 'Maximum number of messages ready', '500', '[0-9]+' );
+$reporter->processArgv(@ARGV);
+my $url = $reporter->argValue( 'url' );
+my $cparam = $reporter->argValue( 'cparam' );
+my $minexchanges = $reporter->argValue( 'minexchanges' );
+my $minqueues = $reporter->argValue( 'minqueues' );
+my $maxmsgready = $reporter->argValue( 'maxmsgready' );
+
+my $out = $reporter->loggedCommand( "curl $cparam '$url'" );
+if ( $? != 0 || $out !~ /{/ )
+{
+	$reporter->failPrintAndExit( 'cURL command failed: ' . $! . $out );
+}
+
+my $data = decode_json( $out );
+if ( $? != 0 )
+{
+	$reporter->failPrintAndExit( 'Could not decode as JSON data: ' . $! . $out );
+}
+
+my $dump = Dumper( $data );
+$reporter->log( 'debug', "JSON output: $dump" );
+
+if ( !defined $data->{object_totals} )
+{
+	$reporter->failPrintAndExit( 'No object totals found in JSON data' );
+}
+
+my $exchanges = $data->{object_totals}->{exchanges};
+my $queues = $data->{object_totals}->{queues};
+my $msgready = $data->{queue_totals}->{messages_ready};
+
+my $benchmark = $reporter->addNewBenchmark( 'Overview' );
+$benchmark->setStatistic( 'Channels', $data->{object_totals}->{channels} );
+$benchmark->setStatistic( 'Connections', $data->{object_totals}->{connections} );
+$benchmark->setStatistic( 'Consumers', $data->{object_totals}->{consumers} );
+$benchmark->setStatistic( 'Exchanges', $exchanges );
+$benchmark->setStatistic( 'Queues', $queues );
+$benchmark->setStatistic( 'Messages', $data->{queue_totals}->{messages} );
+$benchmark->setStatistic( 'Messages Ready', $data->{queue_totals}->{messages_ready} );
+$benchmark->setStatistic( 'Messages Unacknowledged', $data->{queue_totals}->{messages_unacknowledged} );
+
+$reporter->failPrintAndExit( "Expected $minexchanges exchanges but found $exchanges" ) if $exchanges < $minexchanges;
+$reporter->failPrintAndExit( "Expected $minqueues queues but found $queues" ) if $queues < $minqueues;
+$reporter->failPrintAndExit( "Expected less than $maxmsgready messages ready but found $msgready" ) if $msgready > $maxmsgready;
+
+$reporter->setResult(1);
+$reporter->print();

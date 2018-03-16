@@ -1,0 +1,71 @@
+#!/usr/bin/env perl
+
+use Inca::Reporter::SimpleUnit;
+use strict;
+use warnings;
+
+my $reporter = new Inca::Reporter::SimpleUnit( 
+  name => 'grid.middleware.globus.unit.rls',
+  url => "http://www.globus.org",
+  version => 5,
+  description => "Simple tests of RLS server",
+  unit_name => "rslTest"
+);
+$reporter->addDependency('Inca::Reporter::GridProxy');
+$reporter->addArg('server', 'Hostname:port of RLS server');
+$reporter->processArgv( @ARGV );
+my $server = $reporter->argValue( 'server' );
+
+# ping rls server
+my $output = $reporter->loggedCommand("globus-rls-admin -p rls://$server");
+if( $? != 0 ) {
+  $reporter->failPrintAndExit("ping of rls://$server failed: $output $!");
+}
+
+# check to see mapping doesn't already exist and delete if so
+my @pfns = $reporter->loggedCommand("globus-rls-cli query lrc lfn mylfn1 rls://$server" ); 
+if ( $? == 0 && scalar(@pfns) > 0 ) {
+  for my $pfn ( @pfns ) {
+	  ($pfn) = $pfn =~ /\s*\S+:\s*(\S+)/;
+    $output = $reporter->loggedCommand("globus-rls-cli delete mylfn1 $pfn rls://$server" ); 
+    if( $? != 0 ) {
+      $reporter->failPrintAndExit("delete of pfn failed rls://$server: $output $!");
+    }
+  }
+}
+
+# add a logical file mapping to catalog
+$output = $reporter->loggedCommand("globus-rls-cli create mylfn1 mypfn1 rls://$server" ); 
+if( $? != 0 ) {
+  $reporter->failPrintAndExit("create lfn failed to rls://$server: $output $!");
+}
+
+# add another physical file mapping to mylfn1
+$output = $reporter->loggedCommand("globus-rls-cli add mylfn1 mypfn2 rls://$server" ); 
+if( $? != 0 ) {
+  $reporter->failPrintAndExit("add pfn to lfn failed rls://$server: $output $!");
+}
+
+# lookup by LFN 
+$output = $reporter->loggedCommand("globus-rls-cli query lrc lfn mylfn1 rls://$server" ); 
+if( $? != 0 ) {
+  $reporter->failPrintAndExit("query by lfn failed rls://$server: $output $!");
+}
+
+# lookup by PFN 
+$output = $reporter->loggedCommand("globus-rls-cli query lrc pfn mypfn2 rls://$server" ); 
+if( $? != 0 ) {
+  $reporter->failPrintAndExit("query by pfn failed rls://$server: $output $!");
+}
+
+# lookup by PFN 
+for my $pfn ( qw(mypfn1 mypfn2) ) {
+  $output = $reporter->loggedCommand("globus-rls-cli delete mylfn1 $pfn rls://$server" ); 
+  if( $? != 0 ) {
+    $reporter->failPrintAndExit("delete of pfn failed rls://$server: $output $!");
+  }
+}
+
+$reporter->unitSuccess();
+$reporter->print( );
+

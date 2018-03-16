@@ -1,0 +1,28 @@
+<!DOCTYPE project [ 
+	<!ENTITY inca-common-build SYSTEM "etc/common/build-common.xml">
+]>
+
+<!-- =======================================================================
+
+
+Build file for the Inca Depot Source Code
+
+Notes:
+This is a build file for use with the Jakarta Ant build tool.
+
+Prerequisites:
+
+jakarta-ant from http://jakarta.apache.org
+
+Build Instructions:
+Invoke "ant"
+
+============================================================================ -->
+
+<project name="depot" default="help">
+
+	<property name="package.name" value="inca-depot"/>
+  <property name="jar.name" value="inca-depot"/>
+	&inca-common-build;
+
+</project>

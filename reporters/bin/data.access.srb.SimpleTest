@@ -1,0 +1,27 @@
+#!/usr/bin/env perl
+
+use warnings;
+use strict;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'data.access.srb.SimpleTest',
+  version => 2,
+  description => 'This reporter tests SRB commands',
+  url => 'http://www.sdsc.edu/DICE/SRB',
+  unit_name => 'SRB_Smkdir_test'
+);
+$reporter->processArgv(@ARGV);
+
+my $dir = "tmp$$";
+my $output;
+if(($output=$reporter->loggedCommand('Sinit')) eq '' &&
+   ($output=$reporter->loggedCommand("Smkdir $dir")) eq '' &&
+   ($output=$reporter->loggedCommand("Srmdir $dir")) eq '' &&
+   ($output=$reporter->loggedCommand("Sls $dir")) =~ /No such dataset/) {
+  $reporter->unitSuccess();
+} else {
+  $reporter->unitFailure($output);
+}
+$reporter->loggedCommand('Sexit');
+$reporter->print();

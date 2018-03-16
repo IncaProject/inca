@@ -1,0 +1,60 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use File::Basename;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+	name => 'grid.middleware.genesisii.copy.unit',
+	version => 1,
+	description => 'GFFS file copy from grid directory to local directory',
+	unit_name => 'gffs_copy'
+);
+$reporter->addArg( 'src', 'Path to grid file', '/grid.info' );
+$reporter->addArg( 'regex', 'Text regex to verify in copied grid file', 'This is the XSEDE GFFS Production Grid' );
+$reporter->processArgv( @ARGV );
+my $src = $reporter->argValue( 'src' );
+my $regex = $reporter->argValue( 'regex' );
+
+my $scratchDir = "/tmp/genesisii.copy.unit.$$";
+if ( ! mkdir( $scratchDir ) ) 
+{
+	failClean( "Cannot mkdir scratch dir $scratchDir" );
+}
+$reporter->tempFile( $scratchDir );
+if ( ! chdir( $scratchDir ) ) 
+{
+	failClean( "Cannot change to scratch dir $scratchDir" );
+}
+
+my $cmd = "grid cp grid:$src local:.";
+my $out = $reporter->loggedCommand( $cmd );
+if ( $? )
+{
+	failClean( "Copy failed: $out $!" );
+}
+
+my $fn = basename( $src );
+$cmd = "cat $fn";
+$out = $reporter->loggedCommand( $cmd );
+if ( $? )
+{
+	failClean( "Cat failed: $out $!" );
+}
+elsif ( ! grep( /$regex/, $out ) )
+{
+	failClean( "Text not found in copied grid file.  Grid file contains: $out" );
+}
+
+
+$reporter->unitSuccess();
+$reporter->print();
+exit;
+
+sub failClean 
+{
+	my $err = shift;
+	$err =~ s/$$/PID/g;
+	$reporter->failPrintAndExit( $err );
+}

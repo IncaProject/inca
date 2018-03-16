@@ -1,0 +1,72 @@
+#!/usr/bin/env perl
+
+## Author: Arvind Gopu (agopu [at] cs.indiana.edu)
+## First Edited Date: March 12 2004
+
+use strict;
+use warnings;
+use Inca::Reporter::SimpleUnit;
+
+my $reporter = new Inca::Reporter::SimpleUnit(
+  name => 'cluster.compiler.any.unit',
+  version => 3,
+  description => 'Tests that a specified compiler compiles hello world',
+  url => 'http://biokdd.informatics.indiana.edu/~agopu/docs/inca_reporters/cluster.compiler.any.unit/',
+);
+$reporter->addArg('compiler', 'Path to compiler to do unit test on', '');
+$reporter->addArg('lang', 'Language to test', '', 'c|c\+\+|fortran|java');
+$reporter->processArgv(@ARGV);
+my $compiler = $reporter->argValue('compiler');
+my $lang = $reporter->argValue('lang');
+if($compiler eq '') {
+  $compiler = $lang eq 'c++' ? 'g++' : $lang eq 'fortran' ? 'g77' :
+              $lang eq 'java' ? 'javac' : 'gcc';
+}
+if($lang eq '') {
+  $lang = $compiler =~ /cc/ ? 'c' : $compiler =~ /\+\+|xx|CC/ ? 'c++' :
+          $compiler =~ /77|f/ ? 'fortran' : $compiler =~ /j/ ? 'java' : 'c';
+}
+
+my %progs = (
+ 'c' => '
+#include <stdio.h>
+int main (int argc, char **argv) {
+  printf("Hello World\n");
+  return 0;
+}
+',
+  'c++' => '
+#include <iostream>
+using namespace std;
+int main() {
+    cout << "Hello World" << endl;
+    return 0;
+}
+',
+  'fortran' => '
+      PROGRAM HELLO
+      WRITE (*,100)
+      STOP
+  100 FORMAT (\'Hello World\')
+      END
+',
+  'java' => '
+  public class Hello {
+    static public void main(String args[]) {
+      System.out.println("Hello World");
+    }
+  }
+'
+);
+$reporter->setUnitName($compiler);
+
+my $output = $reporter->compiledProgramOutput
+  (compiler => $compiler, code => $progs{$lang}, language => $lang);
+if(!$output) {
+  $reporter->unitFailure("$compiler failed: $!");
+} elsif($output !~ /Hello World/) {
+  $reporter->unitFailure("Program produced bad output: $output");
+} else {
+  $reporter->unitSuccess();
+}
+$reporter->print();

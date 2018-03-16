@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my $program = $0;
+my $init_num = $ARGV[0];
+my $sleep = $ARGV[1];
+
+my $i;
+print "$init_num: $$:  my pid is $$\n";
+for ( $i = 0; $i < $init_num; $i++ ) {
+  my $pid;
+  if ( $pid = fork() ) {
+    print "$init_num: $$:  $pid\n";
+  } else {
+    exec $0, $init_num - 1, $sleep;
+  }
+}
+sleep $sleep;
+
+
