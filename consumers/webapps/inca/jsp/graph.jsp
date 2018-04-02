@@ -196,7 +196,7 @@ graph.jsp?series=testName,resourceName,target[,label][&amp;series=testName,resou
             <c:set var="addcheck">
               <c:if test="${fn:contains(allmetrics, availMetric)}">checked=""</c:if>
             </c:set>
-            <input type="checkbox" name="metric" value="${availMetric}" "${addcheck}"/>
+            <input type="checkbox" name="metric" value="${availMetric}" ${addcheck}/>
             ${availMetric}
           </td>
         </tr>
