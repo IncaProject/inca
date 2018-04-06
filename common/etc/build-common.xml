@@ -319,29 +319,6 @@
 	</target>
 
 	<!-- =================================================================== -->
-	<!-- copy over dependencies if needed                                    -->
-	<!-- =================================================================== -->
-	<target name="populate-depends"
-		description="Copy over project dependencies">
-
-		<mkdir dir="${build.lib}"/>
-		<loadfile property="depends" srcFile="${build.dependencyfile}"/>
-		<foreach list="${depends}" delimiter="${line.separator}"
-			target="copyContribFileFromSVN" param="fileSpec"/>
-
-		<property prefix="version" file="version.svn"/>
-    <!-- use HEAD for version if minor not set -->
-		<property name="version.inca" value="HEAD"/> 
-		<mkdir dir="${build.bin}"/>
-    <antcall target="copyFileFromSVN"> 
-       <param name="relSvnPath" value="devel/common/sbin/inca"/>
-       <param name="relPath" value="bin/inca"/>
-       <param name="version" value="@${version.inca}"/>
-       <param name="perm" value="755"/>
-    </antcall>
-	</target>
-
-	<!-- =================================================================== -->
 	<!-- Release this version of the component                               -->
 	<!-- =================================================================== -->
 	<target name="release" description="tag this as a release">
