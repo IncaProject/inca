@@ -1,0 +1,18 @@
+1307c1307,1321
+<         return parsedate($date);
+---
+>         my $result = parsedate($date);
+>         # DST work-around: when incrementing by days, weeks, or months, the
+>         # code above can pass to parsedate a time that falls in the skipped
+>         # hour during a DST advance, e.g., 02:10:00 2007/03/11 in the U.S.
+>         # parsedate returns the value an hour earlier, 01:10:00 2007/03/11 for
+>         # this example, which calc_time again advances to 02:10:00, leading to
+>         # runaway execution of the entry.  The check below looks for the
+>         # expected hour in parsedate's returned value and adds an hour if it
+>         # isn't found.  This has the effect of skipping any executions that are
+>         # scheduled during the DST skipped hour.
+>         if(localtime($result) !~ sprintf(" %02d", $dest_hour))
+>         {
+>             $result = $self->calc_time($result + 3600, $expanded);
+>         }
+>         return $result;

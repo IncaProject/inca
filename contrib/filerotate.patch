@@ -1,0 +1,161 @@
+--- work/Log-Dispatch-FileRotate-1.13/FileRotate.pm	Thu Jul 28 21:49:09 2005
++++ work/Log-Dispatch-FileRotate-1.13/FileRotate.pm.new	Thu Jul 28 21:49:02 2005
+@@ -11,6 +11,7 @@
+ 
+ use Date::Manip;  # For time based recurring rotations
+ use File::Spec;   # For file-names
++use LockFile::Simple;
+ 
+ use Params::Validate qw(validate SCALAR BOOLEAN);
+ Params::Validate::validation_options( allow_extra => 1 );
+@@ -37,7 +38,7 @@
+ 
+ 	# Turn ON/OFF debugging as required
+ 	$p{'DEBUG'} ? $self->debug(1) : $self->debug(0);
+-	
++
+ 	# Size defaults to 10meg in all failure modes, hopefully
+ 	my $ten_meg = 1024*1024*10;
+ 	my $two_gig = 1024*1024*1024*2;
+@@ -53,13 +54,10 @@
+ 
+ 	# Get a name for our Lock file
+ 	my $name = $self->{params}->{filename};
+-	my ($vol, $dir, $f) = File::Spec->splitpath($name);
+-	$dir = '.' unless $dir;
+-	$f = $name unless $f;
+-
+-	my $lockfile = File::Spec->catpath($vol, $dir, ".".$f.".LCK");
+-	warn "Lock file is $lockfile\n" if $self->{'debug'};
+-	$self->{'lf'} = $lockfile;
++	$self->{'lf'} = $name;
++
++        $self->{'lockmgr'} = LockFile::Simple->make(-format => '/tmp/alien-%p.lck',
++				   -max => 20, -delay => 1, -nfs => 1);
+ 
+ 	# Have we been called with a time based rotation pattern then setup
+ 	# timebased stuff. TZ is important and must match current TZ or all
+@@ -183,19 +181,6 @@
+ 
+ 	# Prime our time based data outside the critical code area
+ 	my ($in_time_mode,$time_to_rotate) = $self->time_to_rotate();
+-
+-	# Handle critical code for logging. No changes if someone else is in
+-	if( !$self->lfhlock_test() )
+-	{
+-		warn "$$ waiting on lock\n" if $self->{debug};
+-		unless($self->lfhlock())
+-		{
+-			warn "$$ failed to get lock. returning\n" if $self->{debug};
+-			return;
+-		}
+-		warn "$$ got lock after wait\n" if $self->{debug};
+-	}
+-
+ 	my $size   = (stat($fh))[7];   # Stat the handle to get real size
+ 	my $inode  = (stat($fh))[1];   # get real inode
+ 	my $finode = (stat($name))[1]; # Stat the name for comparision
+@@ -259,8 +244,6 @@
+ 		$self->logit($p{message});
+ 	}
+ 	#else size is zero :-} just don't do anything!
+-
+-	$self->lfhunlock();
+ }
+ 
+ sub DESTROY
+@@ -271,10 +254,6 @@
+     {
+ 		delete $self->{LDF};  # Should get rid of current LDF
+     }
+-
+-	# Clean up locks
+-	close $self->{lfh} if $self->{lfh};
+- 	unlink $self->{lf} if -f $self->{lf};
+ }
+ 
+ sub logit
+@@ -549,17 +528,12 @@
+ 
+ 
+ # Lock and unlock routines. For when we need to write a message.
+-use Fcntl ':flock'; # import LOCK_* constants
+ 
+ sub lock 
+ {
+ 	my $self = shift;
+ 
+-	flock($self->{LDF}->{fh},LOCK_EX);
+-
+-	# Make sure we are at the EOF
+-	seek($self->{LDF}->{fh}, 0, 2);
+-
++        $self->{'lockmgr'}->lock($self->{lf}) || die "Can't lock $self->{lf}\n";
+ 	warn localtime() ." $$ Locked\n" if $self->{debug};
+ 	return;
+ }
+@@ -567,7 +541,7 @@
+ sub unlock 
+ {
+ 	my $self = shift;
+-	flock($self->{LDF}->{fh},LOCK_UN);
++        $self->{'lockmgr'}->unlock($self->{lf}) || die "Can't unlock $self->{lf}\n";
+ 	warn localtime() . " $$ unLocked\n" if $self->{debug};
+ }
+ 
+@@ -585,19 +559,14 @@
+ {
+ 	my $self = shift;
+ 
+-	if (open(LFH, ">>$self->{lf}"))
++	if ($self->{'lockmgr'}->trylock($self->{lf}))
+ 	{
+-		$self->{lfh} = *LFH;
+-		if (flock($self->{lfh}, LOCK_EX | LOCK_NB))
+-		{
+-			warn "$$ got lock on Lock File ".$self->{lfh}."\n" if $self->{debug};
+-			return 1;
+-		}
++		warn "$$ got lock on Lock File ".$self->{lf}."\n" if $self->{debug};
++		return 1;
+ 	}
+ 	else
+ 	{
+-		$self->{lfh} = 0;
+-		warn "$$ couldn't get lock on Lock File\n" if $self->{debug};
++		warn "$$ couldn't get lock on $self->{lf} File\n" if $self->{debug};
+ 		return 0;
+ 	}
+ }
+@@ -605,29 +574,14 @@
+ sub lfhlock
+ {
+ 	my $self = shift;
++	$self->{'lockmgr'}->lock($self->{lf});
+ 
+-	if (!$self->{lfh})
+-	{
+-		if (!open(LFH, ">>$self->{lf}"))
+-		{
+-			return 0;
+-		}
+-		$self->{lfh} = *LFH;
+-	}
+-
+-	flock($self->{lfh},LOCK_EX);
+ }
+ 
+ sub lfhunlock 
+ {
+ 	my $self = shift;
+-
+-	if($self->{lfh})
+-	{
+-		flock($self->{lfh},LOCK_UN);
+-		close $self->{lfh};
+-		$self->{lfh} = 0;
+-	}
++        $self->{'lockmgr'}->unlock($self->{lf});
+ }
+ 
+ sub debug
