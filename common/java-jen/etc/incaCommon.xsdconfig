@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<xb:config
-	xmlns:xb="http://xml.apache.org/xmlbeans/2004/02/xbean/config">
-	<xb:namespace uri="http://inca.sdsc.edu/dataModel/util_2.0">
-		<xb:package>edu.sdsc.inca.dataModel.util</xb:package>
-	</xb:namespace>
-
-</xb:config>
