@@ -257,18 +257,7 @@ sub _getVersionFromFile {
   my $line = <VERSION>;
   ($version) = $line =~ /\S+=(\S+)/;
 
-  # read minor version if it exists in the format minorVersion=<VERSION>.
-  # If not there, than try to get it from SVN.  Otherwise, you 'x'.
-  if ($line=<VERSION>){
-    ($minorversion) = $line =~ /\S+=(\S+)/;
-  } elsif ( -d ".svn" ) {
-    my $svninfo = `svn info | grep "Revision"`;
-    ($minorversion) = $svninfo =~ /\S+:\s+(\S+)/;
-  } else {
-    $minorversion = "x";
-  }
-
-  return "$version.$minorversion";
+  return "$version";
 }
 
 #-----------------------------------------------------------------------------#
