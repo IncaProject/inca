@@ -1,0 +1,939 @@
+#!/usr/bin/perl
+
+###############################################################################
+
+=head1 NAME
+
+inca-devel - Inca developer tool for creating distributions and testing
+
+=head1 SYNOPSIS
+
+inca-devel <command> [options] [...]
+
+=head1 DESCRIPTION
+
+Creates tags and binary distributions
+
+=head1 ARGUMENTS
+
+=over 4 
+
+=item bindist <name> (branches|releases) <destdir>
+
+Create Inca binary distributions.  
+
+=over 4
+
+=item name
+
+A string containing the name of the release you want to create the binary
+distribution from (e.g., 2.0pre-release_r2)
+
+=item releases
+
+create a binary distribution from the most current project in the releases
+directory
+
+=item branches
+
+create a binary distribution from the most current project in the branches
+directory
+
+=item destdir
+
+The location to place the binary tarballs.
+
+=back
+
+=item diffDevelSrc <component> (branches|releases) 
+
+Diff the most current release of a component in either branches or releases
+and compare it to the src directory in devel.  Useful for checking to see if
+an update is needed on the branches or releases.
+
+=over 4
+
+=item component
+
+A string containing the name of component you want to be diffed
+
+=item releases
+
+Diff the specified component in releases against that in devel.
+
+=item branches
+
+Diff the specified component in branches against that in devel.
+
+=back
+
+=item ist <name> (branches|releases) <destdir>
+
+Create Inca binary and source distributions.  
+
+=over 4
+
+=item name
+
+A string containing the name of the release you want to create the 
+distribution from (e.g., 2.0pre-release_r2)
+
+=item releases
+
+create a distribution from the most current project in the releases
+directory
+
+=item branches
+
+create a distribution from the most current project in the branches
+directory
+
+=item destdir
+
+The location to place the tarballs.
+
+=back
+
+=item mergeDevelSrc <component> (branches|releases) 
+
+Merge the diffs of the devel directory into the most current release of a
+component in either branches or releases.  
+
+=over 4
+
+=item component
+
+A string containing the name of component you want to be updated
+
+=item releases
+
+Merge the changes in the devel directory of the specified component in
+releases. 
+
+=item branches
+
+Merge the changes in the devel directory of the specified component in
+branches. 
+
+=back
+
+=item srcdist <name> (branches|releases) <destdir>
+
+Create Inca source distributions.  
+
+=over 4
+
+=item name
+
+A string containing the name of the release you want to create the source
+distribution from (e.g., 2.0pre-release_r2)
+
+=item releases
+
+create a source distribution from the most current project in the releases
+directory
+
+=item branches
+
+create a source distribution from the most current project in the branches
+directory
+
+=item destdir
+
+The location to place the binary tarballs.
+
+=back
+
+=item tag [-u] <name> (branches|releases)
+
+Create a tag for an inca release.  This will create a directory under either
+branches or releases and will use the most current release of each of the
+components as its externals.  When used with the -u flag, the tag will
+be updated (rather than created).
+
+=over 4
+
+=item name
+
+A string containing the name of the release you want to create 
+(e.g., 2.0pre-release_r2)
+
+=item branches
+
+create a tag <name> using the most current release for each of the components
+in the branches directory
+
+=item releases
+
+create a tag <name> using the most current release for each of the components
+in the releases directory
+
+=back
+
+=item updateContribDependency <dependency> (branches|releases)
+
+Update a dependency version to the latest version in contrib in all
+relevant components in either the branches or releases directory.
+
+=over 4
+
+=item dependency
+
+A dependency in the Dependencies file (e.g., inca-common.jar) that should
+be updated to the latest version in contrib
+
+=item branches
+
+Update a dependency version to the latest version in contrib in all 
+relevant components under branches.
+
+=item releases
+
+Update a dependency version to the latest version in contrib in all 
+relevant components under releases.
+
+=back
+
+=item updateIncaScriptVersion (branches|releases)
+
+Update the version of the inca script listed in version.svn to the latest in
+all of the components in either the branches or releases directory.
+
+=over 4
+
+=item branches
+
+Update the version of the inca script listed in version.svn in the most current
+version of all of the components under branches.
+
+=item releases
+
+Update the version of the inca script listed in version.svn in the most
+current version of all of the components under releases.
+
+=back
+
+=item updateEtcCommon (branches|releases)
+
+Update the version of etc/common to the latest in all of the components
+in either the branches or releases directory.
+
+=over 4
+
+=item branches
+
+Update the version of etc/common in the most current version of all of the
+components under branches.
+
+=item releases
+
+Update the version of etc/common in the most current version of all of the
+components under releases.
+
+=back
+
+=back
+
+=cut
+###############################################################################
+
+#=============================================================================#
+# Usage
+#=============================================================================#
+
+# pragmas
+use strict;
+use warnings;
+
+# Perl standard
+use Getopt::Long qw(:config no_ignore_case no_auto_abbrev require_order);
+use Data::Dumper;
+use File::Temp qw(tempfile tempdir);
+use File::Path;
+use Cwd;
+
+# CPAN
+use Pod::Usage;
+
+#=============================================================================#
+# Global Vars
+#=============================================================================#
+
+our ( $VERSION ) = '$Revision: 1.5 $' =~ 'Revision: (.*) ';
+
+my %DEFAULT_ARGS = ();
+my $SVNROOT = "http://inca.xsede.org:9080/localdisk/inca/subversion/inca";
+my $SVN_PREFIX = "svn://"; 
+my $SVNROOT_SSH = "$SVN_PREFIX" . "capac.sdsc.edu/inca";
+my $BRANCHES = "$SVNROOT/branches";
+my $BRANCHES_SSH = "$SVNROOT_SSH/branches";
+my $RELEASES = "$SVNROOT/releases";
+my $RELEASES_SSH = "$SVNROOT_SSH/releases";
+my $DEVEL = "$SVNROOT/trunk/devel";
+my $DEVEL_SSH = "$SVNROOT_SSH/trunk/devel";
+my %TAG_DIR = ( branches => "$BRANCHES/inca", releases => "$RELEASES/inca",
+                neon => "$BRANCHES/neon" );
+my %TAG_DIR_SSH = ( branches => "$BRANCHES_SSH/inca", 
+                    releases => "$RELEASES_SSH/inca",
+                    neon => "$BRANCHES_SSH/neon" );
+my %TYPE_DIR = ( branches => $BRANCHES, releases => $RELEASES, 
+                 neon => "$BRANCHES/neon" );
+my %TYPE_DIR_SSH = ( branches => $BRANCHES_SSH, releases => $RELEASES_SSH,
+                     neon => "$BRANCHES_SSH/neon" );
+my @PERL_COMPONENTS = qw(Inca-ReporterManager); 
+my @MAKE_COMPONENTS = qw(Inca-Reporter); 
+my @JAVA_COMPONENTS = qw(inca-agent inca-common-java inca-consumers inca-depot incat);
+my @COMPONENTS = ( @PERL_COMPONENTS, @JAVA_COMPONENTS, @MAKE_COMPONENTS );
+my %DEVEL_MODULE_NAMES = ( 
+  'Inca-Reporter' => 'reporters',
+  'Inca-ReporterManager' => 'manager',
+  'inca-agent' => 'agent',
+  'inca-common-java' => 'common/java',
+  'inca-consumers' => 'consumers',
+  'inca-depot' => 'depot',
+  'incat' => 'incat' );
+my $UPDATE_EXTERNALS_URL = "$SVNROOT/trunk/devel/common/sbin/updateExternals";
+
+#=============================================================================#
+# Functions
+#=============================================================================#
+
+#-----------------------------------------------------------------------------#
+# createBinDist( $options, @args )
+#
+# Create an Inca binary distribution from either the branches or releases
+# directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub createBinDist {
+  my $options = shift;
+  my @args = @_;
+
+  # error checking
+  my $release = $args[0];
+  die "No name specified for bindist" if ! defined $release;
+  my $destdir = $args[1];
+  die "Error, no destination directory specified" if ! defined $destdir;
+  $destdir = getcwd() if $destdir eq ".";
+  die "Please remove $destdir/inca-$release; will not overwrite" if -e "$destdir/inca-$release";
+  `wget -q https://github.com/IncaProject/inca/archive/$release.tar.gz`;
+  die "Tag '$release' does not exist" if $? != 0;
+
+  print "Unpacking '$release' to $destdir/inca\n";
+  mkdir($destdir);
+  `tar xf $release.tar.gz -C $destdir`; 
+  die "Unpack of '$release' failed" if $? != 0;
+  print "Creating version file with $release\n";
+  `echo version=$release > $destdir/inca-$release/version`;
+  for my $component ( @COMPONENTS ) {
+    my $develname = $DEVEL_MODULE_NAMES{$component};
+    die "'$component' missing from checkout" if ! -d "$destdir/inca-$release/$develname";
+  }
+
+  print "Creating binary distributions\n";
+  for my $component ( @JAVA_COMPONENTS ) {
+    print "  $component...";
+    my @files = glob( "$component-bin.tar.gz $component.tar.gz" );
+    @files = grep( -f $_, @files );
+    if ( scalar(@files) == 1 ) {
+      print "already built...skipping\n";
+      next;
+    } elsif ( scalar(@files) != 0 ) {
+      die "Could not determine if $component is already built: @files";
+    } 
+    my $cwd = getcwd();
+    my $develname = $DEVEL_MODULE_NAMES{$component};
+    print "$destdir/inca-$release/$develname\n";
+    chdir "$destdir/inca-$release/$develname" || die "chdir $destdir/inca-$release/$develname failed: $!";
+    if ( grep(/^$component$/, @JAVA_COMPONENTS) ) {
+      `ant bindist`;
+      die "'ant bindist' failed" if $? != 0;
+    } else {
+      die "Don't know how to bindist $component";
+    }
+    my ( $component_tarball ) = glob( "$component*.tar.gz" );
+    my $orig_component_tarball = $component_tarball;
+    $component_tarball =~ s/[-_]\d+\.\d+//; # remove version
+    rename( $orig_component_tarball, $component_tarball ) || die "Unable to rename '$component'"; 
+    chdir $cwd;
+    `cp $destdir/inca-$release/$develname/$component_tarball $destdir`;
+    die "No tar.gz created for '$component'" if $? != 0;
+    print "done\n";
+  }
+  rmtree( "$destdir/inca-$release" );
+  die "Unable to cleanup temporary directory '$destdir/inca'" if $? != 0;
+}
+
+#-----------------------------------------------------------------------------#
+# createDist( $options, @args )
+#
+# Create an Inca distribution from either the branches or releases
+# directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub createDist {
+  createBinDist( @_ );
+  createSrcDist( @_ );
+
+  print "Extract buildRM.sh\n";
+  unlink( "buildRM.sh" ) if -f "buildRM.sh";
+  `tar -x sbin/buildRM.sh -f inca-agent-bin.tar.gz -z`;
+  die "Unable to extract buildRM.sh" if $? != 0;
+  link( "sbin/buildRM.sh", "buildRM.sh" ) || die "Unable to move buildRM.sh";
+  rmtree( "sbin" );
+
+  print "Download incaInstall.sh\n";
+  unlink( "incaInstall.sh" ) if -f "incaInstall.sh";
+  my $version = defined $ENV{INCA_VERSION} ? $ENV{INCA_VERSION} : "latest";
+  `svn cat $DEVEL/tools/incaInstall.sh |  sed "s#\/latest#\/$version#" > incaInstall.sh`;
+  chmod( 0755, "incaInstall.sh" );
+  die "Unable to download incaInstall.sh" if $? != 0;
+
+  print "Download ChangeLog\n";
+  unlink( "ChangeLog" ) if -f "ChangeLog";
+  `svn cat $DEVEL/ChangeLog > ChangeLog`;
+  die "Unable to download ChangeLog" if $? != 0;
+
+  print "Download UpgradeNotes\n";
+  unlink( "UpgradeNotes" ) if -f "UpgradeNotes";
+  `svn cat $DEVEL/UpgradeNotes > UpgradeNotes`;
+  die "Unable to download UpgradeNotes" if $? != 0;
+
+  print "Creating reporter api doc\n";
+  rmtree( "repdocs" ) if -d "repdocs";
+  `tar zxvf Inca-Reporter.tar.gz`;
+  die "Unable to untar Inca-Reporter" if $? != 0;
+  `mv Inca-Reporter-*[0-9]/docs repdocs`;
+  `rm -fr Inca-Reporter-*[0-9]`;
+  die "Unable to remove Inca-Reporter-*" if $? != 0;
+
+  print "Creating client api doc\n";
+  rmtree( "wsdocs" ) if -d "wsdocs";
+  `tar zxvf Inca-WS.tar.gz`;
+  die "Unable to untar Inca-WS" if $? != 0;
+  `mv Inca-WS-*[0-9]/docs/Inca-WS wsdocs`;
+  die "Unable to move wsdocs" if $? != 0;
+  `mv Inca-WS-*[0-9]/etc/IncaWS.wsdl IncaWS.wsdl`;
+  die "Unable to move IncaWS.wsdl" if $? != 0;
+  `rm -fr Inca-WS-*[0-9]`;
+  die "Unable to remove Inca-WS-*" if $? != 0;
+
+  print "Creating java client api doc\n";
+  rmtree( "javawsdocs" ) if -d "javawsdocs";
+  `tar zxvf inca-common-java-src.tar.gz`;
+  die "Unable to untar inca-common-java-src" if $? != 0;
+  `cd inca-common-java*; ant javadoc`;
+  die "Unable to generate javadoc" if $? != 0;
+  `mv inca-common-java*[0-9]/docs/javadocs/inca-common-java javawsdocs`;
+  die "Unable to move javawsdocs" if $? != 0;
+  `rm -fr inca-common-java*[0-9]`;
+  die "Unable to remove inca-common-java" if $? != 0;
+}
+
+#-----------------------------------------------------------------------------#
+# createSrcDist( $options, @args )
+#
+# Create an Inca source distribution from either the branches or releases
+# directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub createSrcDist {
+  my $options = shift;
+  my @args = @_;
+
+  # error checking
+  my $name = $args[0];
+  die "No name specified for srcdist" if ! defined $name;
+  my $type = $args[1];
+  die "Must specify tag type (branches|releases)" if ! defined $type;
+  die "Uknown type of tag '$type'" if $type !~ /^(branches|releases)$/;
+  my $destdir = $args[2];
+  die "Error, no destination directory specified" if ! defined $destdir;
+  $destdir = getcwd() if $destdir eq ".";
+  `svn list $TAG_DIR{$type}/$name 2>&1 >/dev/null`;
+  die "Tag '$name' does not exist" if $? != 0;
+  die "Please remove $destdir/inca; will not overwrite" if -e "$destdir/inca";
+
+  print "Checking out '$TAG_DIR{$type}/$name' to $destdir/inca\n";
+  `svn checkout $TAG_DIR{$type}/$name $destdir/inca >/dev/null`;
+  die "Checkout of '$name' failed" if $? != 0;
+  for my $component ( @COMPONENTS ) {
+    die "'$component' missing from checkout" if ! -d "$destdir/inca/$component";
+  }
+
+  print "Creating source distributions\n";
+  for my $component ( @COMPONENTS ) {
+    print "  $component...";
+    my @files = glob( "$component-src.tar.gz $component.tar.gz" );
+    @files = grep( -f $_, @files );
+    if ( scalar(@files) == 1 ) {
+      print "already built...skipping\n";
+      next;
+    } elsif ( scalar(@files) != 0 ) {
+      die "Could not determine if $component is already built: @files";
+    } 
+    my $cwd = getcwd();
+    chdir "$destdir/inca/$component" || die "chdir $destdir/inca/$component failed";
+    if ( grep(/^$component$/, @PERL_COMPONENTS) ) {
+      `perl Makefile.PL`;
+      die "'perl Makefile.PL' failed" if $? != 0;
+      `make populate-depends 2>&1 >/dev/null`;
+      die "'make populate-depends' failed" if $? != 0;
+      `make dist`; 
+      die "'make dist' failed" if $? != 0;
+    } elsif ( grep(/^$component$/, @MAKE_COMPONENTS) ) {
+      `make populate-depends 2>&1 >/dev/null`;
+      die "'make populate-depends' failed" if $? != 0;
+      `make dist`;
+    } elsif ( grep(/^$component$/, @JAVA_COMPONENTS) ) {
+      `ant populate-depends`;
+      die "'ant populate-depends' failed" if $? != 0;
+      `ant srcdist`;
+      die "'ant srcdist' failed" if $? != 0;
+    } else {
+      die "Don't know how to srcdist $component";
+    }
+    my ( $component_tarball ) = glob( "$component*.tar.gz" );
+    my $orig_component_tarball = $component_tarball;
+    $component_tarball =~ s/[-_]\d+\.\d+//; # remove version
+    rename( $orig_component_tarball, $component_tarball ) || die "Unable to rename '$component'"; 
+    `cp $component_tarball $destdir`;
+    die "No tar.gz created for '$component'" if $? != 0;
+    chdir $cwd;
+    print "done\n";
+  }
+  rmtree( "$destdir/inca" );
+  die "Unable to cleanup temporary directory '$destdir/inca'" if $? != 0;
+}
+
+#-----------------------------------------------------------------------------#
+# createTag( $options, @args )
+#
+# Create or update a tag (i.e., a directory with svn:externals set to all of
+# the Inca components) in either the branches or releases directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub createTag {
+  my $options = shift;
+  my @args = @_;
+
+  my $name = $args[0];
+  die "No name specified for tag" if ! defined $name;
+  my $type = $args[1];
+  die "Must specify tag type (branches|releases)" if ! defined $type;
+  die "Uknown type of tag '$type'" if $type !~ /^(branches|releases)$/;
+  my $noAuthDir = "$TAG_DIR{$type}/$name";
+  my $authDir = "$TAG_DIR_SSH{$type}/$name";
+  if ( ! exists $options->{update} || ! $options->{update} ) {
+    `svn list $noAuthDir 2>&1 >/dev/null`;
+    die "Tag '$name' already exists" if $? == 0;
+    print "Creating tag directory '$authDir'\n";
+    `svn mkdir -m "Automated commit - create tag" $authDir >/dev/null`;
+    die "Unable to create tag directory '$authDir'" if $? != 0;
+  }
+
+  print "Determining latest release of each Inca component\n";
+  my $dir = "$SVNROOT/$type";
+  my ( $tmpfh, $tmpfilename ) = tempfile();
+  my $revision = `svn info $dir | grep Revision | cut -f 2 -d' '`;
+  chomp( $revision );
+  for my $component ( @COMPONENTS ) {
+    my $extern = `svn propget svn:externals $dir/$component/current`;
+    $extern =~ s/^(\S+)/$1 -r$revision/;
+    die "Propget on $component failed" if $? != 0;
+    chomp($extern);
+    print $tmpfh $extern;
+  }
+  close $tmpfh;
+
+  my $updatefilename = getUpdateExternals();
+  print "Updating svn:externals on '$authDir'\n";
+  `$updatefilename $authDir $tmpfilename > /dev/null`;
+
+  print "Done\n";
+  unlink $tmpfilename, $updatefilename;
+}
+
+#-----------------------------------------------------------------------------#
+# diffDevelSrc( $options, @args )
+#
+# Diff the specified component in branches or releases against its src
+# directory in the devel directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub diffDevelSrc {
+  my $options = shift;
+  my @args = @_;
+
+  my $component = $args[0];
+  die "No name specified for tag" if ! defined $component;
+  my $type = $args[1];
+  die "Must specify tag type (branches|releases|neon)" if ! defined $type;
+  die "Uknown type of tag '$type'" if $type !~ /^(branches|releases|neon)$/;
+  my $svnDir = getDirForComponent( $type, $component, 0 );
+  my @dirs;
+  if ( grep(/^$component$/, @PERL_COMPONENTS) ) {
+    print "Diffing perl component $component\n";
+    @dirs = qw(cgi-bin etc lib bin sbin share t);
+  } elsif ( grep(/^$component$/, @MAKE_COMPONENTS) ) {
+    print "Diffing make component $component\n";
+    @dirs = qw(Makefile cgi-bin lib bin sbin share);
+  } else {
+    print "Diffing java component $component\n";
+    @dirs = qw(src etc css html img js jsp root webapps sbin);
+  }
+  for my $dir ( @dirs ) {
+    `svn ls $DEVEL/$DEVEL_MODULE_NAMES{$component}/$dir 2>&1 >/dev/null`;
+    next if ( $? != 0 ); 
+    my $recursive = $dir =~ /etc/ ? "-N" : "";
+    print `svn diff $recursive $svnDir/$dir $DEVEL/$DEVEL_MODULE_NAMES{$component}/$dir`;
+  }
+}
+
+#-----------------------------------------------------------------------------#
+# mergeDevelSrc( $options, @args )
+#
+# Merge the differences in the devel directory of the specified component in
+# branches or releases. 
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub mergeDevelSrc {
+  my $options = shift;
+  my @args = @_;
+
+  my $component = $args[0];
+  die "No name specified for tag" if ! defined $component;
+  my $type = $args[1];
+  die "Must specify tag type (branches|releases|neon)" if ! defined $type;
+  die "Uknown type of tag '$type'" if $type !~ /^(branches|releases|neon)$/;
+  my $svnDir = getDirForComponent( $type, $component, 1 );
+  rmtree( "inca.merge.tmp" ) if -d "inca.merge.tmp";
+  print "Checking out $svnDir...\n";
+  `svn checkout $svnDir inca.merge.tmp`;
+  my @dirs;
+  if ( grep(/^$component$/, @PERL_COMPONENTS) ) {
+    print "Merging perl component $component\n";
+    @dirs = qw(cgi-bin etc lib bin sbin share t);
+  } elsif ( grep(/^$component$/, @MAKE_COMPONENTS) ) {
+    print "Merging make component $component\n";
+    @dirs = qw(Makefile cgi-bin lib bin sbin share);
+  } else {
+    print "Merging ant component $component\n";
+    @dirs = qw(src etc webapps sbin);
+  }
+  for my $dir ( @dirs ) {
+    if ( -d "inca.merge.tmp/$dir" ) {
+      my $cmd = "cd inca.merge.tmp/$dir; svn merge $svnDir/$dir $DEVEL_SSH/$DEVEL_MODULE_NAMES{$component}/$dir";
+      print "$cmd\n";
+      `$cmd`;
+      die "Unable to merge changes in devel for $component" if $? != 0;
+    }
+  }
+  print "Committing changes to $svnDir...\n";
+  `svn commit -m "Automated commit - updating branch" inca.merge.tmp`;
+  die "Unable to commit changes in devel for $component" if $? != 0;
+  rmtree( "inca.merge.tmp" );
+}
+
+#-----------------------------------------------------------------------------#
+# updateContribDependency( $options, @args )
+#
+# Update a dependency version to the latest version in contrib in all
+# relevant components in either the branches or releases directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub updateContribDependency {
+  my $options = shift;
+  my @args = @_;
+
+  my $dependency = $args[0];
+
+  my $type = $args[1];
+  die "Must specify tag type (branches|releases)" if ! defined $type;
+  die "Uknown type of tag '$type'" if $type !~ /^(branches|releases)$/;
+
+  my $version = `svn info $SVNROOT/trunk/contrib/$dependency | grep Revision | cut -f 2 -d' '`;
+  die "Unable to retrieve current version of depedency $dependency" if $? != 0;
+  chomp( $version );
+
+  for my $component ( @COMPONENTS ) {
+    my $svnDir = getDirForComponent( $type, $component, 1 );
+    `svn cat $svnDir/Dependencies | grep "^$dependency"`;
+    if ( $? == 0 ) {
+      print "Updating version of $dependency to $version in $component\n";
+      rmtree( "inca.tmp.$$" );
+      `svn checkout $svnDir inca.tmp.$$`;
+      open( FILE, "<inca.tmp.$$/Dependencies" );
+      open( NEWFILE, ">inca.tmp.$$/Dependencies.new" );
+      while ( <FILE> ) {
+        if ( $_ =~ /^$dependency/ ) {
+          $_ =~ s/\@\d+/\@$version/;
+        } 
+        print NEWFILE $_;
+      }
+      close FILE;
+      close NEWFILE;
+      rename( "inca.tmp.$$/Dependencies.new", "inca.tmp.$$/Dependencies" );
+      `svn commit -m "Automated commit - update $component dependency  $dependency version" inca.tmp.$$`;
+      rmtree( "inca.tmp.$$" );
+    } else {
+      print "Dependency $dependency not in $component\n";
+    }
+  }
+
+}
+
+#-----------------------------------------------------------------------------#
+# updateIncaScriptVersion( $options, @args )
+#
+# Update the version of the inca script located in in version.svn in either
+# the branches or releases directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub updateIncaScriptVersion {
+  my $options = shift;
+  my @args = @_;
+
+  my $type = $args[0];
+  die "Must specify tag type (branches|releases)" if ! defined $type;
+  die "Uknown type of tag '$type'" if $type !~ /^(branches|releases)$/;
+
+  my $version = `svn info $SVNROOT/trunk/devel/common/sbin/inca | grep Revision | cut -f 2 -d' '`;
+  die "Unable to retrieve current version of inca script" if $? != 0;
+  chomp( $version );
+
+  for my $component ( @JAVA_COMPONENTS ) {
+    my $svnDir = getDirForComponent( $type, $component, 1 );
+    print "Updating inca version on '$svnDir\n";
+    rmtree( "version.svn.tmp" );
+    `svn checkout -N $svnDir version.svn.tmp`;
+    open( FH, "<version.svn.tmp/version.svn" ) || 
+      die "unable to open version.svn";
+    open( FHW, ">version.svn.tmp/version.svn.tmp" ) || 
+      die "unable to update version.svn";
+    my $line;
+    while ( ($line=<FH>) ) {
+      if ( $line =~ /^inca=/ ) {
+        print FHW "inca=$version\n";
+      } else {
+        print FHW $line;
+      }
+    }
+    close FH;
+    close FHW;
+    rename( "version.svn.tmp/version.svn.tmp", "version.svn.tmp/version.svn" );
+    `svn commit -m "Automated commit - update inca version" version.svn.tmp`;
+  }
+
+  for my $component ( @PERL_COMPONENTS, @MAKE_COMPONENTS ) {
+    my $svnDir = getDirForComponent( $type, $component, 1 );
+    print "Updating inca version on '$svnDir\n";
+    rmtree( "version.svn.tmp" );
+    `svn checkout -N $svnDir version.svn.tmp`;
+    open( FH, ">version.svn.tmp/version.svn" ) || 
+      die "unable to update version.svn";
+    print FH "sbin/inca \@$version\n";
+    close FH;
+    `svn commit -m "Automated commit - update inca version" version.svn.tmp`;
+  }
+  rmtree( "version.svn.tmp" );
+}
+
+#-----------------------------------------------------------------------------#
+# updateEtcCommon( $options, @args )
+#
+# Update the version of etc/common to the latest in all of the components
+# in either the branches or releases directory.
+#
+# Arguments:
+#
+# options  A reference to a hash array of command-line options
+#
+# args     An array of arguments to the tag command
+#
+# Returns:
+#-----------------------------------------------------------------------------#
+sub updateEtcCommon {
+  my $options = shift;
+  my @args = @_;
+
+  my $type = $args[0];
+  die "Must specify tag type (branches|releases)" if ! defined $type;
+  die "Uknown type of tag '$type'" if $type !~ /^(branches|releases)$/;
+
+  my $version = `svn info $SVNROOT/trunk/devel/common/etc | grep Revision | cut -f 2 -d' '`;
+  die "Unable to retrieve current version of etc/common" if $? != 0;
+  chomp( $version );
+
+  my ( $tmpfh, $tmpfilename ) = tempfile();
+  print $tmpfh "etc/common -r$version $SVNROOT/trunk/devel/common/etc\n";
+  close $tmpfh;
+  my $updatefilename = getUpdateExternals();
+  for my $component ( @COMPONENTS ) {
+    print "Updating svn:externals on '$TYPE_DIR_SSH{$type}/$component/current'\n";
+    my $currentDir = `svn propget svn:externals $TYPE_DIR{$type}/$component/current | cut -f 2 -d' '`;
+    die "Unable to determine most current dir for $component" if $? != 0;
+    chomp( $currentDir );
+    chomp( $currentDir );
+    print "$currentDir\n";
+    $currentDir =~ s/$BRANCHES/$BRANCHES_SSH/;
+    `$updatefilename $currentDir $tmpfilename > /dev/null`;
+  }
+  unlink $tmpfilename; 
+}
+
+#-----------------------------------------------------------------------------#
+# getUpdateExternals( )
+#
+# Download the updateExternals script to a temporary file and return the
+# file name
+#
+# Returns: A string containing the path to a file containing the
+# updateExternals script.
+#-----------------------------------------------------------------------------#
+sub getUpdateExternals {
+  print "Downloading updateExternals script\n";
+  my $updatefilename = "/tmp/updateExternals";
+  `svn cat $UPDATE_EXTERNALS_URL > $updatefilename`;
+  die "cannot download updateExternals" if $? != 0;
+  chmod 0755, $updatefilename;
+  return $updatefilename;
+}
+
+#-----------------------------------------------------------------------------#
+# getDirForComponent( )
+#
+# Download the updateExternals script to a temporary file and return the
+# file name
+#
+# Returns: A string containing the path to a file containing the
+# updateExternals script.
+#-----------------------------------------------------------------------------#
+sub getDirForComponent {
+  my $type = shift;
+  my $component = shift;
+  my $ssh = shift;
+
+  my $currentDir;
+  if ( $type =~ /neon/ ) {
+    $currentDir = "$TYPE_DIR{$type}/$component";
+  } else {
+    $currentDir = `svn propget svn:externals $TYPE_DIR{$type}/$component/current | cut -f 2 -d' '`;
+    die "Unable to determine most current dir for $component" if $? != 0;
+    chomp( $currentDir );
+    chomp( $currentDir );
+  }
+  if ( defined $ssh and $ssh ) {
+    $currentDir =~ s/$BRANCHES/$BRANCHES_SSH/;
+  }
+  return $currentDir;
+}
+
+#=============================================================================#
+# Main
+#=============================================================================#
+
+# check for --help and then read in command
+my %args = %DEFAULT_ARGS;
+GetOptions( \%args, "help|h" ) || pod2usage(1);
+if ( exists $args{help} ) {
+  pod2usage(-exitval => 0);
+}
+my $command = shift @ARGV;
+if ( ! defined $command ) {
+  print STDERR "Error, missing command\n.  Run with --help for more information\n";
+  exit 1;
+}
+
+# we have a command.  check for -help then route to proper function
+GetOptions( \%args, "help|h", "update|u" ) || pod2usage(1);
+if ( exists $args{help} ) {
+  pod2usage(-exitval => 0);
+}
+
+if ( $command =~ /^dist$/ ) {
+  createDist( \%args, @ARGV );
+} elsif ( $command =~ /^bindist$/ ) {
+  createBinDist( \%args, @ARGV );
+} elsif ( $command =~ /^srcdist$/ ) {
+  createSrcDist( \%args, @ARGV );
+} elsif ( $command =~ /^tag$/ ) {
+  createTag( \%args, @ARGV );
+} elsif ( $command =~ /^diffDevelSrc$/ ) {
+  diffDevelSrc( \%args, @ARGV );
+} elsif ( $command =~ /^mergeDevelSrc$/ ) {
+  mergeDevelSrc( \%args, @ARGV );
+} elsif ( $command =~ /^updateContribDependency$/ ) {
+  updateContribDependency( \%args, @ARGV );
+} elsif ( $command =~ /^updateEtcCommon$/ ) {
+  updateEtcCommon( \%args, @ARGV );
+} elsif ( $command =~ /^updateIncaScriptVersion$/ ) {
+  updateIncaScriptVersion( \%args, @ARGV );
+} else {
+  print STDERR "Error, unknown command '$command'.  Run with --help for more information\n";
+  exit 1;
+}
+
+__END__
+
+=head1 AUTHOR
+
+Shava Smallen <ssmallen@sdsc.edu>
+
+=cut
