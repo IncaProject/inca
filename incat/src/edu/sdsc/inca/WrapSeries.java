@@ -10,6 +10,7 @@ import edu.sdsc.inca.dataModel.util.Notifications.Notification;
 import edu.sdsc.inca.dataModel.util.Schedule;
 import edu.sdsc.inca.dataModel.util.Series;
 import edu.sdsc.inca.dataModel.util.SeriesConfig;
+import edu.sdsc.inca.dataModel.util.Tags;
 import edu.sdsc.inca.util.XmlWrapper;
 import java.awt.Color;
 import java.util.Enumeration;
@@ -283,7 +284,7 @@ public class WrapSeries {
    * @return the accepted output Comparitor class name, null if none
    */
   public String[] getTags() {
-    SeriesConfig.Tags tags = this.config.getTags();
+    Tags tags = this.config.getTags();
     return tags == null ? null : tags.getTagArray();
   }
 
@@ -513,7 +514,7 @@ public class WrapSeries {
    * @param tagStrings array of tags or null
    */
   public void setTags(String[] tagStrings) {
-    SeriesConfig.Tags tags = this.config.getTags();
+    Tags tags = this.config.getTags();
     if(tagStrings != null) {
       if(tags == null) {
         tags = this.config.addNewTags();
