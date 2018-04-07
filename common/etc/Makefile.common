@@ -20,8 +20,8 @@ create-var:
 
 populate-depends: 
 	@echo ${DEPEND}
-	if ( test ! -d ${PREFIX}/contrib ); then \
-	  mkdir ${PREFIX}/contrib; \
+	if ( test ! -d contrib ); then \
+	  mkdir contrib; \
 	fi
 	cp Dependencies contrib/Dependencies
 	$(MAKE) manifest >> $(LOG) 2>&1
