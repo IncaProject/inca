@@ -37,7 +37,7 @@ clean-doc:
 clean-tests:
 
 dist: distdir
-	distDir="$(NAME)-$(majorVersion).`svn info | grep Revision | awk ' {print $$2}'`"; \
+	distDir="$(NAME)-$(version)"; \
 	$(MV) $(DIST_TEMP) $${distDir}; \
 	$(TAR) $(TARFLAGS) $${distDir}.tar $${distDir}; \
 	$(RM_RF) $${distDir}; \
