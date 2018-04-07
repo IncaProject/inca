@@ -1,11 +1,4 @@
 
-	<!-- this taskdef allows us to use the foreach and propertyregex tasks -->
-	<taskdef resource="net/sf/antcontrib/antlib.xml">
-		<classpath>
-			<pathelement location="${basedir}/lib/ant-contrib.jar"/>
-		</classpath>
-	</taskdef>
-
 	<!-- get environment vars -->
 	<property environment="env"/>
 	<property name="debug" value="on"/>
@@ -29,20 +22,6 @@
 	<property name="build.output" value="${basedir}"/>
 	<property name="build.dependencyfile" value="${basedir}/Dependencies"/>
 
-	<property name="rep.root"
-		value="http://capac.sdsc.edu:9080/localdisk/inca/subversion/inca"/>
-	<property name="rep.root.ssh"
-		value="svn://capac.sdsc.edu/inca"/>
-	<property name="rep.branches" value="${rep.root}/branches/${package.name}"/>
-	<property name="rep.branches.ssh"
-            value="${rep.root.ssh}/branches/${package.name}"/>
-	<property name="rep.trunk" value="${rep.root}/trunk"/>
-	<property name="rep.contrib" value="${rep.trunk}/contrib"/>
-	<property name="rep.releases" value="${rep.root}/releases/${package.name}"/>
-	<property name="rep.releases.ssh" 
-            value="${rep.root.ssh}/releases/${package.name}"/>
-	<property name="rep.common.sbin" value="${rep.trunk}/devel/common/sbin"/>
-	<property name="rep.common.etc" value="${rep.trunk}/devel/common/etc"/>
   <available property="tldsExist" file="${basedir}/webapps" />
 
 	<!-- =================================================================== -->
@@ -80,16 +59,13 @@
 	<!-- =================================================================== -->
 	<!-- Create binary distribution                                          -->
 	<!-- =================================================================== -->
-	<target name="bindist" depends="getChangeLog,getCopyright,javadoc"
+	<target name="bindist" depends="javadoc"
 		description="creates a binary distribution of this component">
 
-		<property file="${basedir}/version" prefix="version"/>
     <!-- set version.minor if not set in file -->
-    <antcallback target="getSvnProjectInfo" return="svn.current.version"/> 
-    <property name="version.minor" value="${svn.current.version}"/>
-		<property name="tmpdir" value="installdir-bindist"/>
-		<property name="tarname"
-      value="${package.name}-${version.major}.${version.minor}-bin.tar.gz"/>
+    <property file="${basedir}/version" prefix="versionfile"/>
+    <property name="tmpdir" value="installdir-bindist"/>
+		<property name="tarname" value="${package.name}-${versionfile.version}-bin.tar.gz"/>
 
     <delete dir="${tmpdir}"/>
     <delete file="${tarname}"/>
@@ -319,146 +295,6 @@
 	</target>
 
 	<!-- =================================================================== -->
-	<!-- Release this version of the component                               -->
-	<!-- =================================================================== -->
-	<target name="release" description="tag this as a release">
-
-    <!-- make sure project directories are already created -->
-    <antcall target="createSvnDirectory"> 
-       <param name="relSvnPath" value="releases/${package.name}"/>
-    </antcall>
-    <antcall target="createSvnDirectory"> 
-       <param name="relSvnPath" value="releases/${package.name}/current"/>
-    </antcall>
-
-    <!-- get minor version of package -->
-    <antcallback target="getSvnProjectInfo" return="svn.lastmodified.version"/> 
-		<!-- update the minor version -->
-		<propertyfile file="version" comment="Build version info">
-			<entry key="major" default="0" type="int"/>
-			<entry key="minor" value="${svn.lastmodified.version}"/>
-		</propertyfile>
-
-		<!-- commit the changes -->
-		<exec executable="svn" failonerror="true">
-			<arg value="commit"/>
-			<arg value="-m"/> <arg value="Automated commit - updating version"/>
-			<arg value="version"/>
-		</exec>
-
-    <!-- You have to do an update after committing, before svn log will show
-         the commit you just made.) -->
-		<exec executable="svn" failonerror="true"><arg value="update"/></exec>
-
-		<property prefix="version" file="version"/>
-
-		<!-- create the tag -->
-		<exec executable="svn">
-			<arg value="copy"/>
-			<arg value="."/>
-			<arg value= "${rep.releases.ssh}/${package.name}_${version.major}.${version.minor}"/>
-			<arg value="-m"/>
-			<arg value="Automated copy - release"/>
-		</exec>
-
-		<!-- update current to point to the new candidate -->
-    <antcall target="setExternals"> 
-       <param name="externals" 
-              value="${package.name} ${rep.releases}/${package.name}_${version.major}.${version.minor}"/>
-       <param name="relSvnPath" value="releases/${package.name}/current"/>
-    </antcall>
-	</target>
-
-	<!-- =================================================================== -->
-	<!-- Branch this version of the component                                -->
-	<!-- =================================================================== -->
-	<target name="release-candidate" description="branch this version">
-
-    <!-- make sure project directories are already created -->
-    <echo message="Creating top level directories if they do not exist"/>
-    <antcall target="createSvnDirectory"> 
-       <param name="relSvnPath" value="branches/${package.name}"/>
-    </antcall>
-    <antcall target="createSvnDirectory"> 
-       <param name="relSvnPath" value="branches/${package.name}/current"/>
-    </antcall>
-
-		<!-- update the major version -->
-		<propertyfile file="version" comment="Build version info">
-			<entry key="major" default="0" type="int" operation="+" value="1"/>
-		</propertyfile>
-		<property prefix="version" file="version"/>
-    <echo message="Updating major version number to ${version.major}"/>
-		<exec executable="svn" failonerror="true" output="/dev/null">
-			<arg value="commit"/>
-			<arg value="-m"/> <arg value="Automated commit - updating version"/>
-			<arg value="version"/> 
-		</exec>
-
-    <!-- You have to do an update after committing, before svn log will show
-         the commit you just made.) -->
-		<exec executable="svn" failonerror="true" output="/dev/null">
-      <arg value="update"/>
-    </exec>
-
-    <echo message="Copying to branches ${rep.branches.ssh}/v${version.major}"/>
-		<!-- create the tag (i.e., copy over to branches )-->
-		<exec executable="svn" output="/dev/null">
-			<arg value="copy"/>
-			<arg value="-m"/> <arg value="Automated copy - release candidate"/>
-			<arg value="."/> <arg value="${rep.branches.ssh}/v${version.major}"/>
-		</exec>
-
-    <!-- update current link -->
-    <echo message="Updating current link"/>
-    <antcall target="setExternals"> 
-       <param name="externals" 
-              value="${package.name} ${rep.branches}/v${version.major}"/>
-       <param name="relSvnPath" value="branches/${package.name}/current"/>
-    </antcall>
-
-    <!-- freeze lib dependencies -->
-    <echo message="Freezing lib dependencies"/>
-    <antcallback target="getSvnProjectInfo" return="svn.current.version"/> 
-    <copy file="${build.dependencyfile}" tofile="Dependencies.tmp"/>
-    <replaceregexp file="Dependencies.tmp" byline="true"
-                   match="^(\w.*)" replace="\1 @${svn.current.version}"/>
-    <exec executable="svn" failonerror="true" output="/dev/null">
-      <arg value="delete"/>
-      <arg value="-m"/> <arg value="Automated commit - deleting Dependencies"/>
-      <arg value="${rep.branches.ssh}/v${version.major}/Dependencies"/>
-    </exec>
-    <exec executable="svn" failonerror="true" output="/dev/null">
-      <arg value="import"/>
-      <arg value="-m"/> <arg value="Automated commit - updating Dependencies"/>
-      <arg value="Dependencies.tmp"/>
-      <arg value="${rep.branches.ssh}/v${version.major}/Dependencies"/>
-    </exec>
-    <delete file="Dependencies.tmp"/>
-    <!-- freeze inca script -->
-    <echo message="Freezing script dependencies"/>
-    <propertyfile file="version.svn" comment="common version info">
-      <entry key="inca" value="${svn.current.version}"/>
-    </propertyfile>
-    <exec executable="svn" failonerror="true" output="/dev/null">
-      <arg value="import"/>
-      <arg value="-m"/> <arg value="Automated commit - version.svn"/>
-      <arg value="version.svn"/>
-      <arg value="${rep.branches.ssh}/v${version.major}/version.svn"/>
-    </exec>
-    <delete file="version.svn"/>
-    <!-- freeze etc/common -->
-    <echo message="Freezing etc/common dependencies"/>
-    <antcall target="setExternals"> 
-       <param name="externals" 
-       value="etc/common -r${svn.current.version} ${rep.trunk}/devel/common/etc"/>
-       <param name="relSvnPath" 
-              value="branches/${package.name}/v${version.major}"/>
-    </antcall>
-
-	</target>
-
-	<!-- =================================================================== -->
 	<!-- Clover targets                                                      -->
 	<!-- =================================================================== -->
 	<target name="with-clover" depends="define-clover">
@@ -545,16 +381,13 @@
 	<!-- Create source distribution                                          -->
 	<!-- =================================================================== -->
 	<target name="srcdist"
-          depends="populate-depends,getChangeLog,getCopyright,javadoc"
+          depends="javadoc"
 		      description="creates a source distribution of this component" >
 
-		<property file="${basedir}/version" prefix="version"/>
+    <property file="${basedir}/version" prefix="versionfile"/>
     <!-- set version.minor if not set in file -->
-    <antcallback target="getSvnProjectInfo" return="svn.current.version"/> 
-    <property name="version.minor" value="${svn.current.version}"/>
 		<property name="tmpdir" value="installdir-srcdist"/>
-		<property name="prefix"
-      value="${package.name}-${version.major}.${version.minor}"/>
+		<property name="prefix" value="${package.name}-${versionfile.version}"/>
 		<property name="tarname" value="${prefix}-src.tar.gz"/>
 
     <delete dir="${tmpdir}"/>
@@ -596,212 +429,4 @@
       <fileset dir="webapps/root"/>
     </war>
 	</target>
-
-	<!-- =================================================================== -->
-	<!-- UTILITY TASKS (i.e., functions)                                     -->
-	<!-- =================================================================== -->
-
-	<!-- ................................................................... 
-       copyContribFileFromSVN - copy a file from the contrib directory to lib
-  
-       Properties:
-
-       fileSpec   specifies the file and version to copy
-
-                  <fileInContrib> [@<version>] 
-
-                  fileInContrib  file that exists svn at inca/trunk/contrib
-                  version        optional version to select    
-	     ................................................................... -->
-	<target name="copyContribFileFromSVN">
-    <property name="fileSpecRegex" value="(\S+)\s*(@\d+)*"/>
-
-    <fail unless="fileSpec" message="fileSpec undef in copyContribFileFromSVN"/>
-
-		<propertyregex property="file" override="true" 
-                   input="${fileSpec}" regexp="${fileSpecRegex}" select="\1"/>
-    <fail unless="file" message="file undef in copyContribFileFromSVN"/>
-
-		<propertyregex property="version" override="true" 
-                   input="${fileSpec}" regexp="${fileSpecRegex}" select="\2"/>
-
-    <antcall target="copyFileFromSVN"> 
-       <param name="relSvnPath" value="contrib/${file}"/>
-       <param name="relPath" value="lib/${file}"/>
-       <param name="version" value="${version}"/>
-       <param name="perm" value="644"/>
-    </antcall>
-  </target>
-  <target name="testCopyContribFileFromSVN">
-    <antcall target="copyContribFileFromSVN"> 
-       <param name="fileSpec" value="inca-common.jar"/>
-    </antcall>
-    <delete file="inca-common.jar"/>
-  </target>
-
-	<!-- ................................................................... -->
-  <!-- copyFileFromSVN - copy a file from the svn repository to local file
-  
-       Properties:
-
-       relSvnPath   relative path to the svn repository's inca/trunk 
-       relPath      relative path to base dir 
-       version      optional version to select -->
-	<!-- ................................................................... -->
-	<target name="copyFileFromSVN">
-
-    <fail unless="relSvnPath" message="relSvnPath undef in copyFileFromSVN"/>
-    <fail unless="relPath" message="relPath undef in copyFileFromSVN"/>
-
-		<echo message="Copying ${rep.trunk}/${relSvnPath} to ${relPath}"/>
-		<echo message="version: ${version}"/>
-
-    <touch file="${basedir}/${relPath}" mkdirs="true"/>
-		<exec executable="svn" failonerror="true">
-			<arg line="export --force ${rep.trunk}/${relSvnPath}${version} ${basedir}/${relPath}"/>
-		</exec>
-    <if><isset property="perm" />
-      <then>
-      <chmod file="${basedir}/${relPath}" perm="${perm}"/>
-      </then>
-    </if>
-	</target>
-
-	<!-- ................................................................... 
-       createSvnDirectory - create a directory in the svn repo if it does
-                            not exist
-       Properties:
-
-       relSvnPath  Specifies a path in the SVN repository relative to
-                   the project directory.
-	     ................................................................... -->
-	<target name="createSvnDirectory" >
-    <fail unless="relSvnPath" message="relSvnPath undef in createSvnDirectory"/>
-
-    <var name="svn.dir.exists" unset="true"/>
-    <exec executable="svn" resultproperty="svn.dir.exists" 
-          errorproperty="err" outputproperty="out">
-		   <arg value="list"/>
-		   <arg value="${rep.root.ssh}/${relSvnPath}"/>
-    </exec>
-    <if><equals arg1="${svn.dir.exists}" arg2="1" />
-      <then>
-        <echo message="Creating svn directory ${rep.root.ssh}/${relSvnPath}"/>
-        <exec executable="svn">
-			    <arg value="mkdir"/>
-			    <arg value="-m"/> <arg value="Automated commit - making svn dir"/>
-			    <arg value="${rep.root.ssh}/${relSvnPath}"/>
-        </exec>
-    </then></if>
-  </target>
-  <target name="testCreateSvnDirectory">
-    <antcall target="createSvnDirectory"> 
-       <param name="relSvnPath" value="releases/inca-agent/current"/>
-    </antcall>
-  </target>
-
-	<!-- ................................................................... 
-       getChangeLog - Fetch the ChangeLog file
-	     ................................................................... -->
-	<target name="getChangeLog" >
-
-		<exec executable="svn" output="${basedir}/ChangeLog">
-			<arg value="cat"/>
-			<arg value="${rep.trunk}/devel/ChangeLog"/>
-		</exec>
-  </target>
-
-	<!-- ................................................................... 
-       getCopyright - Fetch the COPYRIGHT file
-	     ................................................................... -->
-	<target name="getCopyright" >
-
-		<exec executable="svn" output="${basedir}/COPYRIGHT">
-			<arg value="cat"/>
-			<arg value="${rep.trunk}/devel/COPYRIGHT"/>
-		</exec>
-  </target>
-
-	<!-- ................................................................... 
-       getSvnProjectInfo - Set some properties about the svn repository
-
-       Properties set:
-
-       svn.current.version       The current svn repository version
-       svn.lastmodified.version  The version of the last modified file in this
-                                 project
-	     ................................................................... -->
-	<target name="getSvnProjectInfo" >
-
-    <!-- to get accurate versions, you need to update first -->
-		<exec executable="svn" failonerror="true" output="/dev/null"> 
-      <arg value="update"/> 
-    </exec>
-
-    <!-- get fields from svn info -->
-    <var name="svn.info.output" unset="true"/>
-		<exec executable="svn" outputproperty="svn.info.output">
-			<arg value="info"/>
-		</exec>
-		<exec executable="awk" inputstring="${svn.info.output}"
-			outputproperty="svn.current.version">
-			<arg line=" '/Revision: / {print $2}'"/>
-		</exec>
-		<exec executable="awk" inputstring="${svn.info.output}"
-			outputproperty="svn.lastmodified.version">
-			<arg line=" '/Last Changed Rev: / {print $4}'"/>
-		</exec>
-  </target>
-  <target name="testGetSvnProjectInfo">
-    <antcallback target="getSvnProjectInfo" 
-                 return="svn.current.version,svn.lastmodified.version"/> 
-    <fail unless="svn.current.version" message="svn.current.version not set"/>
-    <fail unless="svn.lastmodified.version" 
-          message="svn.lastmodified.version not set"/>
-  </target>
-
-	<!-- ................................................................... 
-       setExternals - sets the svn:externals property for a svn directory
-
-       Properties:
-
-       relSvnPath  Specifies a path in the SVN repository relative to
-                   the project directory.
-	     ................................................................... -->
-	<target name="setExternals" >
-
-    <fail unless="externals" message="externals property not set"/>
-    <fail unless="relSvnPath" message="relSvnPath property not set"/>
-
-    <!-- since we can't update externals on the repository remotely, we
-         created a script updateExternals which will check out a local copy,
-         make the update and delete it -->
-		<exec executable="svn" output="${basedir}/updateExternals">
-			<arg value="cat"/>
-			<arg value="${rep.common.sbin}/updateExternals"/>
-		</exec>
-		<chmod file="${basedir}/updateExternals" perm="a+x"/>
-
-		<!-- update the svn:externals property -->
-		<echo file="propfile" message="${externals}"/>
-		<exec executable="${basedir}/updateExternals" output="/dev/null">
-			<arg value="${rep.root.ssh}/${relSvnPath}"/>
-			<arg value="propfile"/>
-		</exec>
-
-    <!-- cleanup -->
-		<delete file="${basedir}/propfile"/>
-		<delete file="${basedir}/updateExternals"/>
-  </target>
-  <target name="testSetExternals">
-    <antcall target="setExternals"> 
-       <param name="externals" 
-              value="perlProjTmp ${rep.root}/trunk/admin/templates/perlProject"/>
-       <param name="relSvnPath" value="trunk/admin/templates/javaProject"/>
-    </antcall>
-    <antcall target="setExternals"> 
-       <param name="externals" value=""/>
-       <param name="relSvnPath" value="trunk/admin/templates/javaProject"/>
-    </antcall>
-  </target>
 
