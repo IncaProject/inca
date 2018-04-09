@@ -217,18 +217,13 @@ sub _extractDependenciesFromFile {
   map( $contrib_dependency->{$_} = [], @contrib_types );
   open( FD, "<$file" ) or croak "Unable to open contrib dependency file $file";
   while ( <FD> ) {
-    my ($moduleName, $module, $type, $version) = 
-      $_ =~ /(\S+)\s+(\S+)\s+(\S+)\s*(\S+)*/;
+    my ($moduleName, $module, $type) = $_ =~ /(\S+)\s+(\S+)\s+(\S+)/;
     my ($module_version) = $module =~ /-([\w\.]*)$/; # grab version 
     $module_version =~ s/[A-Za-z]//g; # perl doesn't understand letters 
     eval "require $moduleName; $moduleName->VERSION($module_version)";
     next if ! $@;
     print "Will install Inca prerequisite $moduleName\n";
-    if ( defined $version ) {
-      push( @{$dependencies_ordered}, "\"$module.tar.gz $version\"" );
-    } else {
-      push( @{$dependencies_ordered}, "\"$module.tar.gz\"" );
-    }
+    push( @{$dependencies_ordered}, "\"$module.tar.gz\"" );
     push( @{$contrib_dependency->{$type}}, $module );
   }
   return ( $dependencies_ordered, $contrib_dependency );

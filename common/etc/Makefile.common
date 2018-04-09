@@ -20,10 +20,16 @@ create-var:
 
 populate-depends: 
 	@echo ${DEPEND}
-	if ( test ! -d contrib ); then \
-	  mkdir contrib; \
-	fi
-	cp Dependencies contrib/Dependencies
+	-@mkdir contrib >> $(LOG) 2>&1
+	-@$(RM_F) MANIFEST
+	modules=`cat Dependencies | tr '\t' ' ' | tr -s ' ' | cut -f 2,4 -d ' ' | tr ' ' '|'`; \
+	for p in $$modules; do \
+	  file=`echo $$p | cut -f 1 -d'|'`; \
+	  echo Unpacking $${file}; \
+	  cd contrib; \
+	  tar xvzf $${file}.tar.gz; \
+	  cd ..; \
+	done 
 	$(MAKE) manifest >> $(LOG) 2>&1
 
 install-sbin: 
