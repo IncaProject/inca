@@ -30,6 +30,7 @@ populate-depends:
 	  tar xvzf $${file}.tar.gz; \
 	  cd ..; \
 	done 
+	cp Dependencies contrib/Dependencies
 	$(MAKE) manifest >> $(LOG) 2>&1
 
 install-sbin: 
