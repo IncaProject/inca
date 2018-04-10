@@ -4,6 +4,8 @@ XML::SAX XML-SAX-0.99  PERLSTANDARD
 XML::Simple XML-Simple-2.20  PERLSTANDARD
 Schedule::Cron Schedule-Cron-1.01 PERLSTANDARD
 Perl::OSType Perl-OSType-1.010 PERLSTANDARD
+version version-0.9920 PERLSTANDARD
+Module::Metadata Module-Metadata-1.000033 PERLSTANDARD
 Module::Build Module-Build-0.4210  PERLNON
 Module::Runtime Module-Runtime-0.014 PERLNON
 Date::Manip Date-Manip-6.48	PERLSTANDARD
