@@ -11,3 +11,4 @@
 ^Dependencies$
 \.tar\.gz$
 version.svn
+build.log
