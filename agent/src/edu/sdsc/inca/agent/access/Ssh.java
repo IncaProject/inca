@@ -19,6 +19,7 @@ import com.sshtools.ssh.SshException;
 import com.sshtools.ssh.SshSession;
 
 import edu.sdsc.inca.agent.AccessMethodOutput;
+import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.agent.AccessMethod;
 import edu.sdsc.inca.agent.AccessMethodException;
 
@@ -162,7 +163,7 @@ public abstract class Ssh extends AccessMethod {
         throw new InterruptedException( "Received interrupt" );
       }
       throw new AccessMethodException( "SSH remote run failed", e );
-    } catch ( SshException | OperatorCreationException | ChannelOpenException | GeneralSecurityException e ) {
+    } catch ( SshException | OperatorCreationException | ChannelOpenException | GeneralSecurityException | ConfigurationException e ) {
       throw new AccessMethodException( "SSH remote run failed", e );
     }
 
@@ -275,8 +276,9 @@ public abstract class Ssh extends AccessMethod {
    * @throws SshException
    * @throws OperatorCreationException
    * @throws GeneralSecurityException
+   * @throws ConfigurationException
    */
-  protected abstract SshClient connect(boolean noDelay) throws IOException, SshException, OperatorCreationException, GeneralSecurityException;
+  protected abstract SshClient connect(boolean noDelay) throws IOException, SshException, OperatorCreationException, GeneralSecurityException, ConfigurationException;
 
   // Private Methods
 

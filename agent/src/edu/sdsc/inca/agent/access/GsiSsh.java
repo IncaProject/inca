@@ -15,6 +15,7 @@ import com.sshtools.ssh.SshConnector;
 import com.sshtools.ssh.SshException;
 import com.sshtools.ssh2.GssApiKeyexAuthentication;
 
+import edu.sdsc.inca.Agent;
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.agent.util.MyProxy;
 import edu.sdsc.inca.protocol.Protocol;
@@ -33,11 +34,7 @@ public class GsiSsh extends Ssh {
   // data fields
 
 
-  private final String myProxyUsername;
-  private final String myProxyPassword;
-  private final String myProxyHost;
-  private final int myProxyPort;
-  private final int myProxyLifetime;
+  private final String resourceName;
 
 
   // constructors
@@ -55,39 +52,10 @@ public class GsiSsh extends Ssh {
     if (port != null)
       sshPort = Integer.parseInt(port);
 
-    myProxyHost = resources.getValue(resource, Protocol.MYPROXY_HOST_MACRO);
-
-    if (myProxyHost == null)
-      throw new ConfigurationException("Missing macro " + Protocol.MYPROXY_HOST_MACRO);
-
-    port = resources.getValue(resource, Protocol.MYPROXY_PORT_MACRO);
-
-    if (port != null)
-      myProxyPort = Integer.parseInt(port);
-    else
-      myProxyPort = MyProxy.DEFAULT_PORT;
-
-    String username = resources.getValue(resource, Protocol.MYPROXY_USERNAME_MACRO);
-
-    if (username != null)
-      myProxyUsername = username;
-    else
-      myProxyUsername = System.getProperty("user.name");
-
-    myProxyPassword = resources.getValue(resource, Protocol.MYPROXY_PASSWORD_MACRO);
-
-    if (myProxyPassword == null)
-      throw new ConfigurationException("Missing macro " + Protocol.MYPROXY_PASSWORD_MACRO);
-
-    String lifetime = resources.getValue(resource, Protocol.MYPROXY_LIFETIME_MACRO);
-
-    if (lifetime != null)
-      myProxyLifetime = Integer.parseInt(lifetime);
-    else
-      myProxyLifetime = MyProxy.DEFAULT_LIFETIME;
+    resourceName = resource;
 
     try {
-      renewCredential(myProxyHost, myProxyPort, myProxyUsername, myProxyPassword, myProxyLifetime);
+      renewCredential(resourceName);
     }
     catch (IOException | OperatorCreationException | GeneralSecurityException err) {
       logger.error("Error retrieving GSS credential: ", err);
@@ -101,7 +69,7 @@ public class GsiSsh extends Ssh {
 
 
   @Override
-  protected SshClient connect(boolean noDelay) throws IOException, SshException, OperatorCreationException, GeneralSecurityException
+  protected SshClient connect(boolean noDelay) throws IOException, SshException, OperatorCreationException, GeneralSecurityException, ConfigurationException
   {
     SshConnector conn = SshConnector.createInstance();
     SocketTransport transport = new SocketTransport(sshServer, sshPort);
@@ -118,7 +86,7 @@ public class GsiSsh extends Ssh {
       client = conn.connect(transport, username, true);
     }
     catch (SshException sshErr) {
-      if (!renewCredential(myProxyHost, myProxyPort, myProxyUsername, myProxyPassword, myProxyLifetime))
+      if (!renewCredential(resourceName))
         throw sshErr;
 
       logger.debug("GSS credential was invalid, retrieved new credential");
@@ -143,14 +111,47 @@ public class GsiSsh extends Ssh {
   // private methods
 
 
-  private static synchronized boolean renewCredential(String server, int port, String username, String passphrase, int lifetime) throws IOException, OperatorCreationException, GeneralSecurityException
+  private static synchronized boolean renewCredential(String resource) throws IOException, OperatorCreationException, GeneralSecurityException, ConfigurationException
   {
     if (MyProxy.checkCredential())
       return false;
 
-    MyProxy myProxyServer = new MyProxy(server, port, username, passphrase);
+    ResourcesWrapper resources = Agent.getGlobalAgent().getResources();
 
-    myProxyServer.writeCredential(lifetime);
+    String myProxyHost = resources.getValue(resource, Protocol.MYPROXY_HOST_MACRO);
+
+    if (myProxyHost == null)
+      throw new ConfigurationException("Missing macro " + Protocol.MYPROXY_HOST_MACRO);
+
+    String port = resources.getValue(resource, Protocol.MYPROXY_PORT_MACRO);
+    int myProxyPort;
+
+    if (port != null)
+      myProxyPort = Integer.parseInt(port);
+    else
+      myProxyPort = MyProxy.DEFAULT_PORT;
+
+    String myProxyUsername = resources.getValue(resource, Protocol.MYPROXY_USERNAME_MACRO);
+
+    if (myProxyUsername == null)
+      myProxyUsername = System.getProperty("user.name");
+
+    String myProxyPassword = resources.getValue(resource, Protocol.MYPROXY_PASSWORD_MACRO);
+
+    if (myProxyPassword == null)
+      throw new ConfigurationException("Missing macro " + Protocol.MYPROXY_PASSWORD_MACRO);
+
+    String lifetime = resources.getValue(resource, Protocol.MYPROXY_LIFETIME_MACRO);
+    int myProxyLifetime;
+
+    if (lifetime != null)
+      myProxyLifetime = Integer.parseInt(lifetime);
+    else
+      myProxyLifetime = MyProxy.DEFAULT_LIFETIME;
+
+    MyProxy myProxyServer = new MyProxy(myProxyHost, myProxyPort, myProxyUsername, myProxyPassword);
+
+    myProxyServer.writeCredential(myProxyLifetime);
 
     return true;
   }
