@@ -18,7 +18,6 @@ import edu.sdsc.inca.util.SuiteStagesWrapper;
 import edu.sdsc.inca.util.Constants;
 import edu.sdsc.inca.util.StringMethods;
 import edu.sdsc.inca.agent.*;
-import edu.sdsc.inca.agent.util.MyProxy;
 import edu.sdsc.inca.dataModel.suite.SuiteDocument;
 import edu.sdsc.inca.dataModel.catalog.PackageType;
 import edu.sdsc.inca.dataModel.util.SeriesConfig;
@@ -99,11 +98,6 @@ public class Agent extends Server {
   protected long lastDepotUriFetch = 0;
   private int pingPeriod = Agent.PING_PERIOD;
   private int startAttemptWaitPeriod = Agent.START_ATTEMPT_PERIOD;
-
-  private String myProxyUsername;
-  private String myProxyPassword;
-  private String myProxyHost;
-  private int myProxyPort;
 
   // Setup the agent configuration options
   private static final String AGENT_OPTS =
@@ -409,38 +403,6 @@ public class Agent extends Server {
   }
 
   /**
-   *
-   * @return
-   */
-  public String getMyProxyHost() {
-    return this.myProxyHost;
-  }
-
-  /**
-   *
-   * @return
-   */
-  public int getMyProxyPort() {
-    return this.myProxyPort;
-  }
-
-  /**
-   *
-   * @return
-   */
-  public String getMyProxyPassword() {
-    return this.myProxyPassword;
-  }
-
-  /**
-   *
-   * @return
-   */
-  public String getMyProxyUsername() {
-    return this.myProxyUsername;
-  }
-
-  /**
    * Given a set of resource names and a count of how many changes are
    * available, email admins of resources that require approval for any changes
    *
@@ -520,12 +482,14 @@ public class Agent extends Server {
    * Starts the Agent server.  This overrides the Server call in order to
    * do some post configuration.
    */
+  @Override
   public void runServer() throws Exception {
     class RestartSuiteThread extends Thread {
       Agent agent;
       RestartSuiteThread( Agent agent ) {
         this.agent = agent;
       }
+      @Override
       public void run() {
         ranShutdown = false;
         try {
@@ -556,6 +520,7 @@ public class Agent extends Server {
    * @param config contains configuration values
    * @throws ConfigurationException on a faulty configuration property value
    */
+  @Override
   public void setConfiguration(Properties config) throws ConfigurationException{
     logger.debug( "Configuring agent" );
     super.setConfiguration( config );
@@ -600,26 +565,6 @@ public class Agent extends Server {
       if((config.getProperty("upgradeTargets")) != null) {
         this.upgradeTargets = config.getProperty("upgradeTargets");
       }
-    }
-
-    if ((config.getProperty("myproxyHost")) != null) {
-      String hostName = config.getProperty("myproxyHost");
-      int index = hostName.indexOf(":");
-
-      if (index < 0) {
-        myProxyHost = hostName;
-        myProxyPort = MyProxy.DEFAULT_PORT;
-      } else {
-        myProxyHost = hostName.substring(0, index);
-        myProxyPort = Integer.parseInt(hostName.substring(index + 1));
-      }
-
-      if ((config.getProperty("myproxyUsername")) != null)
-        myProxyUsername = config.getProperty("myproxyUsername");
-      else
-        myProxyUsername = System.getProperty("user.name");
-
-      myProxyPassword = readPassword(config.getProperty("myproxyPassword"));
     }
   }
 
@@ -995,6 +940,7 @@ public class Agent extends Server {
    *
    * @throws InterruptedException  (see server javadoc)
    */
+  @Override
   public void shutdown() throws InterruptedException {
     if ( ! ranShutdown ) {
       logger.debug( "Shutting down reporter managers" );

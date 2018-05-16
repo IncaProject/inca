@@ -15,7 +15,6 @@ import com.sshtools.ssh.SshConnector;
 import com.sshtools.ssh.SshException;
 import com.sshtools.ssh2.GssApiKeyexAuthentication;
 
-import edu.sdsc.inca.Agent;
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.agent.util.MyProxy;
 import edu.sdsc.inca.protocol.Protocol;
@@ -30,6 +29,16 @@ import edu.sdsc.inca.util.ResourcesWrapper;
  *
  */
 public class GsiSsh extends Ssh {
+
+  // data fields
+
+
+  private final String myProxyUsername;
+  private final String myProxyPassword;
+  private final String myProxyHost;
+  private final int myProxyPort;
+  private final int myProxyLifetime;
+
 
   // constructors
 
@@ -46,8 +55,39 @@ public class GsiSsh extends Ssh {
     if (port != null)
       sshPort = Integer.parseInt(port);
 
+    myProxyHost = resources.getValue(resource, Protocol.MYPROXY_HOST_MACRO);
+
+    if (myProxyHost == null)
+      throw new ConfigurationException("Missing macro " + Protocol.MYPROXY_HOST_MACRO);
+
+    port = resources.getValue(resource, Protocol.MYPROXY_PORT_MACRO);
+
+    if (port != null)
+      myProxyPort = Integer.parseInt(port);
+    else
+      myProxyPort = MyProxy.DEFAULT_PORT;
+
+    String username = resources.getValue(resource, Protocol.MYPROXY_USERNAME_MACRO);
+
+    if (username != null)
+      myProxyUsername = username;
+    else
+      myProxyUsername = System.getProperty("user.name");
+
+    myProxyPassword = resources.getValue(resource, Protocol.MYPROXY_PASSWORD_MACRO);
+
+    if (myProxyPassword == null)
+      throw new ConfigurationException("Missing macro " + Protocol.MYPROXY_PASSWORD_MACRO);
+
+    String lifetime = resources.getValue(resource, Protocol.MYPROXY_LIFETIME_MACRO);
+
+    if (lifetime != null)
+      myProxyLifetime = Integer.parseInt(lifetime);
+    else
+      myProxyLifetime = MyProxy.DEFAULT_LIFETIME;
+
     try {
-      renewCredential();
+      renewCredential(myProxyHost, myProxyPort, myProxyUsername, myProxyPassword, myProxyLifetime);
     }
     catch (IOException | OperatorCreationException | GeneralSecurityException err) {
       logger.error("Error retrieving GSS credential: ", err);
@@ -78,7 +118,7 @@ public class GsiSsh extends Ssh {
       client = conn.connect(transport, username, true);
     }
     catch (SshException sshErr) {
-      if (!renewCredential())
+      if (!renewCredential(myProxyHost, myProxyPort, myProxyUsername, myProxyPassword, myProxyLifetime))
         throw sshErr;
 
       logger.debug("GSS credential was invalid, retrieved new credential");
@@ -103,15 +143,14 @@ public class GsiSsh extends Ssh {
   // private methods
 
 
-  private static synchronized boolean renewCredential() throws IOException, OperatorCreationException, GeneralSecurityException
+  private static synchronized boolean renewCredential(String server, int port, String username, String passphrase, int lifetime) throws IOException, OperatorCreationException, GeneralSecurityException
   {
     if (MyProxy.checkCredential())
       return false;
 
-    Agent agent = Agent.getGlobalAgent();
-    MyProxy myProxyServer = new MyProxy(agent.getMyProxyHost(), agent.getMyProxyPort(), agent.getMyProxyUsername(), agent.getMyProxyPassword());
+    MyProxy myProxyServer = new MyProxy(server, port, username, passphrase);
 
-    myProxyServer.writeCredential(MyProxy.DEFAULT_LIFETIME);
+    myProxyServer.writeCredential(lifetime);
 
     return true;
   }
