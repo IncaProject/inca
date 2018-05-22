@@ -3,3 +3,7 @@
 /src/org/
 .classpath
 .project
+generated_web.xml
+inca-consumers.jar
+webapps/inca/WEB-INF/web.dyn.xml
+webapps/inca/WEB-INF/web.xml
