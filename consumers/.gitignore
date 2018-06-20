@@ -1,6 +1,7 @@
 /classes/
 /src/edu/sdsc/inca/consumer/jsp/
 /src/org/
+/var/
 .classpath
 .project
 generated_web.xml

@@ -2,13 +2,16 @@ package edu.sdsc.inca;
 
 import org.apache.log4j.Logger;
 import edu.sdsc.inca.util.ConfigProperties;
-import org.mortbay.jetty.Handler;
-import org.mortbay.jetty.Connector;
-import org.mortbay.jetty.webapp.WebAppContext;
-import org.mortbay.jetty.handler.ContextHandlerCollection;
-import org.mortbay.xml.XmlConfiguration;
 
-import java.net.URL;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.webapp.WebAppContext;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
+import org.eclipse.jetty.xml.XmlConfiguration;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
@@ -25,7 +28,7 @@ public class Consumer extends Component {
   final static public String AGENT_BEAN_ID = "agentBean";
   final static public String CONFIG_ID = "config";
   final static public String DEPOT_BEAN_ID = "depotBean";
-  final static private String JETTY_CONFIG = "jetty.xml";
+  final static private String JETTY_CONFIG_DIR = "etc";
   final static private String JETTY_TEMPDIR = "work";
 
   private static Logger logger = Logger.getLogger(Consumer.class);
@@ -43,7 +46,7 @@ public class Consumer extends Component {
   );
 
   private Properties clientConfig = null;
-  private org.mortbay.jetty.Server server = null;
+  private org.eclipse.jetty.server.Server server = null;
   private String tempPath = null;
 
   /**
@@ -93,6 +96,7 @@ public class Consumer extends Component {
    *
    * @throws ConfigurationException
    */
+  @Override
   public void setConfiguration(Properties config) throws ConfigurationException{
     super.setConfiguration( config );
     String prop;
@@ -154,18 +158,39 @@ public class Consumer extends Component {
    */
   public void startConsumer() throws Exception  {
 
-    // get jetty config file
-    URL jettyUrl = ClassLoader.getSystemClassLoader().getResource(JETTY_CONFIG);
-    if(jettyUrl == null) {
-      logger.error( JETTY_CONFIG + " not found in classpath" );
+    // configure and start jetty
+    String[] configFiles = { "jetty.xml", "jetty-http.xml", "jetty-ssl.xml", "jetty-ssl-context.xml", "jetty-https.xml" };
+    Path configPath = Paths.get(JETTY_CONFIG_DIR + File.separator + configFiles[0]);
+
+    if (!Files.exists(configPath)) {
+      logger.error("Jetty configuration file not found");
+
       return;
     }
 
-    // configure and start jetty
-    XmlConfiguration jettyConfig =  new XmlConfiguration( jettyUrl );
-    this.server = new org.mortbay.jetty.Server();
-    jettyConfig.configure(server);
-    server.start();
+    logger.debug("Processing Jetty configuration file " + configPath);
+
+    XmlConfiguration jettyConfig = new XmlConfiguration(configPath.toUri().toURL());
+
+    jettyConfig.configure();
+
+    for (int index = 1 ; index < configFiles.length ; index += 1) {
+      configPath = Paths.get(JETTY_CONFIG_DIR + File.separator + configFiles[index]);
+
+      if (Files.exists(configPath)) {
+        logger.debug("Processing Jetty configuration file " + configPath);
+
+        XmlConfiguration nextConfig = new XmlConfiguration(configPath.toUri().toURL());
+
+        nextConfig.getIdMap().putAll(jettyConfig.getIdMap());
+        nextConfig.configure();
+
+        jettyConfig = nextConfig;
+      }
+    }
+
+    this.server = (org.eclipse.jetty.server.Server)jettyConfig.getIdMap().get("Server");
+    this.server.start();
 
     // find inca context and set the client configuration
     WebAppContext incaContext = findIncaContext();
@@ -186,7 +211,7 @@ public class Consumer extends Component {
 
   private WebAppContext findIncaContext() {
     WebAppContext incaContext = null;
-    for ( Handler h : server.getHandlers() ) {
+    for ( Handler h : server.getChildHandlers() ) {
       if ( h.getClass().equals(ContextHandlerCollection.class) ) {
         ContextHandlerCollection context = (ContextHandlerCollection)h;
         for ( Handler c : context.getChildHandlers() ) {

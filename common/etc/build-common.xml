@@ -365,7 +365,8 @@
     <taskdef classname="org.apache.jasper.JspC" name="jasper2" 
              classpathref="classpath"/>
     <jasper2 verbose="0" package="${jsp.package}" uriroot="${webapp}" 
-             webXmlFragment="generated_web.xml" outputDir="src" />
+             webXmlFragment="generated_web.xml" outputDir="src" 
+             compilerTargetVM="1.8" compilerSourceVM="1.8" />
     <antcall target="compile"/> 
     <loadfile property="web" srcFile="${basedir}/generated_web.xml"/>
     <copy file="${webapp}/WEB-INF/web.template.xml"

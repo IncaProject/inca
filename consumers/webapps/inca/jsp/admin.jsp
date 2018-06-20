@@ -14,9 +14,8 @@
     <inca:saveToFile content="${param.xml}" file="/xml/${param.file}.xml"/>
   </c:when>
   <c:when test="${! empty param.defaults}">
-    <c:set var="default" value="${param.defaults}"/>
-    <c:import var="xml" url="/xml/${default}Defaults.xml"/>
-    <inca:saveToFile content="${xml}" file="/xml/${default}.xml"/>
+    <c:import var="xml" url="/xml/${param.defaults}Defaults.xml"/>
+    <inca:saveToFile content="${xml}" file="/xml/${param.defaults}.xml"/>
   </c:when>
   <c:otherwise>
     <link rel="stylesheet" type="text/css" href="/inca/css/ext-all.css" />
