@@ -160,6 +160,7 @@ public class Depot extends Server {
    * @param config contains client configuration values
    * @throws ConfigurationException on a faulty configuration property value
    */
+  @Override
   public void setConfiguration(Properties config) throws ConfigurationException
   {
     super.setConfiguration(config);
@@ -700,7 +701,7 @@ public class Depot extends Server {
 
     super.shutdown();
 
-    if (purgeThread.isAlive())
+    if (purgeThread != null && purgeThread.isAlive())
       logger.warn("Shutdown for " + purgeThread.getName() + " failed");
   }
 
