@@ -1,0 +1,178 @@
+diff -Naur j2ssh-maverick/pom.xml j2ssh/pom.xml
+--- j2ssh-maverick/pom.xml	2016-05-06 07:53:02.000000000 -0700
++++ j2ssh/pom.xml	2017-12-01 23:07:08.000000000 -0800
+@@ -35,13 +35,13 @@
+ 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+ 	<modelVersion>4.0.0</modelVersion>
+ 	<groupId>com.sshtools</groupId>
+-	<artifactId>j2ssh-maverick</artifactId>
++	<artifactId>j2ssh-maverick-gsissh</artifactId>
+ 	<version>1.5.5</version>
+ 	<name>J2SSH Maverick</name>
+ 	<description>Open source SSH2 API</description>
+     <url>http://www.sshtools.com</url>
+ 	<properties>
+-		<distributionFileName>j2ssh-maverick-${project.version}</distributionFileName>
++		<distributionFileName>j2ssh-maverick-gsissh-${project.version}</distributionFileName>
+ 	</properties>
+ 	<licenses>
+ 		<license>
+@@ -101,8 +101,8 @@
+ 				<artifactId>maven-compiler-plugin</artifactId>
+ 				<version>3.1</version>
+ 				<configuration>
+-					<source>1.5</source>
+-					<target>1.5</target>
++					<source>1.8</source>
++					<target>1.8</target>
+ 				</configuration>
+ 			</plugin>
+ 			<plugin>
+@@ -162,7 +162,7 @@
+ 					<descriptors>
+ 						<descriptor>assembly/bin.xml</descriptor>
+ 					</descriptors>
+-					<finalName>j2ssh-maverick-${project.version}</finalName>
++					<finalName>j2ssh-maverick-gsissh-${project.version}</finalName>
+ 				</configuration>
+ 				<version>2.2</version>
+ 				<executions>
+@@ -214,4 +214,4 @@
+ 			</plugin>
+ 		</plugins>
+ 	</build>
+-</project>
+\ No newline at end of file
++</project>
+diff -Naur j2ssh-maverick/src/main/java/com/sshtools/ssh/components/DiffieHellmanGroups.java j2ssh/src/main/java/com/sshtools/ssh/components/DiffieHellmanGroups.java
+--- j2ssh-maverick/src/main/java/com/sshtools/ssh/components/DiffieHellmanGroups.java	2016-05-06 07:53:02.000000000 -0700
++++ j2ssh/src/main/java/com/sshtools/ssh/components/DiffieHellmanGroups.java	2017-12-01 23:24:19.000000000 -0800
+@@ -111,7 +111,8 @@
+ 			+ "2E8EFC14" + "1FBECAA6" + "287C5947" + "4E6BC05D" + "99B2964F"
+ 			+ "A090C3A2" + "233BA186" + "515BE7ED" + "1F612970" + "CEE2D7AF"
+ 			+ "B81BDD76" + "2170481C" + "D0069127" + "D5B05AA9" + "93B4EA98"
+-			+ "8D8FDDC1" + "86FFB7DC" + "90A6C08F" + "4DF435C9" + "34063199",
++			+ "8D8FDDC1" + "86FFB7DC" + "90A6C08F" + "4DF435C9" + "34063199"
++			+ "FFFFFFFF" + "FFFFFFFF",
+ 			16);
+ 
+ 	public static final BigInteger group17 = new BigInteger("FFFFFFFF"
+diff -Naur j2ssh-maverick/src/main/java/com/sshtools/ssh/components/jce/JCEComponentManager.java j2ssh/src/main/java/com/sshtools/ssh/components/jce/JCEComponentManager.java
+--- j2ssh-maverick/src/main/java/com/sshtools/ssh/components/jce/JCEComponentManager.java	2016-05-06 07:53:02.000000000 -0700
++++ j2ssh/src/main/java/com/sshtools/ssh/components/jce/JCEComponentManager.java	2017-12-01 23:09:11.000000000 -0800
+@@ -351,6 +351,19 @@
+ 		// sshd has its own version of these classes so they will not be on its
+ 		// classpath, this is why we use class.forname
+ 		try {
++			keyexchange.add(GssApiGroup16Sha512MicV2.ALGORITHM_NAME, GssApiGroup16Sha512MicV2.class);
++			keyexchange.add(GssApiGroup18Sha512MicV2.ALGORITHM_NAME, GssApiGroup18Sha512MicV2.class);
++			keyexchange.add(GssApiGexSha1MicV2.ALGORITHM_NAME, GssApiGexSha1MicV2.class);
++			keyexchange.add(GssApiGroup14Sha256MicV2.ALGORITHM_NAME, GssApiGroup14Sha256MicV2.class);
++			keyexchange.add(GssApiGroup14Sha1MicV2.ALGORITHM_NAME, GssApiGroup14Sha1MicV2.class);
++			keyexchange.add(GssApiGroup1Sha1MicV2.ALGORITHM_NAME, GssApiGroup1Sha1MicV2.class);
++			keyexchange.add(GssApiGroup16Sha512.ALGORITHM_NAME, GssApiGroup16Sha512.class);
++			keyexchange.add(GssApiGroup18Sha512.ALGORITHM_NAME, GssApiGroup18Sha512.class);
++			keyexchange.add(GssApiGexSha1.ALGORITHM_NAME, GssApiGexSha1.class);
++			keyexchange.add(GssApiGroup14Sha256.ALGORITHM_NAME, GssApiGroup14Sha256.class);
++			keyexchange.add(GssApiGroup14Sha1.ALGORITHM_NAME, GssApiGroup14Sha1.class);
++			keyexchange.add(GssApiGroup1Sha1.ALGORITHM_NAME, GssApiGroup1Sha1.class);
++
+ 			Class<?> DiffieHellmanGroup14Sha1 = Class
+ 					.forName("com.sshtools.ssh.components.jce.DiffieHellmanGroup14Sha1");
+ 			Class<?> DiffieHellmanGroup1Sha1 = Class
+diff -Naur j2ssh-maverick/src/main/java/com/sshtools/ssh2/Ssh2Context.java j2ssh/src/main/java/com/sshtools/ssh2/Ssh2Context.java
+--- j2ssh-maverick/src/main/java/com/sshtools/ssh2/Ssh2Context.java	2016-05-06 07:53:02.000000000 -0700
++++ j2ssh/src/main/java/com/sshtools/ssh2/Ssh2Context.java	2017-12-01 23:11:14.000000000 -0800
+@@ -30,6 +30,7 @@
+ import com.sshtools.ssh.SshException;
+ import com.sshtools.ssh.components.ComponentFactory;
+ import com.sshtools.ssh.components.ComponentManager;
++import com.sshtools.ssh.components.jce.GssApiGroup16Sha512MicV2;
+ 
+ /**
+  * <p>
+@@ -152,7 +153,7 @@
+ 	String prefCompressionCS = COMPRESSION_NONE;
+ 	String prefCompressionSC = COMPRESSION_NONE;
+ 
+-	String prefKeyExchange = KEX_DIFFIE_HELLMAN_ECDH_NISTP_256;
++	String prefKeyExchange = GssApiGroup16Sha512MicV2.ALGORITHM_NAME;
+ 	String prefPublicKey = PUBLIC_KEY_ECDSA_256;
+ 
+ 	String sftpProvider = "/usr/libexec/sftp-server";
+diff -Naur j2ssh-maverick/src/main/java/com/sshtools/ssh2/TransportProtocol.java j2ssh/src/main/java/com/sshtools/ssh2/TransportProtocol.java
+--- j2ssh-maverick/src/main/java/com/sshtools/ssh2/TransportProtocol.java	2016-05-06 07:53:02.000000000 -0700
++++ j2ssh/src/main/java/com/sshtools/ssh2/TransportProtocol.java	2017-12-01 23:07:08.000000000 -0800
+@@ -38,6 +38,7 @@
+ import com.sshtools.ssh.SshTransport;
+ import com.sshtools.ssh.components.ComponentManager;
+ import com.sshtools.ssh.components.Digest;
++import com.sshtools.ssh.components.GssApi;
+ import com.sshtools.ssh.components.SshCipher;
+ import com.sshtools.ssh.components.SshHmac;
+ import com.sshtools.ssh.components.SshKeyExchangeClient;
+@@ -179,6 +180,7 @@
+ 	SshCompression outgoingCompression;
+ 	SshCompression incomingCompression;
+ 	SshPublicKey hostkey;
++	GssApi.GssContext gssContext;
+ 	boolean isIncomingCompressing = false;
+ 	boolean isOutgoingCompressing = false;
+ 
+@@ -883,6 +885,19 @@
+ 		return keyExchange;
+ 	}
+ 
++	public GssApi.GssContext getGssContext()
++	{
++		return gssContext;
++	}
++
++	public void setGssContext(GssApi.GssContext context)
++	{
++		if (gssContext != null)
++			GssApi.deleteSecContext(gssContext);
++
++		gssContext = context;
++	}
++
+ 	public static boolean Arrayequals(byte[] a, byte[] a2) {
+ 		if (a == a2)
+ 			return true;
+@@ -1172,8 +1187,8 @@
+ 				hostkey = (SshPublicKey) transportContext.supportedPublicKeys()
+ 						.getInstance(hostKeyAlg);
+ 
+-				if (!(ignoreHostKeyifEmpty && Arrayequals(
+-						keyExchange.getHostKey(), "".getBytes()))) {
++				if (!(ignoreHostKeyifEmpty && (keyExchange.getHostKey() == null ||
++						Arrayequals(keyExchange.getHostKey(), "".getBytes())))) {
+ 
+ 					EventServiceImplementation.getInstance().fireEvent(
+ 							(new Event(this,
+@@ -1436,6 +1451,12 @@
+ 			} catch (Throwable t) {
+ 			}
+ 		}
++
++		if (gssContext != null) {
++			GssApi.deleteSecContext(gssContext);
++
++			gssContext = null;
++		}
+ 	}
+ 
+ 	void internalDisconnect() {
+@@ -1451,6 +1472,12 @@
+ 			} catch (Throwable t) {
+ 			}
+ 		}
++
++		if (gssContext != null) {
++			GssApi.deleteSecContext(gssContext);
++
++			gssContext = null;
++		}
+ 	}
+ 
+ 	void addShutdownHook(Runnable r) {

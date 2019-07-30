@@ -1,0 +1,31 @@
+# -*- Makefile -*-
+
+CC = gcc
+CFLAGS = -O2 -std=c11 -fpic -fvisibility=hidden -D_GNU_SOURCE -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -Wall
+LDFLAGS = -lglobus_gssapi_gsi
+C_SRCDIR = native
+OUTDIR = build
+JAVA_OUTDIR = $(OUTDIR)/classes
+JAVA_CLASS_NAMES = com.sshtools.ssh.components.GssApi
+JAVA_OBJS = $(JAVA_OUTDIR)/com/sshtools/ssh/components/GssApi.class
+C_OBJS = $(OUTDIR)/error-handling.o \
+	$(OUTDIR)/java-gsissh.o
+LIB_MAJOR_VERSION = 1
+LIB_MINOR_VERSION = 0
+LIB_PATCH_VERSION = 0
+LIB_VERSION = $(LIB_MAJOR_VERSION).$(LIB_MINOR_VERSION).$(LIB_PATCH_VERSION)
+
+all: java-gsissh
+
+$(OUTDIR)/%.o: $(C_SRCDIR)/%.c
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
+java-gsissh: $(C_OBJS)
+	rm -f $(OUTDIR)/*.so
+	$(LINK.c) -shared -Wl,-soname,libjava-gsissh-$(LIB_MAJOR_VERSION).so -o $(OUTDIR)/libjava-gsissh-$(LIB_VERSION).so $(C_OBJS)
+	ln -s libjava-gsissh-$(LIB_VERSION).so $(OUTDIR)/libjava-gsissh-$(LIB_MAJOR_VERSION).so
+	ln -s libjava-gsissh-$(LIB_VERSION).so $(OUTDIR)/libjava-gsissh.so
+
+clean:
+	rm -f $(OUTDIR)/*.o
+	rm -f $(OUTDIR)/*.so

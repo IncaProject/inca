@@ -1,0 +1,31 @@
+# -*- Makefile -*-
+
+CC = clang
+CFLAGS = -O2 -fvisibility=hidden -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin -I/Library/Globus/include -Wall
+LDFLAGS = -L/Library/Globus/lib -lglobus_gssapi_gsi
+C_SRCDIR = native
+OUTDIR = build
+JAVA_OUTDIR = $(OUTDIR)/classes
+JAVA_CLASS_NAMES = com.sshtools.ssh.components.GssApi
+JAVA_OBJS = $(JAVA_OUTDIR)/com/sshtools/ssh/components/GssApi.class
+C_OBJS = $(OUTDIR)/error-handling.o \
+	$(OUTDIR)/java-gsissh.o
+LIB_MAJOR_VERSION = 1
+LIB_MINOR_VERSION = 0
+LIB_PATCH_VERSION = 0
+LIB_VERSION = $(LIB_MAJOR_VERSION).$(LIB_MINOR_VERSION).$(LIB_PATCH_VERSION)
+
+all: java-gsissh
+
+$(OUTDIR)/%.o: $(C_SRCDIR)/%.c
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
+java-gsissh: $(C_OBJS)
+	rm -f $(OUTDIR)/*.jnilib
+	$(LINK.c) -dynamiclib -compatibility_version $(LIB_MAJOR_VERSION) -current_version $(LIB_VERSION) -o $(OUTDIR)/libjava-gsissh-$(LIB_VERSION).jnilib $(C_OBJS)
+	ln -s libjava-gsissh-$(LIB_VERSION).jnilib $(OUTDIR)/libjava-gsissh-$(LIB_MAJOR_VERSION).jnilib
+	ln -s libjava-gsissh-$(LIB_VERSION).jnilib $(OUTDIR)/libjava-gsissh.jnilib
+
+clean:
+	rm -f $(OUTDIR)/*.o
+	rm -f $(OUTDIR)/*.jnilib

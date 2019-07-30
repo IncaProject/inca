@@ -1,0 +1,88 @@
+<project name="java-gsissh" default="compile" basedir=".">
+
+
+	<property name="build.home"   value="${basedir}/build"/>
+	<property name="build.java"   value="${build.home}/classes"/>
+	<property name="src.native"   value="${basedir}/native"/>
+
+	<path id="compile.classpath">
+
+		<fileset dir="${basedir}/lib">
+			<include name="*.jar"/>
+		</fileset>
+
+	</path>
+
+	<path id="make.classpath">
+
+		<path refid="compile.classpath"/>
+		<pathelement location="${build.java}"/>
+
+	</path>
+
+	<condition property="makefile" value="Makefile_MacOS">
+		<and>
+			<os family="mac"/>
+			<os family="unix"/>
+		</and>
+	</condition>
+
+	<condition property="makefile" value="Makefile_Linux">
+		<and>
+			<os family="unix"/>
+			<not>
+				<os family="mac"/>
+			</not>
+		</and>
+	</condition>
+
+
+	<target name="clean">
+
+		<exec executable="make" failonerror="true">
+			<arg value="-f"/>
+			<arg value="${makefile}"/>
+			<arg value="clean"/>
+		</exec>
+
+		<delete dir="${build.home}"/>
+		<delete file="${src.native}/com_sshtools_ssh_components_GssApi.h"/>
+
+	</target>
+
+
+	<target name="prepare">
+
+		<exec executable="bin/prepare.sh" failonerror="true"/>
+
+		<mkdir dir="${build.java}"/>
+
+	</target>
+
+
+	<target name="compile" depends="prepare">
+
+		<javac destdir="${build.java}" debug="true" includeAntRuntime="false" nativeheaderdir="${src.native}">
+			<src path="${basedir}/src"/>
+			<src path="${basedir}/j2ssh/src/main/java"/>
+			<classpath refid="compile.classpath"/>
+		</javac>
+
+		<exec executable="make" failonerror="true">
+			<env key="CLASSPATH" path="${ant.refid:make.classpath}"/>
+			<arg value="-f"/>
+			<arg value="${makefile}"/>
+			<arg value="java-gsissh"/>
+		</exec>
+
+	</target>
+
+
+	<target name="jar" depends="compile">
+
+		<exec executable="bin/package.sh" failonerror="true"/>
+
+	</target>
+
+
+</project>
