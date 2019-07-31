@@ -1,16 +1,19 @@
 package edu.sdsc.inca;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.SocketTimeoutException;
+
+import org.apache.commons.codec.binary.Base64OutputStream;
+import org.apache.log4j.Logger;
+
+import edu.sdsc.inca.dataModel.suite.SuiteDocument;
 import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.protocol.ProtocolException;
 import edu.sdsc.inca.protocol.ProtocolReader;
 import edu.sdsc.inca.protocol.ProtocolWriter;
 import edu.sdsc.inca.protocol.Statement;
-import edu.sdsc.inca.dataModel.suite.SuiteDocument;
-
-import java.io.IOException;
-import java.net.SocketTimeoutException;
-
-import org.apache.log4j.Logger;
 
 /**
  * Created by IntelliJ IDEA.
@@ -31,6 +34,7 @@ public class ManagerClient extends Client {
    * @throws IOException on read/write error
    * @throws ProtocolException on an invalid message
    */
+  @Override
   public String commandPing(String data) throws IOException, ProtocolException {
    logger.info( "Sending ping '" + data + "' to " + resourceName);
     if ( this.writer == null ) {
@@ -141,7 +145,17 @@ public class ManagerClient extends Client {
     if ( filename.endsWith(".tar.gz") ) {
       // we encode a tar.gz before sending because we send data as character
       // stream (not as bytes)
-      packageText = (new sun.misc.BASE64Encoder()).encode(packageContent);
+      ByteArrayOutputStream result = new ByteArrayOutputStream();
+      OutputStream encoder = new Base64OutputStream(result);
+
+      try {
+        encoder.write(packageContent);
+      }
+      finally {
+        encoder.close();
+      }
+
+      packageText = result.toString();
     } else {
       packageText = new String( packageContent );
     }

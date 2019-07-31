@@ -1,15 +1,22 @@
 package edu.sdsc.inca.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.security.MessageDigest;
 import java.security.spec.KeySpec;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.codec.binary.Base64InputStream;
+import org.apache.commons.codec.binary.Base64OutputStream;
 
 // Adapted from http://javaalmanac.com/egs/javax.crypto/PassKey.html
 /**
@@ -67,9 +74,28 @@ public class Crypter {
    * @throws CrypterException on error
    */
   public String decrypt(String s) throws CrypterException {
+
     try {
-      byte[] dec = new sun.misc.BASE64Decoder().decodeBuffer(s);
+      ByteArrayInputStream inBytes = new ByteArrayInputStream(s.getBytes());
+      Base64InputStream decoder = new Base64InputStream(inBytes);
+      byte[] dec;
+
+      try {
+        int bytesRead;
+        byte[] readBuffer = new byte[8192];
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+
+        while ((bytesRead = decoder.read(readBuffer, 0, readBuffer.length)) > 0)
+          result.write(readBuffer, 0, bytesRead);
+
+        dec = result.toByteArray();
+      }
+      finally {
+        decoder.close();
+      }
+
       byte[] utf8 = this.decipher.doFinal(dec);
+
       return new String(utf8, "UTF8");
     } catch(Exception e) {
       throw new CrypterException(e.toString());
@@ -115,7 +141,17 @@ public class Crypter {
   public String encrypt(String s) throws CrypterException {
     try {
       byte[] enc = this.encipher.doFinal(s.getBytes("UTF8"));
-      return new sun.misc.BASE64Encoder().encode(enc);
+      ByteArrayOutputStream result = new ByteArrayOutputStream();
+      OutputStream encoder = new Base64OutputStream(result);
+
+      try {
+        encoder.write(enc);
+      }
+      finally {
+        encoder.close();
+      }
+
+      return result.toString();
     } catch(Exception e) {
       throw new CrypterException(e.toString());
     }
