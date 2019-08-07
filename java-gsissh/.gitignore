@@ -1,8 +1,0 @@
-/build/
-/j2ssh/
-.externalToolBuilders/
-.settings/
-.classpath
-.project
-.cproject
-Makefile

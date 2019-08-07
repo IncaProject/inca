@@ -1,0 +1,58 @@
+# agent
+
+/agent/var/
+/agent/classes/
+/agent/.classpath
+/agent/.project
+/agent/inca-agent.jar
+
+# common
+
+/common/java/classes/
+/common/java/.classpath
+/common/java/.project
+/common/java/.externalToolBuilders/
+/common/java/inca-common.jar
+
+# consumer
+
+/consumers/var/
+/consumers/.classpath
+/consumers/.project
+/consumers/inca-consumers.jar
+/consumers/classes/
+
+# depot
+
+/depot/var/
+/depot/classes/
+/depot/.classpath
+/depot/.project
+/depot/.externalToolBuilders/
+/depot/inca-depot.jar
+
+# java-gsissh
+
+/java-gsissh/build/
+/java-gsissh/j2ssh/
+/java-gsissh/.externalToolBuilders/
+/java-gsissh/.settings/
+/java-gsissh/.classpath
+/java-gsissh/.project
+/java-gsissh/.cproject
+/java-gsissh/Makefile
+/java-gsissh/j2ssh/target
+/java-gsissh/j2ssh/.settings/
+/java-gsissh/j2ssh/.metadata/
+/java-gsissh/j2ssh/RemoteSystemsTempFiles/
+/java-gsissh/lib/bcprov*.jar
+/java-gsissh/lib/jzlib*.jar
+/java-gsissh/lib/oro*.jar
+/java-gsissh/native/com_sshtools_ssh_components_GssApi.h
+/java-gsissh/rsrc/j2ssh-maverick*.tar.gz
+
+# incat
+
+/incat/classes/
+/incat/.classpath
+/incat/.project
