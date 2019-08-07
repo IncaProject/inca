@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- For graphing event series in the Inca data consumer -->
+
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+        targetNamespace= "http://inca.sdsc.edu/dataModel/eventSeries_2.0"
+        xmlns:es="http://inca.sdsc.edu/dataModel/eventSeries_2.0"
+        elementFormDefault="unqualified">
+
+  <complexType name="eventSeries">
+    <sequence>
+      <element name="resource" type="string"/>
+      <element name="begin" type="dateTime"/>
+      <element name="end" type="dateTime"/>
+      <element name="series" type="es:series" minOccurs="0" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+
+  <complexType name="series">
+    <sequence>
+      <element name="suiteGuid" type="string"/>
+      <element name="nickname" type="string"/>
+      <element name="exec" type="es:seriesExec" maxOccurs="unbounded"/>
+    </sequence>
+  </complexType>
+
+  <complexType name="seriesExec">
+    <sequence>
+      <!--
+      NOTE: Within the begin tag, the cumulative values include this series
+      execution itself, i.e. the values of the cpuPct and memory tags are
+      included in the cumulativeCpuPct and cumulativeMemory values.  Within
+      the end tag, this is not the case; the cumulative values exclude this
+      series execution.  Therefore, the cumulative values within the end tag
+      may all be zero, while the values within the begin tag must be non-zero.
+      -->
+      <element name="cpu" type="double"/>
+      <element name="wall" type="double"/>
+      <element name="cpuPct" type="double"/>
+      <element name="memory" type="long"/>
+      <element name="begin" type="es:seriesEvent"/>
+      <element name="end" type="es:seriesEvent"/>
+    </sequence>
+  </complexType>
+
+  <complexType name="seriesEvent">
+    <sequence>
+      <element name="time" type="dateTime"/>
+      <element name="cumulativeCount" type="long"/>
+      <element name="cumulativeCpuPct" type="double"/>
+      <element name="cumulativeMemory" type="long"/>
+    </sequence>
+  </complexType>
+
+</schema>

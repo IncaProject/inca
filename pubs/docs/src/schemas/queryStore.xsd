@@ -1,0 +1,65 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+
+<!-- For storing queries in the Inca data consumer -->
+
+<schema xmlns = "http://www.w3.org/2001/XMLSchema"
+   targetNamespace = "http://inca.sdsc.edu/dataModel/queryStore_2.0"
+   xmlns:qs = "http://inca.sdsc.edu/dataModel/queryStore_2.0"
+   xmlns:inca = "http://inca.sdsc.edu/dataModel/util_2.0"
+   xmlns:xsd = "http://www.w3.org/2001/XMLSchema"
+   elementFormDefault = "unqualified">
+
+  <import namespace = "http://inca.sdsc.edu/dataModel/util_2.0"/>
+
+  <element name = "queryStore">
+    <complexType>
+      <sequence>
+        <element name = "query" type = "qs:query" maxOccurs = "unbounded"/>
+      </sequence>
+    </complexType>
+  </element>
+  <complexType name = "query">
+    <sequence>
+      <element name = "name" type = "string"/>
+      <element name = "description" type = "string" minOccurs = "0"/>
+      <choice>
+        <element name = "type" type = "qs:type"/>
+        <element name = "template" type = "string"/>
+      </choice>
+      <element name = "args" type = "qs:args" minOccurs = "0" />
+      <element name = "cache" type = "qs:cache" minOccurs = "0"/>
+    </sequence>
+  </complexType>
+  <complexType name = "type">
+    <all>
+      <element name = "command" type = "string"/>
+      <element name="params" minOccurs="0">
+        <complexType> 
+          <sequence>
+            <element name = "param" type = "xsd:anySimpleType" 
+                     maxOccurs="unbounded"/>
+          </sequence>
+        </complexType>
+      </element>
+    </all>
+  </complexType>
+  <complexType name = "args">
+    <sequence>
+    <element name="arg" maxOccurs = "unbounded">
+      <complexType>
+        <all>
+          <element name = "name" type = "string"/>
+          <element name = "description" type = "string"/>
+          <element name = "default" type = "string"/>
+        </all>
+      </complexType>
+    </element>
+    </sequence>
+  </complexType>
+  <complexType name = "cache">
+    <sequence>
+      <element name = "reloadPeriod" type = "integer"/>
+      <element name = "reloadAt" type = "string"/>
+    </sequence>
+  </complexType>
+</schema>

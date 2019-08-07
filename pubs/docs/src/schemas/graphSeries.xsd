@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- For graphing series in the Inca data consumer -->
+
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+        targetNamespace= "http://inca.sdsc.edu/dataModel/graphSeries_2.0"
+        xmlns:gs="http://inca.sdsc.edu/dataModel/graphSeries_2.0"
+        xmlns:inca = "http://inca.sdsc.edu/dataModel/util_2.0"
+        xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+        elementFormDefault="unqualified">
+  <complexType name="graphSeries">
+    <sequence>
+      <element name="object" type="gs:graphInstance"/>
+    </sequence>
+  </complexType>
+  <complexType name="graphInstance">
+    <sequence>
+      <element name="resource" type="string" minOccurs="0"/>
+      <element name="targetHostname" type="string" minOccurs="0"/>
+      <element name="nickname" type="string" minOccurs="0"/>
+      <element name="instanceId" type="string" minOccurs="0"/>
+      <element name="reportId" type="string" minOccurs="0"/>
+      <element name="configId" type="string" minOccurs="0"/>
+      <element name="collected" type="dateTime" minOccurs="0"/>
+      <element name="exit_status" type="string" minOccurs="0"/>
+      <element name="exit_message" type="string" minOccurs="0"/>
+      <element name = "body" type = "inca:anyXmlSequence" minOccurs = "0"/>
+      <element name="comparisonResult" type="string" minOccurs="0"/>
+    </sequence>
+  </complexType>
+</schema>

@@ -1,0 +1,22 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+<schema xmlns = "http://www.w3.org/2001/XMLSchema"
+   targetNamespace = "http://inca.sdsc.edu/dataModel/kbArticle_2.0"
+   xmlns:kb = "http://inca.sdsc.edu/dataModel/kbArticle_2.0"
+   elementFormDefault = "unqualified">
+
+  <element name = "kbArticle" type="kb:kbArticle"/>
+
+  <complexType name = "kbArticle">
+    <sequence>
+      <element name = "entered" type = "dateTime"/>
+      <element name = "errorMsg" type = "string" minOccurs = "0"/>
+      <element name = "series" type = "string"/>
+      <element name = "reporter" type = "string"/>
+      <element name = "authorName" type = "string"/>
+      <element name = "authorEmail" type = "string"/>
+      <element name = "articleTitle" type = "string"/>
+      <element name = "articleText" type = "string"/>
+    </sequence>
+  </complexType>
+
+</schema>

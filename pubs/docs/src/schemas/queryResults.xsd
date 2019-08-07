@@ -1,0 +1,35 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+
+<!-- For communicating HQL query results -->
+
+<schema xmlns = "http://www.w3.org/2001/XMLSchema"
+   targetNamespace = "http://inca.sdsc.edu/dataModel/queryResults_2.0"
+   xmlns:qr = "http://inca.sdsc.edu/dataModel/queryResults_2.0"
+   xmlns:inca = "http://inca.sdsc.edu/dataModel/util_2.0"
+   xmlns:xsd = "http://www.w3.org/2001/XMLSchema"
+   elementFormDefault = "unqualified">
+
+  <import namespace = "http://inca.sdsc.edu/dataModel/util_2.0"/>
+
+
+  <element name = "object">
+    <complexType>
+      <sequence>
+        <any namespace = "##any" processContents = "skip" minOccurs = "0" maxOccurs = "unbounded"/>
+      </sequence>
+    </complexType>
+  </element>
+
+  <complexType name = "row">
+    <sequence>
+      <any namespace = "##any" processContents = "skip" minOccurs = "0" maxOccurs = "unbounded"/>
+    </sequence>
+  </complexType>
+
+  <complexType name = "rows">
+    <sequence>
+      <element name = "row" type = "qr:row" maxOccurs = "unbounded"/>
+    </sequence>
+  </complexType>
+
+</schema>
