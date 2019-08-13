@@ -6,6 +6,7 @@
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="inca" tagdir="/WEB-INF/tags/inca" %>
+<%@ taglib prefix="incaXml" uri="/WEB-INF/inca.tld" %>
 <%@ taglib uri='/WEB-INF/cewolf.tld' prefix='cewolf' %>
 
 <jsp:include page="header.jsp">
@@ -61,29 +62,29 @@ filterSuite: displays suite info from specific suites
 <%-- compute series pass percentage via a stylesheet --%>
 <c:import var="computeSeriesAverages" url="/xsl/seriesAverages.xsl"/>
 <c:set var="seriesAveragesXml">
-  <x:transform doc ="${xml}" xslt="${computeSeriesAverages}">
-    <x:param name="sort" value="ascending"/>
-    <x:param name="ignoreErrs" value="${depotBean.ignoreErrorPattern}"/>
-  </x:transform>
+  <incaXml:transform doc ="${xml}" xslt="${computeSeriesAverages}">
+    <incaXml:param name="sort" value="ascending"/>
+    <incaXml:param name="ignoreErrs" value="${depotBean.ignoreErrorPattern}"/>
+  </incaXml:transform>
 </c:set>
 
 <%-- compute pass percentage for suites and resources by week, etc. --%>
 <c:import var="periodAverages" url="/xsl/periodAverages.xsl"/>
 <c:set var="periodAveragesXml">
-  <x:transform doc ="${seriesAveragesXml}" xslt="${periodAverages}">
+  <incaXml:transform doc ="${seriesAveragesXml}" xslt="${periodAverages}">
   <c:if test="${groupBy == 'resource' and lines == 'total'}">
-    <x:param name="resourceTotal" value="true"/>
+    <incaXml:param name="resourceTotal" value="true"/>
   </c:if>
   <c:if test="${groupBy == 'suite' and lines == 'total'}">
-    <x:param name="suiteTotal" value="true"/>
+    <incaXml:param name="suiteTotal" value="true"/>
   </c:if>
   <c:if test="${! empty param.filterResource}">
-    <x:param name="resource" value="${fn:join(paramValues.filterResource, ',')}"/>
+    <incaXml:param name="resource" value="${fn:join(paramValues.filterResource, ',')}"/>
   </c:if>
   <c:if test="${! empty param.filterSuite}">
-    <x:param name="guid" value="${fn:join(paramValues.filterSuite,',')}"/>
+    <incaXml:param name="guid" value="${fn:join(paramValues.filterSuite,',')}"/>
   </c:if>
-  </x:transform>
+  </incaXml:transform>
 </c:set>
 
 <%-- Read in averages to CategoryBeans --%>

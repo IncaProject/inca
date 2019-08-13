@@ -1,10 +1,10 @@
 <%@ page trimDirectiveWhitespaces="true" %>
 
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="x" uri="http://java.sun.com/jsp/jstl/xml" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="inca" tagdir="/WEB-INF/tags/inca" %>
+<%@ taglib prefix="incaXml" uri="/WEB-INF/inca.tld" %>
 <%@ taglib uri='/WEB-INF/cewolf.tld' prefix='cewolf' %>
 
 <inca:date var="two" add="-14"/>
@@ -74,7 +74,7 @@ graph.jsp?series=testName,resourceName,target[,label][&amp;series=testName,resou
   <c:when test="${! empty param.printCSV}">
     <c:import var="xslt" url="/xsl/restGraphCsv.xsl"/>
     <c:set var="csvResult">
-      <x:transform doc="${xml}" xslt="${xslt}"/>
+      <incaXml:transform doc="${xml}" xslt="${xslt}"/>
     </c:set>
 <%
   response.setContentType("text/csv");

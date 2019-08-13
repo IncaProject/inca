@@ -5,17 +5,17 @@
 <%@ attribute name="xsl" required="true" description="xsl stylesheet" %>
 
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="x" uri="http://java.sun.com/jsp/jstl/xml" %>
 <%@ taglib prefix="inca" tagdir="/WEB-INF/tags/inca" %>
+<%@ taglib prefix="incaXml" uri="/WEB-INF/inca.tld" %>
 
 <c:set var="escapeXml" value="${empty param.escapeXml ? 'true' : param.escapeXml}"/>
 <c:choose>
   <c:when test="${!empty xsl and empty param.debug}">
-    <x:transform doc ="${xml}" xslt="${xsl}">
+    <incaXml:transform doc ="${xml}" xslt="${xsl}">
       <c:forEach items="${dynattrs}" var="xslParam">
-        <x:param name="${xslParam.key}" value="${xslParam.value}"/>
+        <incaXml:param name="${xslParam.key}" value="${xslParam.value}"/>
       </c:forEach>
-    </x:transform>
+    </incaXml:transform>
   </c:when>
   <c:otherwise>
     <c:choose><c:when test="${escapeXml == 'false'}">

@@ -47,8 +47,8 @@
 	<path id="classpath">
 		<pathelement location="${build.classes}"/>
 		<fileset dir="${build.lib}">
-			<exclude name="*.LICENSE"/>
-			<include name="*.jar"/>
+			<exclude name="**/*.LICENSE"/>
+			<include name="**/*.jar"/>
 		</fileset>
 		<fileset file="${jar.name}.jar"/>
 		<pathelement location="${build.etc}"/>
@@ -265,7 +265,6 @@
 	<!-- create the jar                                                      -->
 	<!-- =================================================================== -->
 	<target name="jar" description="create jar of project src" depends="compile">
-    <antcall target="jsp"/> 
 		<jar
 			destfile="${jar.name}.jar"
 			basedir="${build.classes}">
@@ -351,31 +350,6 @@
 			</fileset>
 		</junitreport>
 
-	</target>
-
-	<!-- =================================================================== -->
-	<!-- create jsp source files -->
-	<!-- =================================================================== -->
-	<target name="jsp" description="compile jsp pages" if="war.name">
-    <property name="webapp" value="${basedir}/webapps/inca"/>
-    <delete>
-      <fileset dir="${basedir}/src" includes="**/*_jsp.*" />
-    </delete>
-    <antcall target="compile"/> 
-    <taskdef classname="org.apache.jasper.JspC" name="jasper2" 
-             classpathref="classpath"/>
-    <jasper2 verbose="0" package="${jsp.package}" uriroot="${webapp}" 
-             webXmlFragment="generated_web.xml" outputDir="src" 
-             compilerTargetVM="1.8" compilerSourceVM="1.8" />
-    <antcall target="compile"/> 
-    <loadfile property="web" srcFile="${basedir}/generated_web.xml"/>
-    <copy file="${webapp}/WEB-INF/web.template.xml"
-          tofile="${webapp}/WEB-INF/web.xml" overwrite="true" />
-    <replace file="${webapp}/WEB-INF/web.xml" token="@@@" value="${web}" />
-    <copy file="${webapp}/WEB-INF/web.template.xml"
-          tofile="${webapp}/WEB-INF/web.dyn.xml" overwrite="true" />
-    <replace file="${webapp}/WEB-INF/web.dyn.xml" token="@@@" value="" />
-    <!-- <delete file="${basedir}/generated_web.xml"/> -->
 	</target>
 
 	<!-- =================================================================== -->

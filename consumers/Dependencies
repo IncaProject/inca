@@ -4,8 +4,8 @@ batik-dom-1.6.jar
 batik-svggen-1.6.jar
 batik-util-1.6.jar
 batik-xml-1.6.jar
-bcpkix-jdk15on-158.jar
-bcprov-jdk15on-158.jar
+bcpkix-jdk15on-161.jar
+bcprov-jdk15on-161.jar
 cewolf-1.0.jar
 commons-logging-1.0.4.jar
 inca-common.jar
@@ -15,9 +15,14 @@ jcommon-1.0.10.jar
 jfreechart-1.0.9.jar
 junit-3.8.1.jar
 log4j-1.2.17.jar
+saxon9-dom.jar
+saxon9-sql.jar
+saxon9.jar
 saxtag.jar
-servlet-api-3.1.jar
-tlddoc.jar
+serializer.jar
+xalan.jar
 xbean-2.4.jar
 xbean_xpath-2.4.jar
 xbeantag.jar
+xercesImpl.jar
+xml-apis.jar

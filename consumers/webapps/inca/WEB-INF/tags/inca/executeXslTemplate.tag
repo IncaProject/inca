@@ -7,9 +7,8 @@
               description="name of xsl stylesheet (&lt;name&gt;.xsl should exist)"%>
 
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="x" uri="http://java.sun.com/jsp/jstl/xml" %>
+<%@ taglib prefix="incaXml" uri="/WEB-INF/inca.tld" %>
 
-<c:import var="xslt" url="/xsl/${name}.xsl"/>
 <c:set var="xslt">
   <xsl:stylesheet version="2.0"
                   xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -30,9 +29,9 @@
     </xsl:template>
   </xsl:stylesheet>
 </c:set>
-<x:transform xslt="${xslt}">
+<incaXml:transform xslt="${xslt}">
  <sometag/> <%-- any tag to run template over --%>
  <c:forEach items="${dynattrs}" var="xslParam">
-   <x:param name="${xslParam.key}" value="${xslParam.value}"/>
+   <incaXml:param name="${xslParam.key}" value="${xslParam.value}"/>
  </c:forEach>
-</x:transform>
+</incaXml:transform>

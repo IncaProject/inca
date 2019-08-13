@@ -971,7 +971,7 @@ sub setEnvironment {
 
   # set java - add <inca install dir>/lib/*.jar and <inca install dir>/lib/ to
   # CLASSPATH
-  chomp(my $jars=`/bin/echo $BASE_DIR/lib/*.jar | tr ' ' ':'`);
+  chomp(my $jars=`find -L $BASE_DIR/lib -name "*.jar" | tr '\n' ':'`);
   my $classpathAdds = "$BASE_DIR/etc:$BASE_DIR/etc/common:$BASE_DIR/webapps/xsl:$BASE_DIR/webapps/xml:$BASE_DIR/lib:$jars";
   if(defined($ENV{CLASSPATH})) {
     $ENV{CLASSPATH} = "$classpathAdds:$ENV{CLASSPATH}";

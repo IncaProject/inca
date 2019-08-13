@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<web-app 
+   xmlns="http://java.sun.com/xml/ns/javaee" 
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd" 
+   version="3.1">
+
+  <!-- Configure Inca objects -->
+  <listener>
+      <listener-class>edu.sdsc.inca.consumer.WebappListener</listener-class>
+  </listener>
+
+  <!-- Configure CeWolf -->
+  <servlet>
+    <servlet-name>CewolfServlet</servlet-name>
+    <servlet-class>de.laures.cewolf.CewolfRenderer</servlet-class>
+    <!-- sets storage implementation -->
+    <init-param>
+      <param-name>storage</param-name>
+      <param-value>de.laures.cewolf.storage.TransientSessionStorage</param-value>
+    </init-param>
+    <!-- sets overlib.js location relative to webapp -->
+    <init-param>
+      <param-name>overliburl</param-name>
+      <param-value>/js/overlib.js</param-value>
+    </init-param>
+    <!-- turn on or off debugging logging -->
+    <init-param>
+      <param-name>debug</param-name>
+      <param-value>true</param-value>
+    </init-param>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+
+  <!-- Configure rest urls -->
+  <servlet>
+    <servlet-name>RestServlet</servlet-name>
+    <jsp-file>/jsp/rest.jsp</jsp-file>
+  </servlet>
+ 
+  <servlet-mapping>
+    <servlet-name>RestServlet</servlet-name>
+    <url-pattern>/CSV/*</url-pattern>
+    <url-pattern>/JSON/*</url-pattern>
+    <url-pattern>/XML/*</url-pattern>
+    <url-pattern>/HTML/*</url-pattern>
+  </servlet-mapping>
+ 
+  <context-param>
+    <param-name>restId</param-name>
+    <param-value>rest</param-value>
+  </context-param>
+
+  <servlet>
+    <servlet-name>ViewServlet</servlet-name>
+    <jsp-file>/jsp/view.jsp</jsp-file>
+  </servlet>
+    
+  <servlet-mapping>
+    <servlet-name>ViewServlet</servlet-name>
+    <url-pattern>/view/*</url-pattern>
+  </servlet-mapping>
+
+  <servlet-mapping>
+    <servlet-name>CewolfServlet</servlet-name>
+    <url-pattern>/cewolf/*</url-pattern>
+  </servlet-mapping>
+
+  <!-- set default timeout for a page to be 1 hour -->
+  <session-config>
+    <session-timeout>3600</session-timeout>
+  </session-config>
+
+  <!-- require authentication on specific status pages -->
+  <security-constraint>
+    <web-resource-collection>
+      <web-resource-name>Inca Status Pages</web-resource-name>
+      <url-pattern>/jsp/admin.jsp</url-pattern>
+      <url-pattern>/jsp/query.jsp</url-pattern>
+      <url-pattern>/jsp/runNow.jsp</url-pattern>
+      <url-pattern>/jsp/addKnowledgeBase.jsp</url-pattern>
+      <url-pattern>/jsp/seriesConfig.jsp</url-pattern>
+      <url-pattern>/jsp/status-auth.jsp</url-pattern>
+    </web-resource-collection>
+    <auth-constraint>
+      <role-name>*</role-name>
+    </auth-constraint>
+    <user-data-constraint>
+      <transport-guarantee>CONFIDENTIAL</transport-guarantee>
+    </user-data-constraint>
+  </security-constraint>
+ 
+  <!-- see etc/realm.properties to change the password -->
+  <login-config>
+    <auth-method>BASIC</auth-method>
+    <realm-name>Inca Status Pages</realm-name>
+  </login-config>
+
+</web-app>
+

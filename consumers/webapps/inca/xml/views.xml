@@ -1,0 +1,66 @@
+<views>
+  <view id="test/instance">
+    <jsp>instance.jsp</jsp>
+    <param id="nickname">server-vacuumdb</param>
+    <param id="resource">capac</param>
+    <param id="target"/>
+    <param id="collected">2014-01-06T21:43:29.000-08:00</param>
+  </view>
+  <view id="status/sp">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">default.xsl</param>
+    <param id="suiteNames">sp-software-services,app-support</param>
+    <param id="resourceIds">xsede,xsede</param>
+    <param id="tag">name</param>
+  </view>
+  <view id="map/sp">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">google.xsl</param>
+    <param id="suiteNames">sp-software-services</param>
+    <param id="resourceIds">xsede</param>
+    <param id="xml">google.xml</param>
+  </view>
+
+  <view id="status/sp-cross-site">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">default.xsl</param>
+    <param id="suiteNames">cross-site</param>
+    <param id="resourceIds">xsede</param>
+    <param id="tag">name</param>
+  </view>
+  <view id="query/ctss">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">create-query.xsl</param>
+    <param id="suiteNames">ctss</param>
+    <param id="resourceIds">xsede</param>
+  </view>
+
+  <view id="status/central">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">default.xsl</param>
+    <param id="suiteNames">information-services,security,xci-services,xdcdb</param>
+    <param id="resourceIds">INFOC,myproxy.xsede,inca.js,capac</param>
+  </view>
+
+  <view id="status/inca">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">default.xsl</param>
+    <param id="suiteNames">inca</param>
+    <param id="resourceIds">ALL-RM</param>
+  </view>
+
+  <view id="status/gateway-extras">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">default.xsl</param>
+    <param id="suiteNames">gateway-extras</param>
+    <param id="resourceIds">GATEWAY-DISPLAY</param>
+  </view>
+
+  <view id="status/security" auth="true">
+    <jsp>status.jsp</jsp>
+    <param id="xsl">default.xsl</param>
+    <param id="suiteNames">sp-security</param>
+    <param id="resourceIds">xsede</param>
+  </view>
+</views>
+

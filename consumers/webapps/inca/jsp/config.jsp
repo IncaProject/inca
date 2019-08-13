@@ -4,8 +4,8 @@
 <%@ page import="edu.sdsc.inca.util.XmlWrapper" %>
 
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="x" uri="http://java.sun.com/jsp/jstl/xml" %>
 <%@ taglib prefix="inca" tagdir="/WEB-INF/tags/inca" %>
+<%@ taglib prefix="incaXml" uri="/WEB-INF/inca.tld" %>
 
 <jsp:useBean id="agentBean" scope="application" class="edu.sdsc.inca.consumer.AgentBean" />
 
@@ -33,7 +33,7 @@
   <c:otherwise>
     <c:import var="xslt" url="/xsl/configCsv.xsl"/>
     <c:set var="csv">
-      <x:transform doc="${xml}" xslt="${xslt}"/>
+      <incaXml:transform doc="${xml}" xslt="${xslt}"/>
     </c:set>
 <%
   String csv = (String)pageContext.getAttribute("csv", PageContext.PAGE_SCOPE);

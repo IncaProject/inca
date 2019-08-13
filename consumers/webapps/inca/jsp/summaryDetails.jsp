@@ -3,6 +3,7 @@
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="inca" tagdir="/WEB-INF/tags/inca" %>
+<%@ taglib prefix="incaXml" uri="/WEB-INF/inca.tld" %>
 <%@ taglib uri='/WEB-INF/cewolf.tld' prefix='cewolf' %>
 
 <jsp:include page="header.jsp">
@@ -48,22 +49,22 @@ there was no change. </p>
 <%-- compute series pass percentage via a stylesheet --%>
 <c:import var="computeSeriesAverages" url="/xsl/seriesAverages.xsl"/>
 <c:set var="seriesAveragesXml">
-  <x:transform doc ="${xml}" xslt="${computeSeriesAverages}">
-    <x:param name="sort" value="descending"/>
-    <x:param name="ignoreErrs" value="${depotBean.ignoreErrorPattern}"/>
-  </x:transform>
+  <incaXml:transform doc ="${xml}" xslt="${computeSeriesAverages}">
+    <incaXml:param name="sort" value="descending"/>
+    <incaXml:param name="ignoreErrs" value="${depotBean.ignoreErrorPattern}"/>
+  </incaXml:transform>
 </c:set>
 
 <%-- compute pass percentage for suites and resources by week, etc. --%> 
 <c:import var="periodAveragesDetails" url="/xsl/periodAverages.xsl"/>
 <c:set var="periodAveragesXml">
-  <x:transform doc ="${seriesAveragesXml}" xslt="${periodAveragesDetails}">
+  <incaXml:transform doc ="${seriesAveragesXml}" xslt="${periodAveragesDetails}">
     <c:choose><c:when test="${! empty param.resource}">
-      <x:param name="resource" value="${param.resource}"/>
+      <incaXml:param name="resource" value="${param.resource}"/>
     </c:when><c:when test="${! empty param.guid}">
-      <x:param name="guid" value="${param.guid}"/>
+      <incaXml:param name="guid" value="${param.guid}"/>
     </c:when></c:choose>
-  </x:transform>
+  </incaXml:transform>
 </c:set>
 
 <%-- Plot averages --%>

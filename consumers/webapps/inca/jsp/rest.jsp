@@ -3,6 +3,7 @@
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <%@ taglib prefix="inca" tagdir="/WEB-INF/tags/inca" %>
+<%@ taglib prefix="incaXml" uri="/WEB-INF/inca.tld" %>
 <%@ page  import="java.net.URLDecoder" %>
 <%@ page  import="java.net.URLEncoder" %>
 <%@ page trimDirectiveWhitespaces="true"%>
@@ -123,9 +124,9 @@ otherwise they want a resources results for a suite
   </c:set>
   <c:import var="xslt" url="/xsl/rest.xsl"/>
   <c:set var="results">
-    <x:transform doc="${xml}" xslt="${xslt}">
-      <x:param name="urlResource" value="${resource}"/>
-    </x:transform>
+    <incaXml:transform doc="${xml}" xslt="${xslt}">
+      <incaXml:param name="urlResource" value="${resource}"/>
+    </incaXml:transform>
   </c:set>
   <%-- carve off xml declaration --%>
   <c:set var="results" value="${fn:substring(results, 38, -1)}"/>

@@ -1,5 +1,6 @@
-bcpkix-jdk15on-158.jar
-bcprov-jdk15on-158.jar
+bcpkix-jdk15on-161.jar
+bcprov-jdk15on-161.jar
+commons-codec-1.13.jar
 incaXmlBeans.jar
 jsr173_1.0_api.jar
 junit-3.8.1.jar
