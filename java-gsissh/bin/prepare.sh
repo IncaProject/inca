@@ -14,6 +14,10 @@ if [ ! -d j2ssh/ ]; then
     patch -p0 < rsrc/j2ssh.patch
 fi
 
+if [ ! -d lib/ ]; then
+    mkdir lib/
+fi
+
 if [ ! -f lib/bcprov-jdk15on-161.jar ]; then
     echo "downloading bcprov jar"
 
