@@ -21,7 +21,8 @@ import edu.sdsc.inca.protocol.Statement;
  * @author Shava Smallen &lt;ssmallen@sdsc.edu&gt;
  */
 public class ManagerClient extends Client {
-  final private static int MAX_TIMEOUT_TRIES = 60; // 5 mins
+  private static final int MAX_TIMEOUT_TRIES = 60; // 5 mins
+  private static final byte[] LF = "\n".getBytes();
   private static Logger logger = Logger.getLogger( ManagerClient.class );
   public String resourceName = "manager";
 
@@ -146,7 +147,7 @@ public class ManagerClient extends Client {
       // we encode a tar.gz before sending because we send data as character
       // stream (not as bytes)
       ByteArrayOutputStream result = new ByteArrayOutputStream();
-      OutputStream encoder = new Base64OutputStream(result);
+      OutputStream encoder = new Base64OutputStream(result, true, 76, LF);
 
       try {
         encoder.write(packageContent);

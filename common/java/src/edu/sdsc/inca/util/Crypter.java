@@ -24,6 +24,7 @@ import org.apache.commons.codec.binary.Base64OutputStream;
  */
 public class Crypter {
 
+  private static final byte[] LF = "\n".getBytes();
   protected Cipher decipher;
   protected Cipher encipher;
 
@@ -142,7 +143,7 @@ public class Crypter {
     try {
       byte[] enc = this.encipher.doFinal(s.getBytes("UTF8"));
       ByteArrayOutputStream result = new ByteArrayOutputStream();
-      OutputStream encoder = new Base64OutputStream(result);
+      OutputStream encoder = new Base64OutputStream(result, true, 76, LF);
 
       try {
         encoder.write(enc);
