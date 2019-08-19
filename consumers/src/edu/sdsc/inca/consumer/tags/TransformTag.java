@@ -5,7 +5,9 @@ package edu.sdsc.inca.consumer.tags;
 
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.StringReader;
+import java.io.Writer;
 
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.JspTagException;
@@ -31,6 +33,41 @@ import net.sf.saxon.TransformerFactoryImpl;
  */
 @SuppressWarnings("serial")
 public class TransformTag extends BodyTagSupport {
+
+  // nested classes
+
+
+  /**
+   *
+   */
+  private static class TransformWriter extends Writer {
+
+    private final Writer m_writer;
+
+
+    public TransformWriter(Writer writer)
+    {
+      m_writer = writer;
+    }
+
+
+    @Override
+    public void write(char[] cbuf, int off, int len) throws IOException
+    {
+      m_writer.write(cbuf, off, len);
+    }
+
+    @Override
+    public void flush() throws IOException
+    {
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+    }
+  }
+
 
   // data fields
 
@@ -134,7 +171,7 @@ public class TransformTag extends BodyTagSupport {
         pageContext.setAttribute(m_var, result, m_scope);
       }
       else
-        m_transformer.transform(source, new StreamResult(pageContext.getOut()));
+        m_transformer.transform(source, new StreamResult(new TransformWriter(pageContext.getOut())));
     }
     catch (TransformerException err) {
       throw new JspException(err);
