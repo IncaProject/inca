@@ -41,10 +41,6 @@
 /java-gsissh/.project
 /java-gsissh/.cproject
 /java-gsissh/Makefile
-/java-gsissh/j2ssh/target
-/java-gsissh/j2ssh/.settings/
-/java-gsissh/j2ssh/.metadata/
-/java-gsissh/j2ssh/RemoteSystemsTempFiles/
 /java-gsissh/lib/bcprov*.jar
 /java-gsissh/lib/jzlib*.jar
 /java-gsissh/lib/oro*.jar
