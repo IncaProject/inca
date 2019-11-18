@@ -72,6 +72,9 @@ public class GsiSsh extends Ssh {
   protected SshClient connect(boolean noDelay) throws IOException, SshException, OperatorCreationException, GeneralSecurityException, ConfigurationException
   {
     SshConnector conn = SshConnector.createInstance();
+
+    conn.getContext().useGssApiKeyExchange(true);
+
     SocketTransport transport = new SocketTransport(sshServer, sshPort);
 
     if (noDelay)

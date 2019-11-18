@@ -27,7 +27,7 @@ public class Example {
 			LoggerFactory.setInstance(new SimpleLogger(LoggerLevel.DEBUG));
 
 			if (args.length != 1)
-				throw new Exception("usage: Devel [username@]hostname[:port]");
+				throw new Exception("usage: Example [username@]hostname[:port]");
 
 			String hostname = args[0];
 			int index = hostname.indexOf(':');
@@ -59,9 +59,7 @@ public class Example {
 
 			SshConnector conn = SshConnector.createInstance();
 
-			//conn.getContext().setPreferredKeyExchange(GssApiGroup18Sha512.ALGORITHM_NAME);
-			//conn.getContext().setPreferredKeyExchange(GssApiGexSha1.ALGORITHM_NAME);
-			//conn.getContext().setPreferredKeyExchange(GssApiGexSha1MicV2.ALGORITHM_NAME);
+			conn.getContext().useGssApiKeyExchange(true);
 
 			SshClient client = conn.connect(new SocketTransport(hostname, port), username, true);
 

@@ -16,7 +16,6 @@ import com.sshtools.ssh.SshConnector;
 import com.sshtools.ssh.SshException;
 import com.sshtools.ssh.components.SshKeyPair;
 import com.sshtools.ssh.components.SshPublicKey;
-import com.sshtools.ssh2.Ssh2Context;
 
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.protocol.Protocol;
@@ -112,10 +111,8 @@ public class PublicKeySsh extends Ssh {
   protected SshClient connect(boolean noDelay) throws IOException, SshException {
 
     SshConnector conn = SshConnector.createInstance();
-    Ssh2Context context = conn.getContext();
 
-    context.setPreferredKeyExchange(Ssh2Context.KEX_DIFFIE_HELLMAN_ECDH_NISTP_256);
-    context.setHostKeyVerification(new HostKeyVerification() {
+    conn.getContext().setHostKeyVerification(new HostKeyVerification() {
       @Override
       public boolean verifyHost(String host, SshPublicKey key)
       {
