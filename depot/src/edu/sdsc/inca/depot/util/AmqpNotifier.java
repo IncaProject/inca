@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import java.util.Calendar;
 
 import edu.sdsc.inca.depot.persistent.*;
@@ -64,7 +65,7 @@ public class AmqpNotifier implements ReportNotifier {
 
   private static final int JSON_INDENT = 4;
   private static final String PROVIDER = "BC";
-  private static final String REPORT_FIELD = "@inca.report@";
+  //private static final String REPORT_FIELD = "@inca.report@";
   private static final Logger m_logger = Logger.getLogger(AmqpNotifier.class);
   private final String m_exchange;
   private final List<ConnectionFactory> m_factories = new ArrayList<>();
@@ -152,6 +153,7 @@ public class AmqpNotifier implements ReportNotifier {
    * @param instance DB instance for report
    * @throws Exception
    */
+  @Override
   public void notify(String command, Report report, Series series, InstanceInfo instance) throws Exception {
     this.refreshSslContext();
     for (SeriesConfig dbSc : series.getSeriesConfigs()) {
@@ -249,7 +251,7 @@ public class AmqpNotifier implements ReportNotifier {
    */
   private synchronized void refreshSslContext() throws ConfigurationException {
     long currentTime = System.currentTimeMillis();
-    if (this.debug || currentTime < this.lastRefresh + this.credRefreshPeriod) {
+    if (this.debug || currentTime < this.lastRefresh + credRefreshPeriod) {
       return;
     }
     this.lastRefresh = currentTime;
@@ -566,8 +568,9 @@ public class AmqpNotifier implements ReportNotifier {
    * @param factory    Amqp server.
    * @return True if send was successful; otherwise False
    * @throws IOException
+   * @throws TimeoutException
    */
-  private boolean sendJSONToAmqpServer(InstanceInfo instance, String routingKey, byte[] message, ConnectionFactory factory) throws IOException {
+  private boolean sendJSONToAmqpServer(InstanceInfo instance, String routingKey, byte[] message, ConnectionFactory factory) throws IOException, TimeoutException {
     Connection connection = null;
     Channel channel = null;
 
