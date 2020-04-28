@@ -1,5 +1,5 @@
 /*
- * DateColumn.java
+ * BooleanColumn.java
  */
 package edu.sdsc.inca.depot.persistent;
 
@@ -7,18 +7,16 @@ package edu.sdsc.inca.depot.persistent;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.sql.Types;
-import java.util.Date;
 
 
 /**
- * Represents a <code>TIMESTAMP</code> column from a database table.
+ * Represents a <code>BOOLEAN</code> column from a database table.
  *
  * @author Paul Hoover
  *
  */
-class DateColumn extends Column<Date> {
+class BooleanColumn extends Column<Boolean> {
 
   // nested classes
 
@@ -26,7 +24,7 @@ class DateColumn extends Column<Date> {
   /**
    *
    */
-  private static class DateValue extends MemoryValue<Date> {
+  private static class BooleanValue extends MemoryValue<Boolean> {
 
     // public methods
 
@@ -42,9 +40,26 @@ class DateColumn extends Column<Date> {
     @Override
     public void setValue(ResultSet value, int index) throws SQLException
     {
-      Timestamp colValue = value.getTimestamp(index);
+      Boolean colValue = value.getBoolean(index);
+
+      if (value.wasNull())
+        colValue = null;
 
       setValue(colValue);
+    }
+
+    /**
+     * Returns the current value of the object.
+     *
+     * @return the current value of the object, or <code>false</code> if the value is <code>null</code>
+     */
+    @Override
+    public Boolean getValue()
+    {
+      if (m_memValue == null)
+        return false;
+
+      return m_memValue;
     }
 
     /**
@@ -57,7 +72,7 @@ class DateColumn extends Column<Date> {
     @Override
     public void setParamValue(PreparedStatement statement, int index) throws SQLException
     {
-      statement.setTimestamp(index, new Timestamp(m_memValue.getTime()));
+      statement.setBoolean(index, m_memValue);
     }
   }
 
@@ -71,7 +86,7 @@ class DateColumn extends Column<Date> {
    * @param name the name of the column
    * @param nullable whether the column lacks or has a <code>NOT NULL</code> constraint
    */
-  DateColumn(String name, boolean nullable)
+  BooleanColumn(String name, boolean nullable)
   {
     super(name, nullable);
   }
@@ -81,9 +96,9 @@ class DateColumn extends Column<Date> {
    *
    * @param name the name of the column
    * @param nullable whether the column lacks or has a <code>NOT NULL</code> constraint
-   * @param value an initial value to assign to the object
+   * @param value an initial value to assign to the column
    */
-  DateColumn(String name, boolean nullable, Date value)
+  BooleanColumn(String name, boolean nullable, Boolean value)
   {
     super(name, nullable, value);
   }
@@ -100,7 +115,7 @@ class DateColumn extends Column<Date> {
   @Override
   protected int getType()
   {
-    return Types.TIMESTAMP;
+    return Types.BOOLEAN;
   }
 
   /**
@@ -108,8 +123,8 @@ class DateColumn extends Column<Date> {
    * @return
    */
   @Override
-  protected Value<Date> createValue()
+  protected Value<Boolean> createValue()
   {
-    return new DateValue();
+    return new BooleanValue();
   }
 }

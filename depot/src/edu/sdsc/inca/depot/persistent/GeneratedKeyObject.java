@@ -6,6 +6,7 @@ package edu.sdsc.inca.depot.persistent;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 
 
@@ -15,6 +16,9 @@ import java.util.List;
  *
  */
 abstract class GeneratedKeyObject extends PersistentObject {
+
+  // nested classes
+
 
   /**
    *
@@ -26,9 +30,9 @@ abstract class GeneratedKeyObject extends PersistentObject {
      * @param tableName
      * @param key
      * @param columns
-     * @return
+     * @param opQueue
      */
-    List<DatabaseOperation> createInsertOps(String tableName, Column<Long> key, List<Column<?>> columns);
+    void pushInsertOps(String tableName, Column<Long> key, List<Column<?>> columns, Deque<DatabaseOperation> opQueue);
   }
 
   /**
@@ -41,15 +45,12 @@ abstract class GeneratedKeyObject extends PersistentObject {
      * @param tableName
      * @param key
      * @param columns
-     * @return
+     * @param opQueue
      */
-    public List<DatabaseOperation> createInsertOps(String tableName, Column<Long> key, List<Column<?>> columns)
+    @Override
+    public void pushInsertOps(String tableName, Column<Long> key, List<Column<?>> columns, Deque<DatabaseOperation> opQueue)
     {
-      List<DatabaseOperation> insertOps = new ArrayList<DatabaseOperation>();
-
-      insertOps.add(new AutoGenKeyInsertOp(tableName, key, columns));
-
-      return insertOps;
+      opQueue.push(new AutoGenKeyInsertOp(tableName, key, columns));
     }
   }
 
@@ -63,23 +64,23 @@ abstract class GeneratedKeyObject extends PersistentObject {
      * @param tableName
      * @param key
      * @param columns
-     * @return
+     * @param opQueue
      */
-    public List<DatabaseOperation> createInsertOps(String tableName, Column<Long> key, List<Column<?>> columns)
+    @Override
+    public void pushInsertOps(String tableName, Column<Long> key, List<Column<?>> columns, Deque<DatabaseOperation> opQueue)
     {
       List<Column<?>> allColumns = new ArrayList<Column<?>>();
 
       allColumns.add(key);
       allColumns.addAll(columns);
 
-      List<DatabaseOperation> insertOps = new ArrayList<DatabaseOperation>();
-
-      insertOps.add(new ReadSequenceOp("hibernate_sequence", key));
-      insertOps.add(new InsertOp(tableName, allColumns));
-
-      return insertOps;
+      opQueue.push(new InsertOp(tableName, allColumns));
+      opQueue.push(new ReadSequenceOp("hibernate_sequence", key));
     }
   }
+
+
+  // data fields
 
 
   protected Column<Long> m_key;
@@ -94,6 +95,31 @@ abstract class GeneratedKeyObject extends PersistentObject {
   }
 
 
+  // constructors
+
+
+  /**
+   *
+   * @param keyName
+   */
+  protected GeneratedKeyObject(String keyName)
+  {
+    this(null, keyName);
+  }
+
+  /**
+   *
+   * @param tableName
+   * @param keyName
+   */
+  protected GeneratedKeyObject(String tableName, String keyName)
+  {
+    super(tableName);
+
+    m_key = new LongColumn(keyName, false);
+  }
+
+
   // public methods
 
 
@@ -101,9 +127,10 @@ abstract class GeneratedKeyObject extends PersistentObject {
    *
    * @return
    */
+  @Override
   public boolean isNew()
   {
-    return m_key.isNull();
+    return m_key.isNull() || m_key.isModified();
   }
 
   /**
@@ -111,6 +138,7 @@ abstract class GeneratedKeyObject extends PersistentObject {
    * @throws SQLException
    * @throws PersistenceException
    */
+  @Override
   public void delete() throws SQLException, PersistenceException
   {
     super.delete();
@@ -126,6 +154,7 @@ abstract class GeneratedKeyObject extends PersistentObject {
    *
    * @return
    */
+  @Override
   Criterion getKey()
   {
     return new SimpleKey(m_key);
@@ -137,25 +166,10 @@ abstract class GeneratedKeyObject extends PersistentObject {
 
   /**
    *
-   * @param key
-   * @param tableName
-   * @param columns
    */
-  protected void construct(Column<Long> key, String tableName, Column<?>... columns)
+  @Override
+  protected void pushInsertOps()
   {
-    assert m_key == null;
-
-    construct(tableName, columns);
-
-    m_key = key;
-  }
-
-  /**
-   *
-   * @return
-   */
-  protected List<DatabaseOperation> createInsertOps()
-  {
-    return m_opBuilder.createInsertOps(m_tableName, m_key, m_columns);
+    m_opBuilder.pushInsertOps(m_tableName, m_key, m_columns, m_opQueue);
   }
 }

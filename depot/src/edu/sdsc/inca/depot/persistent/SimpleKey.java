@@ -43,6 +43,7 @@ class SimpleKey implements Criterion {
    *
    * @return a phrase describing the criterion
    */
+  @Override
   public String getPhrase()
   {
     return m_key.getName() + " = ?";
@@ -58,6 +59,7 @@ class SimpleKey implements Criterion {
    * @throws SQLException
    * @throws PersistenceException
    */
+  @Override
   public int setParameter(PreparedStatement statement, int index) throws SQLException, PersistenceException
   {
     m_key.setParameter(statement, index);

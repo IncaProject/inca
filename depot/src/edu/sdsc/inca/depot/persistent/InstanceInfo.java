@@ -28,6 +28,9 @@ import org.apache.xmlbeans.XmlObject;
  */
 public class InstanceInfo extends GeneratedKeyObject implements Comparable<InstanceInfo> {
 
+  // nested classes
+
+
   /**
    *
    */
@@ -59,6 +62,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
      * @throws SQLException
      * @throws PersistenceException
      */
+    @Override
     public boolean execute(Connection dbConn) throws SQLException, PersistenceException
     {
       PreparedStatement insertStmt = dbConn.prepareStatement(
@@ -109,6 +113,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
      * @throws SQLException
      * @throws PersistenceException
      */
+    @Override
     public boolean execute(Connection dbConn) throws SQLException, PersistenceException
     {
       PreparedStatement deleteStmt = dbConn.prepareStatement(
@@ -141,6 +146,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
      * @throws SQLException
      * @throws PersistenceException
      */
+    @Override
     public boolean execute(Connection dbConn) throws SQLException, PersistenceException
     {
       PreparedStatement deleteStmt = dbConn.prepareStatement(
@@ -184,6 +190,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
      *
      * @param element
      */
+    @Override
     protected void addSetAddOp(SeriesConfig element)
     {
       Long seriesConfigId = element.getId();
@@ -196,6 +203,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
      *
      * @param element
      */
+    @Override
     protected void addSetRemoveOp(SeriesConfig element)
     {
       Long seriesConfigId = element.getId();
@@ -207,6 +215,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
     /**
      *
      */
+    @Override
     protected void addSetClearOp()
     {
       m_opQueue.add(new RemoveAllLinksOp());
@@ -214,18 +223,22 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   }
 
 
+  // data fields
+
+
   /**
    * Pattern matcher for splitting sysusage string.
    */
   private static final Pattern SYSUSAGE_PATTERN = Pattern.compile("(cpu_secs|wall_secs|memory_mb)\\s*=\\s*(\\d+(\\.\\d+)?)");
+  private static final String KEY_NAME = "incaid";
 
-  private final DateColumn m_collected = new DateColumn("incacollected", false);
-  private final DateColumn m_commited = new DateColumn("incacommited", false);
-  private final FloatColumn m_memoryUsageMB = new FloatColumn("incamemoryusagemb", false);
-  private final FloatColumn m_cpuUsageSec = new FloatColumn("incacpuusagesec", false);
-  private final FloatColumn m_wallClockTimeSec = new FloatColumn("incawallclocktimesec", false);
-  private final StringColumn m_log = new StringColumn("incalog", true, MAX_DB_LONG_STRING_LENGTH);
-  private final LongColumn m_reportId = new LongColumn("incareportid", false);
+  private final Column<Date> m_collected = new DateColumn("incacollected", false);
+  private final Column<Date> m_commited = new DateColumn("incacommited", false);
+  private final Column<Float> m_memoryUsageMB = new FloatColumn("incamemoryusagemb", false);
+  private final Column<Float> m_cpuUsageSec = new FloatColumn("incacpuusagesec", false);
+  private final Column<Float> m_wallClockTimeSec = new FloatColumn("incawallclocktimesec", false);
+  private final Column<String> m_log = new StringColumn("incalog", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<Long> m_reportId = new LongColumn("incareportid", false);
   private Set<SeriesConfig> m_seriesConfigs;
   private String m_linkTableName;
 
@@ -249,6 +262,8 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    */
   public InstanceInfo(String instanceTableName, String linkTableName)
   {
+    super(KEY_NAME);
+
     construct(instanceTableName, linkTableName);
 
     setCollected(new Date());
@@ -272,6 +287,8 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    */
   public InstanceInfo(Series owner, Date collected, Date commited, Float memoryUsageMB, Float cpuUsageSec, Float wallClockTimeSec)
   {
+    super(KEY_NAME);
+
     construct(owner);
 
     setCollected(collected);
@@ -322,6 +339,8 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    */
   public InstanceInfo(String nickname, String resource, String target, Date collected) throws SQLException, PersistenceException
   {
+    super(KEY_NAME);
+
     Connection dbConn = ConnectionSource.getConnection();
     PreparedStatement selectStmt = null;
     ResultSet rows = null;
@@ -381,6 +400,8 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    */
   public InstanceInfo(Series owner, long instanceId) throws SQLException, PersistenceException
   {
+    super(KEY_NAME);
+
     load(owner, instanceId);
   }
 
@@ -393,6 +414,8 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    */
   public InstanceInfo(long seriesId, long instanceId) throws SQLException, PersistenceException
   {
+    super(KEY_NAME);
+
     Series owner = SeriesDAO.load(seriesId);
 
     if (owner == null)
@@ -615,6 +638,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    * @param o the XmlBean object to copy
    * @return this, for convenience
    */
+  @Override
   public PersistentObject fromBean(XmlObject o)
   {
     return this; // No XmlBean equivalent to InstanceInfo
@@ -626,6 +650,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    *
    * @return an XmlBean Limits object that contains equivalent information
    */
+  @Override
   public XmlObject toBean()
   {
     edu.sdsc.inca.dataModel.util.Limits result = edu.sdsc.inca.dataModel.util.Limits.Factory.newInstance();
@@ -643,6 +668,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    * @param o the object to compare
    * @return true iff the comparison object represents the same InstanceInfo
    */
+  @Override
   public boolean equals(Object o)
   {
     if (this == o)
@@ -665,6 +691,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    *
    * @return
    */
+  @Override
   public String toXml()
   {
     // InstanceInfo has no corresponding XML bean.  This implementation is
@@ -691,6 +718,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    *
    * @return a hash code for this object
    */
+  @Override
   public int hashCode()
   {
     return 29 * getCollected().hashCode() +
@@ -705,6 +733,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    * @param other
    * @return
    */
+  @Override
   public int compareTo(InstanceInfo other)
   {
     if (other == null)
@@ -719,7 +748,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
     if (other.isNew())
       return 1;
 
-    return (int)(hashCode() - other.hashCode());
+    return hashCode() - other.hashCode();
   }
 
 
@@ -773,7 +802,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   {
     m_linkTableName = linkTableName;
 
-    construct(new LongColumn("incaid", false), instanceTableName, m_collected, m_commited, m_memoryUsageMB, m_cpuUsageSec, m_wallClockTimeSec, m_log, m_reportId);
+    construct(instanceTableName, m_collected, m_commited, m_memoryUsageMB, m_cpuUsageSec, m_wallClockTimeSec, m_log, m_reportId);
   }
 
   /**

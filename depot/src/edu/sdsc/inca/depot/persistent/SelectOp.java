@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -18,6 +19,9 @@ import java.util.List;
  *
  */
 class SelectOp implements DatabaseOperation {
+
+  // data fields
+
 
   private final String m_tableName;
   private final Criterion m_key;
@@ -40,6 +44,21 @@ class SelectOp implements DatabaseOperation {
     m_columns = columns;
   }
 
+  /**
+   *
+   * @param tableName
+   * @param key
+   * @param column
+   */
+  SelectOp(String tableName, Criterion key, Column<?> column)
+  {
+    m_tableName = tableName;
+    m_key = key;
+    m_columns = new ArrayList<Column<?>>();
+
+    m_columns.add(column);
+  }
+
 
   // public methods
 
@@ -51,6 +70,7 @@ class SelectOp implements DatabaseOperation {
    * @throws SQLException
    * @throws PersistenceException
    */
+  @Override
   public boolean execute(Connection dbConn) throws SQLException, PersistenceException
   {
     if (m_columns.isEmpty())
@@ -64,6 +84,8 @@ class SelectOp implements DatabaseOperation {
 
     while (columns.hasNext()) {
       stmtBuilder.append(", ");
+      stmtBuilder.append(m_tableName);
+      stmtBuilder.append(".");
       stmtBuilder.append(columns.next().getName());
     }
 

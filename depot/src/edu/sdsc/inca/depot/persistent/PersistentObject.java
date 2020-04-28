@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlObject;
@@ -71,14 +70,10 @@ public abstract class PersistentObject {
   /**
    *
    * @param tableName
-   * @param columns
    */
-  protected PersistentObject(String tableName, Column<?>... columns)
+  protected PersistentObject(String tableName)
   {
     m_tableName = tableName;
-
-    for (Column<?> col : columns)
-      m_columns.add(col);
   }
 
   // public methods
@@ -126,22 +121,10 @@ public abstract class PersistentObject {
    */
   public void save() throws SQLException, PersistenceException
   {
-    if (isNew()) {
-      List<DatabaseOperation> insertOps = createInsertOps();
-
-      for (ListIterator<DatabaseOperation> ops = insertOps.listIterator(insertOps.size()) ; ops.hasPrevious() ; )
-        m_opQueue.push(ops.previous());
-    }
-    else {
-      List<Column<?>> columns = new ArrayList<Column<?>>();
-
-      for (Column<?> col : m_columns) {
-        if (col.isModified())
-          columns.add(col);
-      }
-
-      m_opQueue.push(new UpdateOp(m_tableName, getKey(), columns));
-    }
+    if (isNew())
+      pushInsertOps();
+    else
+      pushUpdateOps();
 
     executeOps();
   }
@@ -185,17 +168,26 @@ public abstract class PersistentObject {
 
   /**
    *
+   * @param columns
+   */
+  protected void construct(Column<?>... columns)
+  {
+    assert m_columns.isEmpty();
+
+    for (Column<?> col : columns)
+      m_columns.add(col);
+  }
+
+  /**
+   *
    * @param tableName
    * @param columns
    */
   protected void construct(String tableName, Column<?>... columns)
   {
-    assert m_columns.isEmpty();
-
     m_tableName = tableName;
 
-    for (Column<?> col : columns)
-      m_columns.add(col);
+    construct(columns);
   }
 
   /**
@@ -220,11 +212,27 @@ public abstract class PersistentObject {
 
   /**
    *
-   * @return
    */
-  protected List<DatabaseOperation> createInsertOps()
+  protected void pushInsertOps()
   {
     throw new UnsupportedOperationException();
+  }
+
+  /**
+   *
+   */
+  protected void pushUpdateOps()
+  {
+    assert !m_columns.isEmpty();
+
+    List<Column<?>> modifiedCols = new ArrayList<Column<?>>();
+
+    for (Column<?> col : m_columns) {
+      if (col.isModified())
+        modifiedCols.add(col);
+    }
+
+    m_opQueue.push(new UpdateOp(m_tableName, getKey(), modifiedCols));
   }
 
   /**
@@ -240,16 +248,23 @@ public abstract class PersistentObject {
     try {
       dbConn.setAutoCommit(false);
 
-      for (DatabaseOperation op : m_opQueue) {
+      while (!m_opQueue.isEmpty()) {
+        DatabaseOperation op = m_opQueue.remove();
+
         if (!op.execute(dbConn))
           return false;
       }
 
       dbConn.commit();
 
-      m_opQueue.clear();
-
       return true;
+    }
+    catch (SQLException | PersistenceException err) {
+      m_logger.error(err);
+
+      dbConn.rollback();
+
+      throw err;
     }
     finally {
       dbConn.close();

@@ -7,6 +7,7 @@ package edu.sdsc.inca.depot.persistent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -17,6 +18,9 @@ import java.util.List;
  *
  */
 class UpdateOp implements DatabaseOperation {
+
+  // data fields
+
 
   private final String m_tableName;
   private final Criterion m_key;
@@ -39,6 +43,21 @@ class UpdateOp implements DatabaseOperation {
     m_columns = columns;
   }
 
+  /**
+   *
+   * @param tableName
+   * @param key
+   * @param column
+   */
+  UpdateOp(String tableName, Criterion key, Column<?> column)
+  {
+    m_tableName = tableName;
+    m_key = key;
+    m_columns = new ArrayList<Column<?>>();
+
+    m_columns.add(column);
+  }
+
 
   // public methods
 
@@ -50,6 +69,7 @@ class UpdateOp implements DatabaseOperation {
    * @throws SQLException
    * @throws PersistenceException
    */
+  @Override
   public boolean execute(Connection dbConn) throws SQLException, PersistenceException
   {
     if (m_columns.isEmpty())
@@ -89,7 +109,7 @@ class UpdateOp implements DatabaseOperation {
       updateStmt.close();
 
       for (Column<?> col : m_columns)
-        col.finishSave();
+        col.finishUpdate();
     }
   }
 }

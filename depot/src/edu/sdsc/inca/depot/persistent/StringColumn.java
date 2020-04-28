@@ -18,6 +18,57 @@ import java.sql.Types;
  */
 class StringColumn extends Column<String> {
 
+  // nested classes
+
+
+  /**
+   *
+   */
+  private class StringValue extends MemoryValue<String> {
+
+    // public methods
+
+
+    /**
+     * Sets the value of the object using a row from a <code>ResultSet</code> object. The row used
+     * is the one indicated by the current position of the <code>ResultSet</code> object's cursor.
+     *
+     * @param value the <code>ResultSet</code> object that contains the row
+     * @param index the offset in the row that indicates the column whose value will be assigned to this object
+     * @throws SQLException
+     */
+    @Override
+    public void setValue(ResultSet value, int index) throws SQLException
+    {
+      String colValue = value.getString(index);
+
+      setValue(colValue);
+    }
+
+    /**
+     * Sets the value of a parameter in a <code>PreparedStatement</code> object using the current value of the object.
+     *
+     * @param statement the <code>PreparedStatement</code> object for which a parameter will be set
+     * @param index the offset that indicates the parameter to set
+     * @throws SQLException
+     * @throws PersistenceException
+     */
+    @Override
+    public void setParamValue(PreparedStatement statement, int index) throws SQLException, PersistenceException
+    {
+      // if we know that we're going to violate a constraint, don't incur
+      // the overhead of establishing a connection to the database server
+      if (m_memValue.length() > m_maxLength)
+        throw new PersistenceException(getName() + " exceeds maximum length of " + String.valueOf(m_maxLength));
+
+      statement.setString(index, m_memValue);
+    }
+  }
+
+
+  // data fields
+
+
   private final int m_maxLength;
 
 
@@ -54,59 +105,27 @@ class StringColumn extends Column<String> {
   }
 
 
-  // public methods
+  // protected methods
 
 
   /**
-   * Returns the current value of the object.
+   * Returns the SQL data type of the column
    *
-   * @return the current value of the object
+   * @return the SQL data type of the column
    */
-  public String getValue()
+  @Override
+  protected int getType()
   {
-    return m_value;
+    return Types.VARCHAR;
   }
 
   /**
-   * Assigns a value to the object using a row from a <code>ResultSet</code> object. The row used
-   * is the one indicated by the current position of the <code>ResultSet</code> object's cursor.
    *
-   * @param value the <code>ResultSet</code> object that contains the row
-   * @param index the offset in the row that indicates the column whose value will be assigned to this object
-   * @throws SQLException
+   * @return
    */
-  public void assignValue(ResultSet value, int index) throws SQLException
+  @Override
+  protected Value<String> createValue()
   {
-    assignValue(value.getString(index));
-  }
-
-  /**
-   * Sets the value of a parameter in a <code>PreparedStatement</code> object using the current value of the object.
-   *
-   * @param statement the <code>PreparedStatement</code> object for which a parameter will be set
-   * @param index the offset that indicates the parameter to set
-   * @throws SQLException
-   * @throws PersistenceException
-   */
-  public void setParameter(PreparedStatement statement, int index) throws SQLException, PersistenceException
-  {
-    if (m_value != null) {
-      // if we know that we're going to violate a constraint, don't incur
-      // the overhead of establishing a connection to the database server
-      if (m_value.length() > m_maxLength) {
-        m_logger.warn("Truncating " + m_name + " '" + m_value + "' to fit into a DB table column of " + m_maxLength + " chars");
-
-        m_value = m_value.substring(0, m_maxLength);
-      }
-
-      statement.setString(index, m_value);
-    }
-    else {
-      // again, we know that we're going to violate a constraint
-      if (!m_isNullable)
-        throw new PersistenceException(m_name + " is not nullable");
-
-      statement.setNull(index, Types.VARCHAR);
-    }
+    return new StringValue();
   }
 }

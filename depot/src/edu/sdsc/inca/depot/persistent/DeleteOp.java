@@ -16,6 +16,9 @@ import java.sql.SQLException;
  */
 class DeleteOp implements DatabaseOperation {
 
+  // data fields
+
+
   private final String m_tableName;
   private final Criterion m_key;
 
@@ -41,10 +44,10 @@ class DeleteOp implements DatabaseOperation {
   /**
    *
    * @param dbConn
-   * @return
    * @throws SQLException
    * @throws PersistenceException
    */
+  @Override
   public boolean execute(Connection dbConn) throws SQLException, PersistenceException
   {
     StringBuilder stmtBuilder = new StringBuilder();

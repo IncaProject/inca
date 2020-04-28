@@ -1,5 +1,5 @@
 /*
- * InsertOp.java
+ * AutoGenKeyInsertOp.java
  */
 package edu.sdsc.inca.depot.persistent;
 
@@ -19,6 +19,9 @@ import java.util.List;
  *
  */
 class AutoGenKeyInsertOp implements DatabaseOperation {
+
+  // data fields
+
 
   private final String m_tableName;
   private final Column<?> m_key;
@@ -48,10 +51,10 @@ class AutoGenKeyInsertOp implements DatabaseOperation {
   /**
    *
    * @param dbConn
-   * @return
    * @throws SQLException
    * @throws PersistenceException
    */
+  @Override
   public boolean execute(Connection dbConn) throws SQLException, PersistenceException
   {
     StringBuilder stmtBuilder = new StringBuilder();
@@ -103,7 +106,7 @@ class AutoGenKeyInsertOp implements DatabaseOperation {
       insertStmt.close();
 
       for (Column<?> col : m_columns)
-        col.finishSave();
+        col.finishUpdate();
     }
   }
 }

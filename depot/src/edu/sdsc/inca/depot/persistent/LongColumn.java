@@ -18,6 +18,65 @@ import java.sql.Types;
  */
 class LongColumn extends Column<Long> {
 
+  // nested classes
+
+
+  /**
+   *
+   */
+  private static class LongValue extends MemoryValue<Long> {
+
+    // public methods
+
+
+    /**
+     * Sets the value of the object using a row from a <code>ResultSet</code> object. The row used
+     * is the one indicated by the current position of the <code>ResultSet</code> object's cursor.
+     *
+     * @param value the <code>ResultSet</code> object that contains the row
+     * @param index the offset in the row that indicates the column whose value will be assigned to this object
+     * @throws SQLException
+     */
+    @Override
+    public void setValue(ResultSet value, int index) throws SQLException
+    {
+      Long colValue = value.getLong(index);
+
+      if (value.wasNull())
+        colValue = null;
+
+      setValue(colValue);
+    }
+
+    /**
+     * Returns the current value of the object.
+     *
+     * @return the current value of the object, or <code>0</code> if the value is <code>null</code>
+     */
+    @Override
+    public Long getValue()
+    {
+      if (m_memValue == null)
+        return 0L;
+
+      return m_memValue;
+    }
+
+    /**
+     * Sets the value of a parameter in a <code>PreparedStatement</code> object using the current value of the object.
+     *
+     * @param statement the <code>PreparedStatement</code> object for which a parameter will be set
+     * @param index the offset that indicates the parameter to set
+     * @throws SQLException
+     */
+    @Override
+    public void setParamValue(PreparedStatement statement, int index) throws SQLException
+    {
+      statement.setLong(index, m_memValue);
+    }
+  }
+
+
   // constructors
 
 
@@ -45,59 +104,27 @@ class LongColumn extends Column<Long> {
   }
 
 
-  // public methods
+  // protected methods
 
 
   /**
-   * Returns the current value of the object.
+   * Returns the SQL data type of the column
    *
-   * @return the current value of the object, or <code>0</code> if the value is <code>null</code>
+   * @return the SQL data type of the column
    */
-  public Long getValue()
+  @Override
+  protected int getType()
   {
-    if (m_value == null)
-      return 0L;
-
-    return m_value;
+    return Types.BIGINT;
   }
 
   /**
-   * Assigns a value to the object using a row from a <code>ResultSet</code> object. The row used
-   * is the one indicated by the current position of the <code>ResultSet</code> object's cursor.
    *
-   * @param value the <code>ResultSet</code> object that contains the row
-   * @param index the offset in the row that indicates the column whose value will be assigned to this object
-   * @throws SQLException
+   * @return
    */
-  public void assignValue(ResultSet value, int index) throws SQLException
+  @Override
+  protected Value<Long> createValue()
   {
-    Long colValue = value.getLong(index);
-
-    if (!value.wasNull())
-      assignValue(colValue);
-    else
-      assignValue(null);
-  }
-
-  /**
-   * Sets the value of a parameter in a <code>PreparedStatement</code> object using the current value of the object.
-   *
-   * @param statement the <code>PreparedStatement</code> object for which a parameter will be set
-   * @param index the offset that indicates the parameter to set
-   * @throws SQLException
-   * @throws PersistenceException
-   */
-  public void setParameter(PreparedStatement statement, int index) throws SQLException, PersistenceException
-  {
-    if (m_value != null)
-      statement.setLong(index, m_value);
-    else {
-      // if we know that we're going to violate a constraint, don't incur
-      // the overhead of establishing a connection to the database server
-      if (!m_isNullable)
-        throw new PersistenceException(m_name + " is not nullable");
-
-      statement.setNull(index, Types.BIGINT);
-    }
+    return new LongValue();
   }
 }

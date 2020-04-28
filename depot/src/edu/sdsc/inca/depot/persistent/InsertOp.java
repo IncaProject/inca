@@ -18,6 +18,9 @@ import java.util.List;
  */
 class InsertOp implements DatabaseOperation {
 
+  // data fields
+
+
   private final String m_tableName;
   private final List<Column<?>> m_columns;
 
@@ -43,10 +46,10 @@ class InsertOp implements DatabaseOperation {
   /**
    *
    * @param dbConn
-   * @return
    * @throws SQLException
    * @throws PersistenceException
    */
+  @Override
   public boolean execute(Connection dbConn) throws SQLException, PersistenceException
   {
     StringBuilder stmtBuilder = new StringBuilder();
@@ -86,7 +89,7 @@ class InsertOp implements DatabaseOperation {
       insertStmt.close();
 
       for (Column<?> col : m_columns)
-        col.finishSave();
+        col.finishUpdate();
     }
   }
 }
