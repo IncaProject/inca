@@ -152,7 +152,7 @@ public class Crypter {
         encoder.close();
       }
 
-      return result.toString();
+      return result.toString().strip();
     } catch(Exception e) {
       throw new CrypterException(e.toString());
     }
