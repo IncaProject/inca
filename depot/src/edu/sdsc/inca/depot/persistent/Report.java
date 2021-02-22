@@ -1,71 +1,272 @@
+/*
+ * Report.java
+ */
 package edu.sdsc.inca.depot.persistent;
 
-import edu.sdsc.inca.dataModel.util.AnyXmlSequence;
+
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Calendar;
-import java.util.Iterator;
+
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
+
+import edu.sdsc.inca.dataModel.util.AnyXmlSequence;
 
 
 /**
  * This class represents the output from a Single Reporter.
  *
- * @author Cathie Olschanowsky
+ * @author Cathie Olschanowskyz
+ * @author Paul Hoover
  */
-public class Report extends PersistentObject {
+public class Report extends GeneratedKeyRow implements Comparable<Report> {
 
-  /** id set iff this object is stored in the DB. */
-  private Long id;
+  // data fields
 
-  /** Persistent fields. */
-  private Boolean exit_status;
-  private String exit_message; // Long string
-  private String bodypart1; // Long string
-  private String bodypart2; // Long string
-  private String bodypart3; // Long string
-  private String stderr;
 
-  /** Relations. */
-  private Series series;
-  private RunInfo runInfo;
+  private static final String TABLE_NAME = "INCAREPORT";
+  private static final String KEY_NAME = "incaid";
+  private static final Logger m_log = Logger.getLogger(Report.class);
+  private final Column<Boolean> m_exitStatus = new BooleanColumn("incaexit_status", true);
+  private final Column<String> m_exitMessage = new StringColumn("incaexit_message", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<String> m_bodypart1 = new StringColumn("incabodypart1", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<String> m_bodypart2 = new StringColumn("incabodypart2", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<String> m_bodypart3 = new StringColumn("incabodypart3", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<String> m_stderr = new StringColumn("incastderr", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<Long> m_seriesId = new LongColumn("incaseries_id", false);
+  private final Column<Long> m_runInfoId = new LongColumn("incarunInfo_id", false);
+  private Series m_series;
+  private RunInfo m_runInfo;
 
-  private static Logger logger = Logger.getLogger(Report.class);
+
+  // constructors
+
 
   /**
-   * Default constructor.
+   *
    */
-  public Report() {
-    this(new Boolean(true), "", "", null);
+  public Report()
+  {
+    super(TABLE_NAME, KEY_NAME);
+
+    construct(m_exitStatus, m_exitMessage, m_bodypart1, m_bodypart2, m_bodypart3, m_stderr, m_seriesId, m_runInfoId);
+
+    m_series = new Series();
+    m_runInfo = new RunInfo();
   }
 
   /**
-   * Full constructor.
    *
-   * @param exit_status  the exist_status of the run
-   * @param exit_message the exit_message of the run
-   * @param body         the body is the bulk of the results
-   * @param series which series does this report belong to?
+   * @param status
+   * @param message
+   * @param body
+   * @param series
    */
-  public Report(Boolean exit_status, String exit_message, String body,
-                Series series) {
-    this.setExit_status(exit_status);
-    this.setExit_message(exit_message);
-    this.setBody(body);
-    this.setStderr("");
-    this.setSeries(series);
-    this.setRunInfo(new RunInfo());
+  public Report(Boolean status, String message, String body, Series series)
+  {
+    this();
+
+    setExit_status(status);
+    setExit_message(message);
+    setBody(body);
+    setStderr("");
+    setSeries(series);
+    setRunInfo(new RunInfo());
   }
 
   /**
-   * Copies information from an Inca schema XmlBean Report object so that this
-   * object contains equivalent information.
-   *
-   * @param o the XmlBean Report object to copy
-   * @return this, for convenience
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public PersistentObject fromBean(XmlObject o) {
-    return fromBean((edu.sdsc.inca.dataModel.util.Report)o);
+  public Report(long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load();
+  }
+
+  /**
+   * @param dbConn
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  Report(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load(dbConn);
+  }
+
+
+  // public methods
+
+
+  /**
+   *
+   * @return
+   */
+  public boolean getExit_status()
+  {
+    return m_exitStatus.getValue();
+  }
+
+  /**
+   *
+   * @param status
+   */
+  public void setExit_status(Boolean status)
+  {
+    m_exitStatus.setValue(status);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getExit_message()
+  {
+    return m_exitMessage.getValue();
+  }
+
+  /**
+   *
+   * @param message
+   */
+  public void setExit_message(String message)
+  {
+    message = normalize(message, MAX_DB_LONG_STRING_LENGTH, "error message");
+
+    m_exitMessage.setValue(message);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getBody()
+  {
+    StringBuilder result = new StringBuilder(m_bodypart1.getValue());
+
+    if (!m_bodypart2.isNull() && !m_bodypart2.getValue().equals(DB_EMPTY_STRING))
+      result.append(m_bodypart2.getValue());
+
+    if (!m_bodypart3.isNull() && !m_bodypart3.getValue().equals(DB_EMPTY_STRING))
+      result.append(m_bodypart3.getValue());
+
+    return result.toString();
+  }
+
+  /**
+   *
+   * @param body
+   */
+  public void setBody(String body)
+  {
+    if (body == null)
+      body = "";
+
+    int length = body.length();
+
+    if (length <= MAX_DB_LONG_STRING_LENGTH) {
+      m_bodypart1.setValue(body);
+      m_bodypart2.setValue(DB_EMPTY_STRING);
+      m_bodypart3.setValue(DB_EMPTY_STRING);
+    }
+    else if (length <= MAX_DB_LONG_STRING_LENGTH * 2) {
+      m_bodypart1.setValue(body.substring(0, MAX_DB_LONG_STRING_LENGTH));
+      m_bodypart2.setValue(body.substring(MAX_DB_LONG_STRING_LENGTH));
+      m_bodypart3.setValue(DB_EMPTY_STRING);
+    }
+    else if (length <= MAX_DB_LONG_STRING_LENGTH * 3) {
+      m_bodypart1.setValue(body.substring(0, MAX_DB_LONG_STRING_LENGTH));
+      m_bodypart2.setValue(body.substring(MAX_DB_LONG_STRING_LENGTH, MAX_DB_LONG_STRING_LENGTH * 2));
+      m_bodypart3.setValue(body.substring(MAX_DB_LONG_STRING_LENGTH * 2));
+    }
+    else {
+      m_log.error("Rejecting too-long report body '" + body + "'");
+
+      m_bodypart1.setValue(DB_EMPTY_STRING);
+      m_bodypart2.setValue(DB_EMPTY_STRING);
+      m_bodypart3.setValue(DB_EMPTY_STRING);
+    }
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getStderr()
+  {
+    return m_stderr.getValue();
+  }
+
+  /**
+   *
+   * @param stderr
+   */
+  public void setStderr(String stderr)
+  {
+    stderr = normalize(stderr, MAX_DB_LONG_STRING_LENGTH, "stderr");
+
+    m_stderr.setValue(stderr);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public Series getSeries()
+  {
+    return m_series;
+  }
+
+  /**
+   *
+   * @param series
+   */
+  public void setSeries(Series series)
+  {
+    m_series = series;
+  }
+
+  /**
+   *
+   * @return
+   */
+  public RunInfo getRunInfo()
+  {
+    return m_runInfo;
+  }
+
+  /**
+   *
+   * @param info
+   */
+  public void setRunInfo(RunInfo info)
+  {
+    m_runInfo = info;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public XmlBeanObject fromBean(XmlObject o)
+  {
+    return fromBean((edu.sdsc.inca.dataModel.util.Report) o);
   }
 
   /**
@@ -75,289 +276,405 @@ public class Report extends PersistentObject {
    * @param r the XmlBean Report object to copy
    * @return this, for convenience
    */
-  public Report fromBean(edu.sdsc.inca.dataModel.util.Report r) {
-    this.setBody(r.getBody().xmlText());
-    this.setExit_status(Boolean.valueOf(r.getExitStatus().getCompleted()));
-    this.setExit_message(r.getExitStatus().getErrorMessage());
+  public Report fromBean(edu.sdsc.inca.dataModel.util.Report r)
+  {
+    setBody(r.getBody().xmlText());
+    setExit_status(Boolean.valueOf(r.getExitStatus().getCompleted()));
+    setExit_message(r.getExitStatus().getErrorMessage());
+
     return this;
   }
 
   /**
-   * Retrieve the id -- null if not yet connected to database.
-   *
-   * @return The Long representation of the DB ID
+   * {@inheritDoc}
    */
-  public Long getId() {
-    return this.id;
-  }
+  @Override
+  public XmlObject toBean() throws IOException, SQLException, PersistenceException
+  {
+    edu.sdsc.inca.dataModel.util.Report result = edu.sdsc.inca.dataModel.util.Report.Factory.newInstance();
 
-  /**
-   * Set the id.  Hibernate use only.
-   *
-   * @param id The DB ID.
-   */
-  public void setId(Long id) {
-    this.id = id;
-  }
+    result.setGmt(Calendar.getInstance());
+    result.setHostname(getRunInfo().getHostname());
+    result.setName(getSeries().getReporter());
+    result.setVersion(getSeries().getVersion());
+    result.setWorkingDir(getRunInfo().getWorkingDir());
+    result.setReporterPath(getRunInfo().getReporterPath());
+    result.setArgs((edu.sdsc.inca.dataModel.util.Args) getRunInfo().getArgSignature().toBean());
 
-  /**
-   * Retrieve the exit status of this report.
-   *
-   * @return exit_status
-   */
-  public Boolean getExit_status() {
-    return this.exit_status;
-  }
+    try {
+      String body = this.getBody();
 
-  /**
-   * Set the exit status of this report.
-   *
-   * @param exit_status true for pass false for fail
-   */
-  public void setExit_status(Boolean exit_status) {
-    this.exit_status = exit_status;
-  }
-
-  /**
-   * Retrieve the exit message of this report.
-   *
-   * @return the exit message
-   */
-  public String getExit_message() {
-    return this.exit_message;
-  }
-
-  /**
-   * Set the exit message of this report.
-   *
-   * @param exit_message the text of the exit message
-   */
-  public void setExit_message(String exit_message) {
-    if(exit_message == null || exit_message.equals("")) {
-      exit_message = DB_EMPTY_STRING;
+      if (body.equals(DB_EMPTY_STRING))
+        result.setBody(AnyXmlSequence.Factory.newInstance());
+      else
+        result.setBody(AnyXmlSequence.Factory.parse(body));
     }
-    this.exit_message =
-      truncate(exit_message, MAX_DB_LONG_STRING_LENGTH, "error message");
-  }
+    catch (XmlException e) {
+      m_log.error("Unable to parse body from DB:", e);
+    }
 
-  /**
-   * Retrieve the body of this report as an XML string.
-   *
-   * @return XML string
-   */
-  public String getBody() {
-    String result = this.getBodypart1();
-    String part2 = this.getBodypart2();
-    String part3 = this.getBodypart3();
-    if(!part2.equals(DB_EMPTY_STRING)) {
-      result += part2;
-    }
-    if(!part3.equals(DB_EMPTY_STRING)) {
-      result += part3;
-    }
+    result.addNewExitStatus();
+    result.getExitStatus().setCompleted(getExit_status());
+    result.getExitStatus().setErrorMessage(getExit_message());
+
     return result;
   }
 
   /**
-   * Set the body of this report.
-   *
-   * @param body xml body of report
+   * {@inheritDoc}
    */
-  public void setBody(String body) {
-    if(body == null) {
-      body = "";
+  @Override
+  public boolean equals(Object other)
+  {
+    if (other == null)
+      return false;
+
+    if (this == other)
+      return true;
+
+    if (other instanceof Report == false)
+      return false;
+
+    Report otherReport = (Report) other;
+
+    return getExit_status() == otherReport.getExit_status() &&
+           getExit_message().equals(otherReport.getExit_message()) &&
+           getBody().equals(otherReport.getBody()) &&
+           getStderr().equals(otherReport.getStderr()) &&
+           getSeries().equals(otherReport.getSeries()) &&
+           getRunInfo().equals(otherReport.getRunInfo());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int hashCode()
+  {
+    return 29 * (Boolean.valueOf(getExit_status()).hashCode() +
+                 getExit_message().hashCode() +
+                 getBody().hashCode() +
+                 getStderr().hashCode() +
+                 getSeries().hashCode() +
+                 getRunInfo().hashCode());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int compareTo(Report other)
+  {
+    if (other == null)
+      throw new NullPointerException("other");
+
+    if (this == other)
+      return 0;
+
+    return hashCode() - other.hashCode();
+  }
+
+  /**
+   *
+   * @param report
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public static Report find(Report report) throws IOException, SQLException, PersistenceException
+  {
+    return find(report.getExit_status(), report.getExit_message(), report.getBodypart1(), report.getBodypart2(), report.getBodypart3(), report.getStderr(), report.getSeriesId(), report.getRunInfoId());
+  }
+
+  /**
+   *
+   * @param status
+   * @param message
+   * @param bodypart1
+   * @param bodypart2
+   * @param bodypart3
+   * @param stderr
+   * @param seriesId
+   * @param runInfoId
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public static Report find(boolean status, String message, String bodypart1, String bodypart2, String bodypart3, String stderr, long seriesId, long runInfoId) throws IOException, SQLException, PersistenceException
+  {
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+
+    try {
+      Long id = find(dbConn, status, message, bodypart1, bodypart2, bodypart3, stderr, seriesId, runInfoId);
+
+      if (id == null)
+        return null;
+
+      return new Report(id);
     }
-    int length = body.length();
-    if(length <= MAX_DB_LONG_STRING_LENGTH) {
-      this.setBodypart1(body);
-      this.setBodypart2("");
-      this.setBodypart3("");
-    } else if(length <= MAX_DB_LONG_STRING_LENGTH * 2) {
-      this.setBodypart1(body.substring(0, MAX_DB_LONG_STRING_LENGTH));
-      this.setBodypart2(body.substring(MAX_DB_LONG_STRING_LENGTH));
-      this.setBodypart3("");
-    } else if(length <= MAX_DB_LONG_STRING_LENGTH * 3) {
-      this.setBodypart1(body.substring(0, MAX_DB_LONG_STRING_LENGTH));
-      this.setBodypart2
-        (body.substring(MAX_DB_LONG_STRING_LENGTH,MAX_DB_LONG_STRING_LENGTH*2));
-      this.setBodypart3(body.substring(MAX_DB_LONG_STRING_LENGTH * 2));
-    } else {
-      logger.error("Rejecting too-long report body '" + body + "'");
-      this.setBodypart1("");
-      this.setBodypart2("");
-      this.setBodypart3("");
+    finally {
+      dbConn.close();
     }
   }
+
+
+  // package methods
+
 
   /**
    * Retrieve the first part of the body of this report.
+   *
+   * @return
    */
-  public String getBodypart1() {
-    return this.bodypart1;
-  }
-
-  /**
-   * Set the second part of the body of this report.
-   */
-  public void setBodypart1(String bodypart) {
-    if(bodypart == null || bodypart.equals("")) {
-      bodypart = DB_EMPTY_STRING;
-    }
-    this.bodypart1 = truncate(bodypart, MAX_DB_LONG_STRING_LENGTH, "stderr");
+  String getBodypart1()
+  {
+    return m_bodypart1.getValue();
   }
 
   /**
    * Retrieve the second part of the body of this report.
+   *
+   * @return
    */
-  public String getBodypart2() {
-    return this.bodypart2;
-  }
-
-  /**
-   * Set the second part of the body of this report.
-   */
-  public void setBodypart2(String bodypart) {
-    if(bodypart == null || bodypart.equals("")) {
-      bodypart = DB_EMPTY_STRING;
-    }
-    this.bodypart2 = truncate(bodypart, MAX_DB_LONG_STRING_LENGTH, "stderr");
+  String getBodypart2()
+  {
+    return m_bodypart2.getValue();
   }
 
   /**
    * Retrieve the third part of the body of this report.
-   */
-  public String getBodypart3() {
-    return this.bodypart3;
-  }
-
-  /**
-   * Set the third part of the body of this report.
-   */
-  public void setBodypart3(String bodypart) {
-    if(bodypart == null || bodypart.equals("")) {
-      bodypart = DB_EMPTY_STRING;
-    }
-    this.bodypart3 = truncate(bodypart, MAX_DB_LONG_STRING_LENGTH, "stderr");
-  }
-
-  /**
-   * Get the Series that this report is part of.
    *
-   * @return The Series this report belongs to.
+   * @return
    */
-  public Series getSeries() {
-    return this.series;
+  String getBodypart3()
+  {
+    return m_bodypart3.getValue();
   }
 
   /**
-   * set the report series that this report is part of.
-   *
-   * @param series the Series this report belongs to
+   * {@inheritDoc}
    */
-  public void setSeries(Series series) {
-    this.series = series;
+  @Override
+  void save(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    m_series.save(dbConn);
+    m_runInfo.save(dbConn);
+
+    m_seriesId.setValue(m_series.getId());
+    m_runInfoId.setValue(m_runInfo.getId());
+
+    super.save(dbConn);
   }
 
   /**
-   * Get the RunInfo associated with this Report.
-   *
-   * @return The RunInfo this report belongs to.
+   * {@inheritDoc}
    */
-  public RunInfo getRunInfo() {
-    return this.runInfo;
+  @Override
+  void load(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    super.load(dbConn);
+
+    m_series = new Series(dbConn, m_seriesId.getValue());
+    m_runInfo = new RunInfo(dbConn, m_runInfoId.getValue());
   }
 
   /**
-   * Set the RunInfo associated with this Report.
-   *
-   * @param runInfo the RunInfo this report belongs to
+   * {@inheritDoc}
    */
-  public void setRunInfo(RunInfo runInfo) {
-    this.runInfo = runInfo;
+  @Override
+  boolean delete(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    deleteDependencies(dbConn, m_key.getValue());
+
+    return super.delete(dbConn);
   }
 
   /**
-   * Retrieve the contents of STDERR output by the reporter.
    *
-   * @return what the reporter sent to STDERR
+   * @param dbConn
+   * @param id
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public String getStderr() {
-    return this.stderr;
+  static boolean delete(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    deleteDependencies(dbConn, id);
+
+    Criterion key = new LongCriterion(KEY_NAME, id);
+
+    return Row.delete(dbConn, TABLE_NAME, key);
   }
 
   /**
-   * Set the contents of stderr -- can be used for querying or by Hibernate.
    *
-   * @param stderr contents of stderr
+   * @param dbConn
+   * @param key
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public void setStderr(String stderr) {
-    if(stderr == null || stderr.equals("")) {
-      stderr = DB_EMPTY_STRING;
-    }
-    this.stderr = truncate(stderr, MAX_DB_LONG_STRING_LENGTH, "stderr");
-  }
+  static boolean delete(Connection dbConn, Criterion key) throws IOException, SQLException, PersistenceException
+  {
+    StringBuilder stmtBuilder = new StringBuilder();
 
-  /**
-   * Returns a Inca schema XmlBean Report object that contains information
-   * equivalent to this object.
-   *
-   * @return an XmlBean Report object that contains equivalent information
-   */
-  public XmlObject toBean() {
-    edu.sdsc.inca.dataModel.util.Report result =
-      edu.sdsc.inca.dataModel.util.Report.Factory.newInstance();
-    result.setGmt(Calendar.getInstance()); // Client should overwrite this
-    result.setHostname(this.getRunInfo().getHostname());
-    result.setName(this.getSeries().getReporter());
-    result.setVersion(this.getSeries().getVersion());
-    result.setWorkingDir(this.getRunInfo().getWorkingDir());
-    result.setReporterPath(this.getRunInfo().getReporterPath());
-    result.setArgs((edu.sdsc.inca.dataModel.util.Args)this.getRunInfo().getArgSignature().toBean());
+    stmtBuilder.append("SELECT ");
+    stmtBuilder.append(KEY_NAME);
+    stmtBuilder.append(" FROM ");
+    stmtBuilder.append(TABLE_NAME);
+    stmtBuilder.append(" WHERE ");
+    stmtBuilder.append(key.getPhrase());
+
+    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
+    ResultSet rows = null;
+
     try {
-      String body = this.getBody();
-      if(body.equals(DB_EMPTY_STRING)) {
-        result.setBody(AnyXmlSequence.Factory.newInstance());
-      } else {
-        result.setBody(AnyXmlSequence.Factory.parse(body));
+      key.setParameter(selectStmt, 1);
+
+      rows = selectStmt.executeQuery();
+
+      boolean result = true;
+
+      while (rows.next()) {
+        long reportId = rows.getLong(1);
+
+        if (!delete(dbConn, reportId))
+          result = false;
       }
-    } catch (XmlException e) {
-      logger.error("Unable to parse body from DB:", e);
+
+      return result;
     }
-    result.addNewExitStatus();
-    result.getExitStatus().setCompleted(this.getExit_status().booleanValue());
-    result.getExitStatus().setErrorMessage(this.getExit_message());
-    return result;
+    finally {
+      if (rows != null)
+        rows.close();
+
+      selectStmt.close();
+    }
+  }
+
+
+  // protected methods
+
+
+  /**
+   *
+   * @param bodypart
+   */
+  protected void setBodypart1(String bodypart)
+  {
+    bodypart = normalize(bodypart, MAX_DB_LONG_STRING_LENGTH, "bodypart1");
+
+    m_bodypart1.setValue(bodypart);
   }
 
   /**
-   * Compares another object to this Report for logical equality.
    *
-   * @param o the object to compare
-   * @return true iff the comparison object represents the same Report
+   * @param bodypart
    */
-  public boolean equals(Object o) {
-    if(this == o) {
-      return true;
-    } else if(!(o instanceof Report)) {
-      return false;
+  protected void setBodypart2(String bodypart)
+  {
+    bodypart = normalize(bodypart, MAX_DB_LONG_STRING_LENGTH, "bodypart2");
+
+    m_bodypart2.setValue(bodypart);
+  }
+
+  /**
+   *
+   * @param bodypart
+   */
+  protected void setBodypart3(String bodypart)
+  {
+    bodypart = normalize(bodypart, MAX_DB_LONG_STRING_LENGTH, "bodypart3");
+
+    m_bodypart3.setValue(bodypart);
+  }
+
+  /**
+   *
+   * @return
+   */
+  protected long getSeriesId()
+  {
+    return m_seriesId.getValue();
+  }
+
+  /**
+   *
+   * @return
+   */
+  protected long getRunInfoId()
+  {
+    return m_runInfoId.getValue();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected Long findDuplicate(Connection dbConn) throws SQLException
+  {
+    return find(dbConn, getExit_status(), getExit_message(), getBodypart1(), getBodypart2(), getBodypart3(), getStderr(), getSeriesId(), getRunInfoId());
+  }
+
+
+  // private methods
+
+
+  /**
+   *
+   */
+  private static Long find(Connection dbConn, boolean status, String message, String bodypart1, String bodypart2, String bodypart3, String stderr, long seriesId, long runInfoId) throws SQLException
+  {
+    PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid " +
+      "FROM INCAREPORT " +
+      "WHERE incaexit_status = ? " +
+        "AND incaexit_message = ? " +
+        "AND incabodypart1 = ? " +
+        "AND incabodypart2 = ? " +
+        "AND incabodypart3 = ? " +
+        "AND incastderr = ? " +
+        "AND incaseries_id = ? " +
+        "AND incarunInfo_id = ?"
+    );
+    ResultSet row = null;
+
+    try {
+      selectStmt.setBoolean(1, status);
+      selectStmt.setString(2, message);
+      selectStmt.setString(3, bodypart1);
+      selectStmt.setString(4, bodypart2);
+      selectStmt.setString(5, bodypart3);
+      selectStmt.setString(6, stderr);
+      selectStmt.setLong(7, seriesId);
+      selectStmt.setLong(8, runInfoId);
+
+      row = selectStmt.executeQuery();
+
+      if (!row.next())
+        return null;
+
+      return row.getLong(1);
     }
-    Report report = (Report)o;
-    return
-      this.getBody().equals(report.getBody()) &&
-      this.getExit_message().equals(report.getExit_message()) &&
-      this.getExit_status().equals(report.getExit_status()) &&
-      this.getSeries().equals(report.getSeries()) &&
-      this.getStderr().equals(report.getStderr()) &&
-      this.getRunInfo().equals(report.getRunInfo());
+    finally {
+      if (row != null)
+        row.close();
+
+      selectStmt.close();
+    }
   }
 
-  public int hashCode() {
-    return 29 * this.getBody().hashCode() +
-                this.getExit_message().hashCode() +
-                this.getExit_status().hashCode() +
-                this.getSeries().hashCode() +
-                this.getStderr().hashCode() +
-                this.getRunInfo().hashCode();
-  }
+  /**
+   *
+   */
+  private static void deleteDependencies(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    Criterion key = new LongCriterion("incareportId", id);
 
+    ComparisonResult.delete(dbConn, key);
+  }
 }

@@ -1,12 +1,11 @@
 package edu.sdsc.inca.depot.persistent;
 
+
 import java.util.Properties;
 
-import junit.framework.Assert;
 import junit.framework.TestCase;
 import org.apache.log4j.Logger;
 import org.hibernate.HibernateException;
-import org.hibernate.tool.hbm2ddl.SchemaExport;
 
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.Depot;
@@ -30,50 +29,30 @@ public abstract class PersistentTest extends TestCase {
    *
    * @throws HibernateException
    */
+  @Override
   public void setUp() throws Exception {
 
     if(sequentialTestsLeftToRun <= 0) {
-      // schema export will set up the actual database
-      SchemaExport export = null;
-      try {
-        export = new SchemaExport(HibernateUtil.getConfiguration());
-      } catch (HibernateException e) {
-        logger.error("Can't create schema exporter", e);
-        Assert.fail();
-      }
-      // Attempt to remove database in case it already exists.
-      export.drop(false, true);
-      export.create(false, true);
+      DatabaseTools.removeDatabase();
+      DatabaseTools.initializeDatabase();
     }
 
     Depot.setRunningDepot(new Depot());
 
     super.setUp();
-
   }
 
   /**
    * clean up after tests.
    * @throws Exception
    */
+  @Override
   public void tearDown() throws Exception {
 
-    HibernateUtil.closeSession();
-
-    if(--sequentialTestsLeftToRun <= 0) {
-      // schema export will cleanup up the actual database
-      SchemaExport export = null;
-      try {
-        export = new SchemaExport(HibernateUtil.getConfiguration());
-      } catch (HibernateException e) {
-        logger.error("Can't create schema exporter",e);
-        Assert.fail();
-      }
-      export.drop(false,true);
-    }
+    if(--sequentialTestsLeftToRun <= 0)
+      DatabaseTools.removeDatabase();
 
     super.tearDown();
-
   }
 
   /**

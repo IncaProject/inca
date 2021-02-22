@@ -14,8 +14,7 @@ import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.Depot;
 import edu.sdsc.inca.depot.DelayedWork;
 import edu.sdsc.inca.depot.DepotPeerClient;
-import edu.sdsc.inca.depot.persistent.KbArticleDAO;
-import edu.sdsc.inca.depot.persistent.PersistenceException;
+import edu.sdsc.inca.depot.persistent.KbArticle;
 import edu.sdsc.inca.depot.util.HibernateMessageHandler;
 import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.protocol.ProtocolReader;
@@ -58,6 +57,7 @@ public class KbArticleDelete extends HibernateMessageHandler implements DelayedW
      * @param context
      * @throws ConfigurationException
      */
+    @Override
     public void doWork(Worker context) throws ConfigurationException
     {
       DepotPeerClient peer = new DepotPeerClient(m_peerConfig);
@@ -88,6 +88,7 @@ public class KbArticleDelete extends HibernateMessageHandler implements DelayedW
    * @param dn
    * @throws Exception
    */
+  @Override
   public void executeHibernateAction(ProtocolReader reader, ProtocolWriter writer, String dn) throws Exception
   {
     Statement stmt = reader.readStatement();
@@ -106,13 +107,14 @@ public class KbArticleDelete extends HibernateMessageHandler implements DelayedW
         return;
     }
 
-    KbArticleDAO.delete(m_articleId);
+    (new KbArticle(m_articleId)).delete();
   }
 
   /**
    *
    * @param state
    */
+  @Override
   public void loadState(String state)
   {
     m_articleId = Long.parseLong(state);
@@ -122,6 +124,7 @@ public class KbArticleDelete extends HibernateMessageHandler implements DelayedW
    *
    * @return
    */
+  @Override
   public String getState()
   {
     return String.valueOf(m_articleId);
@@ -131,15 +134,16 @@ public class KbArticleDelete extends HibernateMessageHandler implements DelayedW
    *
    * @param context
    */
+  @Override
   public void doWork(Worker context)
   {
     try {
-      KbArticleDAO.delete(m_articleId);
+      (new KbArticle(m_articleId)).delete();
     }
-    catch (PersistenceException persistErr) {
+    catch (Exception err) {
       ByteArrayOutputStream logMessage = new ByteArrayOutputStream();
 
-      persistErr.printStackTrace(new PrintStream(logMessage));
+      err.printStackTrace(new PrintStream(logMessage));
 
       m_logger.error(logMessage.toString());
     }

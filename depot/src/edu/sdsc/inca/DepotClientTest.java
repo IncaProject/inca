@@ -1,29 +1,15 @@
 package edu.sdsc.inca;
 
-import junit.framework.TestCase;
-import edu.sdsc.inca.ConfigurationException;
-import edu.sdsc.inca.depot.persistent.DatabaseTools;
-import edu.sdsc.inca.depot.persistent.InstanceInfo;
-import edu.sdsc.inca.depot.persistent.Suite;
-import edu.sdsc.inca.depot.persistent.Series;
-import edu.sdsc.inca.dataModel.report.ReportDocument;
-import edu.sdsc.inca.dataModel.reportDetails.ReportDetailsDocument;
-import edu.sdsc.inca.dataModel.suite.SuiteDocument;
-import edu.sdsc.inca.dataModel.util.Report;
-import edu.sdsc.inca.queryResult.ReportSummaryDocument;
-import edu.sdsc.inca.protocol.MessageHandler;
-import edu.sdsc.inca.protocol.Protocol;
-import edu.sdsc.inca.util.ConfigProperties;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
-import java.security.KeyPair;
 import java.util.Calendar;
 
 import org.apache.log4j.Logger;
-import org.apache.xmlbeans.XmlException;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.openssl.PEMDecryptorProvider;
@@ -31,7 +17,27 @@ import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.operator.InputDecryptorProvider;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
+import org.bouncycastle.pkcs.PKCSException;
+
+import edu.sdsc.inca.dataModel.report.ReportDocument;
+import edu.sdsc.inca.dataModel.reportDetails.ReportDetailsDocument;
+import edu.sdsc.inca.dataModel.suite.SuiteDocument;
+import edu.sdsc.inca.dataModel.util.Report;
+import edu.sdsc.inca.depot.persistent.DatabaseTools;
+import edu.sdsc.inca.depot.persistent.InstanceInfo;
+import edu.sdsc.inca.depot.persistent.Series;
+import edu.sdsc.inca.depot.persistent.Suite;
+import edu.sdsc.inca.protocol.MessageHandler;
+import edu.sdsc.inca.protocol.Protocol;
+import edu.sdsc.inca.queryResult.ReportSummaryDocument;
+import edu.sdsc.inca.util.ConfigProperties;
+import junit.framework.TestCase;
+
 
 /**
  * Created by IntelliJ IDEA.
@@ -119,7 +125,7 @@ public class DepotClientTest extends TestCase {
 
   }
 
-  public void testQuerySuite() throws XmlException {
+  public void testQuerySuite() throws Exception {
 
     Depot d = null;
     try {
@@ -278,9 +284,9 @@ public class DepotClientTest extends TestCase {
    * Test whether the Depot appropriately restricts certain actions to clients
    * that have been given permission to make them.
    *
-   * @throws XmlException
+   * @throws Exception
    */
-  public void testPermit() throws XmlException {
+  public void testPermit() throws Exception {
 
     Depot d = null;
     try {
@@ -492,7 +498,8 @@ public class DepotClientTest extends TestCase {
 
   private Depot startDepot() throws Exception {
     Depot result = new Depot() {
-      public void readCredentials() throws ConfigurationException, IOException {
+      @Override
+      public void readCredentials() throws ConfigurationException, IOException, OperatorCreationException, PKCSException {
         this.cert = readCert(DEPOT_CERT);
         this.key = readKey(DEPOT_KEY, PASSWORD);
         this.trusted.add(readCert(AGENT_CERT));
@@ -520,7 +527,8 @@ public class DepotClientTest extends TestCase {
   private DepotClient connectDepotClient(String server, int port)
     throws ConfigurationException, IOException {
     DepotClient result = new DepotClient() {
-      public void readCredentials() throws ConfigurationException, IOException {
+      @Override
+      public void readCredentials() throws ConfigurationException, IOException, OperatorCreationException, PKCSException {
         this.cert = readCert(AGENT_CERT);
         this.key = readKey(AGENT_KEY, PASSWORD);
         this.trusted.add(readCert(DEPOT_CERT));
@@ -570,17 +578,17 @@ public class DepotClientTest extends TestCase {
     }
   }
 
-  private KeyPair readKey(String key, final String password) throws IOException
+  private PrivateKey readKey(String key, final String password) throws IOException, OperatorCreationException, PKCSException
   {
     PEMParser parser = new PEMParser(new StringReader(key));
     Object pemObject = parser.readObject();
 
     parser.close();
 
-    PEMKeyPair pemKey;
+    PrivateKeyInfo keyInfo;
 
     if (pemObject instanceof PEMKeyPair)
-      pemKey = (PEMKeyPair)pemObject;
+      keyInfo = ((PEMKeyPair)pemObject).getPrivateKeyInfo();
     else if (pemObject instanceof PEMEncryptedKeyPair) {
       PEMEncryptedKeyPair encryptedKey = (PEMEncryptedKeyPair)pemObject;
       JcePEMDecryptorProviderBuilder decryptBuilder = new JcePEMDecryptorProviderBuilder();
@@ -588,8 +596,19 @@ public class DepotClientTest extends TestCase {
       decryptBuilder.setProvider("BC");
 
       PEMDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+      PEMKeyPair pemKey = encryptedKey.decryptKeyPair(decryptor);
 
-      pemKey = encryptedKey.decryptKeyPair(decryptor);
+      keyInfo = pemKey.getPrivateKeyInfo();
+    }
+    else if (pemObject instanceof PKCS8EncryptedPrivateKeyInfo) {
+      PKCS8EncryptedPrivateKeyInfo encryptedInfo = (PKCS8EncryptedPrivateKeyInfo)pemObject;
+      JceOpenSSLPKCS8DecryptorProviderBuilder decryptBuilder = new JceOpenSSLPKCS8DecryptorProviderBuilder();
+
+      decryptBuilder.setProvider("BC");
+
+      InputDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+
+      keyInfo = encryptedInfo.decryptPrivateKeyInfo(decryptor);
     }
     else
       return null;
@@ -598,6 +617,6 @@ public class DepotClientTest extends TestCase {
 
     keyConverter.setProvider("BC");
 
-    return keyConverter.getKeyPair(pemKey);
+    return keyConverter.getPrivateKey(keyInfo);
   }
 }

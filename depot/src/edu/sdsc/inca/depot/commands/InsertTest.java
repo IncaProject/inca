@@ -5,11 +5,20 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.sql.SQLException;
 import java.util.List;
 
-import edu.sdsc.inca.depot.persistent.*;
+import edu.sdsc.inca.depot.persistent.AcceptedOutput;
+import edu.sdsc.inca.depot.persistent.HqlQuery;
+import edu.sdsc.inca.depot.persistent.InstanceInfo;
+import edu.sdsc.inca.depot.persistent.Notification;
+import edu.sdsc.inca.depot.persistent.PersistenceException;
+import edu.sdsc.inca.depot.persistent.PersistentTest;
+import edu.sdsc.inca.depot.persistent.Report;
+import edu.sdsc.inca.depot.persistent.Row;
+import edu.sdsc.inca.depot.persistent.Series;
+import edu.sdsc.inca.depot.persistent.SeriesConfig;
+import edu.sdsc.inca.depot.persistent.Suite;
 import edu.sdsc.inca.depot.util.ReportFilter;
 import edu.sdsc.inca.protocol.MessageHandler;
 import edu.sdsc.inca.protocol.ProtocolException;
@@ -60,13 +69,9 @@ public class InsertTest extends PersistentTest {
     return outBytes.toString();
   }
 
-  private List<?> selectMultiple(String query, Object[] params) throws PersistenceException {
+  private List<?> selectMultiple(String query, Object[] params) throws SQLException, PersistenceException {
 
-    Iterator<?> objects = DAO.selectMultiple(query, params);
-    List<Object> result = new ArrayList<Object>();
-
-    while (objects.hasNext())
-      result.add(objects.next());
+    List<Object> result = (new HqlQuery(query)).select(params);
 
     return result;
   }
@@ -87,7 +92,7 @@ public class InsertTest extends PersistentTest {
     assertFalse(reply, reply.startsWith("ERROR"));
 
     // make sure that the report was put in the db
-    Series dbSeries = SeriesDAO.load(s);
+    Series dbSeries = Series.find(s);
     assertNotNull(dbSeries);
     Object[] reports = dbSeries.getReports().toArray();
     assertEquals(1, reports.length);
@@ -100,7 +105,7 @@ public class InsertTest extends PersistentTest {
     assertFalse(reply, reply.startsWith("ERROR"));
 
     logger.debug("Query the second");
-    dbSeries = SeriesDAO.load(s);
+    dbSeries = Series.find(s);
     assertNotNull(dbSeries);
     reports = dbSeries.getReports().toArray();
     assertEquals(1, reports.length);
@@ -129,7 +134,7 @@ public class InsertTest extends PersistentTest {
 
     // See if a ComparisonResult was placed into the DB
     SeriesConfig dbSc =
-      (SeriesConfig)DAO.selectUnique("select sc from SeriesConfig as sc", null);
+      (SeriesConfig)(new HqlQuery("select sc from SeriesConfig as sc")).selectUnique();
     assertNotNull(dbSc);
     Long crId = dbSc.getLatestComparisonId();
     assertTrue(crId.longValue() >= 0);
@@ -140,7 +145,7 @@ public class InsertTest extends PersistentTest {
     assertFalse(reply, reply.startsWith("ERROR"));
     Thread.sleep(3);
     dbSc =
-      (SeriesConfig)DAO.selectUnique("select sc from SeriesConfig as sc", null);
+      (SeriesConfig)(new HqlQuery("select sc from SeriesConfig as sc")).selectUnique();
     assertNotNull(dbSc);
     assertTrue(crId.equals(dbSc.getLatestComparisonId()));
 
@@ -152,7 +157,7 @@ public class InsertTest extends PersistentTest {
     assertFalse(reply, reply.startsWith("ERROR"));
     Thread.sleep(3);
     dbSc =
-      (SeriesConfig)DAO.selectUnique("select sc from SeriesConfig as sc", null);
+      (SeriesConfig)(new HqlQuery("select sc from SeriesConfig as sc")).selectUnique();
     assertNotNull(dbSc);
     assertFalse(crId.equals(dbSc.getLatestComparisonId()));
 
@@ -423,7 +428,7 @@ public class InsertTest extends PersistentTest {
     assertFalse(reply, reply.startsWith("ERROR"));
 
     // make sure that the report was put in the db
-    Series dbSeries = SeriesDAO.load(s);
+    Series dbSeries = Series.find(s);
     assertNotNull(dbSeries);
     Object[] reports = dbSeries.getReports().toArray();
     assertEquals(1, reports.length);
@@ -436,7 +441,7 @@ public class InsertTest extends PersistentTest {
     Series s = Series.generate("localhost", "myreporter", 3);
     String report = s.generateReport();
     String logContent = "";
-    while(logContent.length() <= PersistentObject.MAX_DB_LONG_STRING_LENGTH) {
+    while(logContent.length() <= Row.MAX_DB_LONG_STRING_LENGTH) {
       logContent += "<debug><gmt>0001-01-01T00:00:00</gmt><message>" +
                     logContent.length() + "</message></debug>\n";
     }
@@ -447,15 +452,15 @@ public class InsertTest extends PersistentTest {
     execHandler(new Insert(), report(s.getResource(), s.getContext(), report));
 
     logger.debug("Query the first");
-    Series dbSeries = SeriesDAO.load(s);
+    Series dbSeries = Series.find(s);
     assertNotNull(dbSeries);
     Object[] reports = dbSeries.getReports().toArray();
     InstanceInfo ii =
-      (InstanceInfo)DAO.selectUnique("select i from InstanceInfo as i", null);
+      (InstanceInfo)(new HqlQuery("select i from InstanceInfo as i")).selectUnique();
     assertTrue(ii != null);
     String dbLogContent = ii.getLog();
     assertTrue
-      (dbLogContent.length() <= PersistentObject.MAX_DB_LONG_STRING_LENGTH);
+      (dbLogContent.length() <= Row.MAX_DB_LONG_STRING_LENGTH);
     while(dbLogContent.indexOf(logContent) < 0) {
       logContent = logContent.replaceFirst("<debug>.*?</debug>\n", "");
     }
@@ -581,6 +586,7 @@ public class InsertTest extends PersistentTest {
   }
 
   public static class ModifyingFilter extends ReportFilter {
+    @Override
     public String getStdout() {
       return this.stdout.replaceFirst
         ("(?s)<body>.*</body>", "<body><different>5</different></body>");
@@ -588,6 +594,7 @@ public class InsertTest extends PersistentTest {
   }
 
   public static class SuppressingFilter extends ReportFilter {
+    @Override
     public String getContext() {
       return null;
     }
@@ -596,6 +603,7 @@ public class InsertTest extends PersistentTest {
   public static class TestReportFilter
     extends edu.sdsc.inca.depot.util.ReportFilter {
     public static boolean invoked = false;
+    @Override
     public String getStdout() {
       invoked = true;
       return super.getStdout();

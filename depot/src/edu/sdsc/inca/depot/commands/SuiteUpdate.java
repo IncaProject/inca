@@ -2,7 +2,9 @@ package edu.sdsc.inca.depot.commands;
 
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.Iterator;
 import java.util.Properties;
@@ -48,6 +50,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
     }
 
 
+    @Override
     public void doWork(Worker context) throws ConfigurationException
     {
       DepotPeerClient peer = new DepotPeerClient(peerConfig);
@@ -74,6 +77,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
   private String xml;
 
 
+  @Override
   public void executeHibernateAction(
     ProtocolReader reader, ProtocolWriter writer, String dn) throws Exception {
     Statement stmt = reader.readStatement();
@@ -115,6 +119,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
    *
    * @param state
    */
+  @Override
   public void loadState(String state)
   {
     xml = state;
@@ -124,6 +129,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
    *
    * @return
    */
+  @Override
   public String getState()
   {
     return xml;
@@ -133,6 +139,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
    *
    * @param context
    */
+  @Override
   public void doWork(Worker context)
   {
     try {
@@ -172,11 +179,15 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
    * @param suite
    * @param doc
    * @return
+   * @throws IOException
+   * @throws SQLException
    * @throws PersistenceException
    */
-  private int updateSuite(Suite suite, SuiteDocument doc) throws PersistenceException
+  private int updateSuite(Suite suite, SuiteDocument doc) throws IOException, SQLException, PersistenceException
   {
-    Suite dbSuite = SuiteDAO.loadOrSave(suite);
+    suite.save();
+
+    Suite dbSuite = suite;
     dbSuite.incrementVersion();
     dbSuite.setDescription(suite.getDescription());
     // Perform the actions specified in the report series configs.  Note that
@@ -197,7 +208,9 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
         }
       }
 
-      Series dbSeries = SeriesDAO.loadOrSave(config.getSeries());
+      Series dbSeries = config.getSeries();
+
+      dbSeries.save();
 
       if(dbConfig == null) {
         if(DELETE.equals(config.getAction())) {
@@ -207,8 +220,9 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
           // should be extremely rare in any case.
         }
         config.setSeries(dbSeries);
-        dbSuite.addSeriesConfig(config);
-        dbConfig = SeriesConfigDAO.loadOrSave(config);
+        dbSuite.getSeriesConfigs().add(config);
+        config.save();
+        dbConfig = config;
       } else if(dbSuite != suite) {
         // if this is not a new suite, but the DB version contains an
         // equivalent series, adjust the config to conform to the newer
@@ -220,7 +234,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
         // only update non-unique identifier values on a series
         dbSeries.setNice(config.getSeries().getNice());
         dbSeries.setTargetHostname(config.getSeries().getTargetHostname());
-        SeriesDAO.update(dbSeries);
+        dbSeries.save();
 
         dbConfig.setSeries(dbSeries);
         dbConfig.setAcceptedOutput(config.getAcceptedOutput());
@@ -235,9 +249,9 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
       } else if(DELETE.equals(config.getAction())) {
         dbConfig.setDeactivated(Calendar.getInstance().getTime());
       }
-      SeriesConfigDAO.update(dbConfig);
+      dbConfig.save();
     }
-    SuiteDAO.update(dbSuite);
+    dbSuite.save();
 
     return dbSuite.getVersion();
   }

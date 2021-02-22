@@ -4,6 +4,9 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -15,265 +18,358 @@ import org.apache.xmlbeans.XmlObject;
  * @author Paul Hoover
  *
  */
-public class KbArticle extends PersistentObject {
+public class KbArticle extends GeneratedKeyRow implements Comparable<KbArticle> {
 
-	private Long id;
-	private Date entered;
-	private String errorMsg;
-	private String series;
-	private String reporter;
-	private String authorName;
-	private String authorEmail;
-	private String articleTitle;
-	private String articleText;
+  // data fields
 
 
-	/**
-	 *
-	 * @return
-	 */
-	public Long getId()
-	{
-		return id;
-	}
+  private static final String TABLE_NAME = "INCAKBARTICLE";
+  private static final String KEY_NAME = "incaid";
+  private final Column<Date> m_entered = new DateColumn("incaentered", false);
+  private final Column<String> m_errorMsg = new StringColumn("incaerrormsg", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<String> m_series = new StringColumn("incaseries", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_reporter = new StringColumn("incareporter", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_authorName = new StringColumn("incaauthorname", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_authorEmail = new StringColumn("incaauthoremail", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_articleTitle = new StringColumn("incaarticletitle", false, 2000);
+  private final Column<String> m_articleText = new TextColumn("incaarticletext", false, this);
 
-	/**
-	 *
-	 * @param i
-	 */
-	public void setId(Long i)
-	{
-		id = i;
-	}
 
-	/**
-	 *
-	 * @return
-	 */
-	public Date getEntered()
-	{
-		return entered;
-	}
+  // constructors
 
-	/**
-	 *
-	 * @param e
-	 */
-	public void setEntered(Date e)
-	{
-		entered = e;
-	}
 
-	/**
-	 *
-	 * @return
-	 */
-	public String getErrorMsg()
-	{
-		return errorMsg;
-	}
+  /**
+   *
+   */
+  public KbArticle()
+  {
+    super(TABLE_NAME, KEY_NAME);
 
-	/**
-	 *
-	 * @param msg
-	 */
-	public void setErrorMsg(String msg)
-	{
-		if (msg == null || msg.length() < 1)
-			errorMsg = DB_EMPTY_STRING;
-		else
-			errorMsg = truncate(msg, 4000, "error message");
-	}
+    construct(m_entered, m_errorMsg, m_series, m_reporter, m_authorName, m_authorEmail, m_articleTitle, m_articleText);
+  }
 
-	/**
-	 *
-	 * @return
-	 */
-	public String getSeries()
-	{
-		return series;
-	}
+  /**
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public KbArticle(long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
 
-	/**
-	 *
-	 * @param s
-	 */
-	public void setSeries(String s)
-	{
-		if (s == null || s.length() < 1)
-			series = DB_EMPTY_STRING;
-		else
-			series = truncate(s, 255, "series name");
-	}
+    m_key.assignValue(id);
 
-	/**
-	 *
-	 * @return
-	 */
-	public String getReporter()
-	{
-		return reporter;
-	}
+    load();
+  }
 
-	/**
-	 *
-	 * @param r
-	 */
-	public void setReporter(String r)
-	{
-		if (r == null || r.length() < 1)
-			reporter = DB_EMPTY_STRING;
-		else
-			reporter = truncate(r, 255, "reporter name");
-	}
+  /**
+   * @param dbConn
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  KbArticle(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
 
-	/**
-	 *
-	 * @return
-	 */
-	public String getAuthorName()
-	{
-		return authorName;
-	}
+    m_key.assignValue(id);
 
-	/**
-	 *
-	 * @param name
-	 */
-	public void setAuthorName(String name)
-	{
-		if (name == null || name.length() < 1)
-			authorName = DB_EMPTY_STRING;
-		else
-			authorName = truncate(name, 255, "author name");
-	}
+    load(dbConn);
+  }
 
-	/**
-	 *
-	 * @return
-	 */
-	public String getAuthorEmail()
-	{
-		return authorEmail;
-	}
 
-	/**
-	 *
-	 * @param email
-	 */
-	public void setAuthorEmail(String email)
-	{
-		if (email == null || email.length() < 1)
-			authorEmail = DB_EMPTY_STRING;
-		else
-			authorEmail = truncate(email, 255, "author email");
-	}
+  // public methods
 
-	/**
-	 *
-	 * @return
-	 */
-	public String getArticleTitle()
-	{
-		return articleTitle;
-	}
 
-	/**
-	 *
-	 * @param title
-	 */
-	public void setArticleTitle(String title)
-	{
-		if (title == null || title.length() < 1)
-			articleTitle = DB_EMPTY_STRING;
-		else
-			articleTitle = truncate(title, 2000, "article title");
-	}
+  /**
+   *
+   * @return
+   */
+  public Date getEntered()
+  {
+    return m_entered.getValue();
+  }
 
-	/**
-	 *
-	 * @return
-	 */
-	public String getArticleText()
-	{
-		return articleText;
-	}
+  /**
+   *
+   * @param entered
+   */
+  public void setEntered(Date entered)
+  {
+    m_entered.setValue(entered);
+  }
 
-	/**
-	 *
-	 * @param text
-	 */
-	public void setArticleText(String text)
-	{
-		if (text == null || text.length() < 1)
-			articleText = DB_EMPTY_STRING;
-		else
-			articleText = text;
-	}
+  /**
+   *
+   * @return
+   */
+  public String getErrorMsg()
+  {
+    return m_errorMsg.getValue();
+  }
 
-	/**
-	 *
-	 * @param o
-	 * @return
-	 */
-	public PersistentObject fromBean(XmlObject o)
-	{
-		return fromBean((edu.sdsc.inca.dataModel.article.KbArticle)o);
-	}
+  /**
+   *
+   * @param msg
+   */
+  public void setErrorMsg(String msg)
+  {
+    msg = normalize(msg, MAX_DB_LONG_STRING_LENGTH, "error message");
 
-	/**
-	 *
-	 * @param o
-	 * @return
-	 */
-	public KbArticle fromBean(edu.sdsc.inca.dataModel.article.KbArticle o)
-	{
-		setEntered(o.getEntered().getTime());
-		setErrorMsg(o.getErrorMsg());
-		setSeries(o.getSeries());
-		setReporter(o.getReporter());
-		setAuthorName(o.getAuthorName());
-		setAuthorEmail(o.getAuthorEmail());
-		setArticleTitle(o.getArticleTitle());
-		setArticleText(o.getArticleText());
+    m_errorMsg.setValue(msg);
+  }
 
-		return this;
-	}
+  /**
+   *
+   * @return
+   */
+  public String getSeries()
+  {
+    return m_series.getValue();
+  }
 
-	/**
-	 *
-	 * @return
-	 */
-	public XmlObject toBean()
-	{
-		edu.sdsc.inca.dataModel.article.KbArticle result = edu.sdsc.inca.dataModel.article.KbArticle.Factory.newInstance();
-		Calendar entered = Calendar.getInstance();
+  /**
+   *
+   * @param series
+   */
+  public void setSeries(String series)
+  {
+    series = normalize(series, MAX_DB_STRING_LENGTH, "series name");
 
-		entered.setTime(getEntered());
+    m_series.setValue(series);
+  }
 
-		result.setEntered(entered);
-		result.setErrorMsg(getErrorMsg());
-		result.setSeries(getSeries());
-		result.setReporter(getReporter());
-		result.setAuthorName(getAuthorName());
-		result.setAuthorEmail(getAuthorEmail());
-		result.setArticleTitle(getArticleTitle());
-		result.setArticleText(getArticleText());
+  /**
+   *
+   * @return
+   */
+  public String getReporter()
+  {
+    return m_reporter.getValue();
+  }
 
-		return result;
-	}
+  /**
+   *
+   * @param reporter
+   */
+  public void setReporter(String reporter)
+  {
+    reporter = normalize(reporter, MAX_DB_STRING_LENGTH, "reporter name");
 
-	/**
-	 *
-	 * @return
-	 */
-	@Override
-	public String toXml()
-	{
-		edu.sdsc.inca.dataModel.article.KbArticleDocument doc = edu.sdsc.inca.dataModel.article.KbArticleDocument.Factory.newInstance();
+    m_reporter.setValue(reporter);
+  }
 
-		doc.setKbArticle((edu.sdsc.inca.dataModel.article.KbArticle) toBean());
+  /**
+   *
+   * @return
+   */
+  public String getAuthorName()
+  {
+    return m_authorName.getValue();
+  }
 
-		return doc.xmlText();
-	}
+  /**
+   *
+   * @param name
+   */
+  public void setAuthorName(String name)
+  {
+    name = normalize(name, MAX_DB_STRING_LENGTH, "author name");
+
+    m_authorName.setValue(name);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getAuthorEmail()
+  {
+    return m_authorEmail.getValue();
+  }
+
+  /**
+   *
+   * @param email
+   */
+  public void setAuthorEmail(String email)
+  {
+    email = normalize(email, MAX_DB_STRING_LENGTH, "author email");
+
+    m_authorEmail.setValue(email);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getArticleTitle()
+  {
+    return m_articleTitle.getValue();
+  }
+
+  /**
+   *
+   * @param title
+   */
+  public void setArticleTitle(String title)
+  {
+    title = normalize(title, 2000, "article title");
+
+    m_articleTitle.setValue(title);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getArticleText()
+  {
+    return m_articleText.getValue();
+  }
+
+  /**
+   *
+   * @param text
+   */
+  public void setArticleText(String text)
+  {
+    if (text == null || text.isEmpty())
+      text = DB_EMPTY_STRING;
+
+    m_articleText.setValue(text);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Row fromBean(XmlObject o)
+  {
+    return fromBean((edu.sdsc.inca.dataModel.article.KbArticle) o);
+  }
+
+  /**
+   *
+   * @param o
+   * @return
+   */
+  public KbArticle fromBean(edu.sdsc.inca.dataModel.article.KbArticle o)
+  {
+    setEntered(o.getEntered().getTime());
+    setErrorMsg(o.getErrorMsg());
+    setSeries(o.getSeries());
+    setReporter(o.getReporter());
+    setAuthorName(o.getAuthorName());
+    setAuthorEmail(o.getAuthorEmail());
+    setArticleTitle(o.getArticleTitle());
+    setArticleText(o.getArticleText());
+
+    return this;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public XmlObject toBean()
+  {
+    edu.sdsc.inca.dataModel.article.KbArticle result = edu.sdsc.inca.dataModel.article.KbArticle.Factory.newInstance();
+    Calendar entered = Calendar.getInstance();
+
+    entered.setTime(getEntered());
+
+    result.setEntered(entered);
+    result.setErrorMsg(getErrorMsg());
+    result.setSeries(getSeries());
+    result.setReporter(getReporter());
+    result.setAuthorName(getAuthorName());
+    result.setAuthorEmail(getAuthorEmail());
+    result.setArticleTitle(getArticleTitle());
+    result.setArticleText(getArticleText());
+
+    return result;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean equals(Object other)
+  {
+    if (other == null)
+      return false;
+
+    if (this == other)
+      return true;
+
+    if (other instanceof KbArticle == false)
+      return false;
+
+    KbArticle otherArticle = (KbArticle) other;
+
+    return getEntered().equals(otherArticle.getEntered()) &&
+           getErrorMsg().equals(otherArticle.getErrorMsg()) &&
+           getSeries().equals(otherArticle.getSeries()) &&
+           getReporter().equals(otherArticle.getReporter()) &&
+           getAuthorName().equals(otherArticle.getAuthorName()) &&
+           getAuthorEmail().equals(otherArticle.getAuthorEmail()) &&
+           getArticleTitle().equals(otherArticle.getArticleTitle()) &&
+           getArticleText().equals(otherArticle.getArticleText());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int hashCode()
+  {
+    return 29 * (getEntered().hashCode() + getErrorMsg().hashCode() +
+                 getSeries().hashCode() + getReporter().hashCode() +
+                 getAuthorName().hashCode() + getAuthorEmail().hashCode() +
+                 getArticleTitle().hashCode() + getArticleText().hashCode());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int compareTo(KbArticle other)
+  {
+    if (other == null)
+      throw new NullPointerException("other");
+
+    if (this == other)
+      return 0;
+
+    return hashCode() - other.hashCode();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String toXml()
+  {
+    edu.sdsc.inca.dataModel.article.KbArticleDocument doc = edu.sdsc.inca.dataModel.article.KbArticleDocument.Factory.newInstance();
+
+    doc.setKbArticle((edu.sdsc.inca.dataModel.article.KbArticle) toBean());
+
+    return doc.xmlText();
+  }
+
+
+  // protected methods
+
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected Long findDuplicate(Connection dbConn)
+  {
+    return null;
+  }
 }

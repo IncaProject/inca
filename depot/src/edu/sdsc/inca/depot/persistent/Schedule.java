@@ -13,7 +13,7 @@ import org.apache.xmlbeans.XmlObject;
  *
  * @author cmills
  */
-public class Schedule extends PersistentObject {
+public class Schedule extends XmlBeanObject {
 
   private String minute;
   private String hour;
@@ -28,7 +28,7 @@ public class Schedule extends PersistentObject {
    * Default constructor.
    */
   public Schedule() {
-    this("*", "*", "*", "*", "*", "cron", new Integer(-1));
+    this("*", "*", "*", "*", "*", "cron", Integer.valueOf(-1));
   }
 
   /**
@@ -61,7 +61,8 @@ public class Schedule extends PersistentObject {
    * @param o the XmlBean Schedule object to copy
    * @return this, for convenience
    */
-  public PersistentObject fromBean(XmlObject o) {
+  @Override
+  public XmlBeanObject fromBean(XmlObject o) {
     return this.fromBean((edu.sdsc.inca.dataModel.util.Schedule)o);
   }
 
@@ -94,7 +95,7 @@ public class Schedule extends PersistentObject {
     }
     String numOccurs = s.getNumOccurs();
     if(numOccurs != null) {
-      this.setNumOccurs(new Integer(numOccurs));
+      this.setNumOccurs(Integer.valueOf(numOccurs));
     }
     this.setSuspended(s.getSuspended());
     return this;
@@ -178,10 +179,7 @@ public class Schedule extends PersistentObject {
    * @param minute this minute portion of the schedule
    */
   public void setMinute(String minute) {
-    if(minute == null || minute.equals("")) {
-      minute = DB_EMPTY_STRING;
-    }
-    this.minute = truncate(minute, MAX_DB_STRING_LENGTH, "minute");
+    this.minute = normalize(minute, Row.MAX_DB_STRING_LENGTH, "minute");
   }
 
   /**
@@ -199,10 +197,7 @@ public class Schedule extends PersistentObject {
    * @param hour this hour portion of the schedule
    */
   public void setHour(String hour) {
-    if(hour == null || hour.equals("")) {
-      hour = DB_EMPTY_STRING;
-    }
-    this.hour = truncate(hour, MAX_DB_STRING_LENGTH, "hour");
+    this.hour = normalize(hour, Row.MAX_DB_STRING_LENGTH, "hour");
   }
 
   /**
@@ -220,10 +215,7 @@ public class Schedule extends PersistentObject {
    * @param month the month portion of the schedule
    */
   public void setMonth(String month) {
-    if(month == null || month.equals("")) {
-      month = DB_EMPTY_STRING;
-    }
-    this.month = truncate(month, MAX_DB_STRING_LENGTH, "month");
+    this.month = normalize(month, Row.MAX_DB_STRING_LENGTH, "month");
   }
 
   /**
@@ -241,10 +233,7 @@ public class Schedule extends PersistentObject {
    * @param mday the month day portion of the schedule
    */
   public void setMday(String mday) {
-    if(mday == null || mday.equals("")) {
-      mday = DB_EMPTY_STRING;
-    }
-    this.mday = truncate(mday, MAX_DB_STRING_LENGTH, "mday");
+    this.mday = normalize(mday, Row.MAX_DB_STRING_LENGTH, "mday");
   }
 
   /**
@@ -262,10 +251,7 @@ public class Schedule extends PersistentObject {
    * @param wday the week day portion of the schedule
    */
   public void setWday(String wday) {
-    if(wday == null || wday.equals("")) {
-      wday = DB_EMPTY_STRING;
-    }
-    this.wday = truncate(wday, MAX_DB_STRING_LENGTH, "wday");
+    this.wday = normalize(wday, Row.MAX_DB_STRING_LENGTH, "wday");
   }
 
   /**
@@ -284,10 +270,7 @@ public class Schedule extends PersistentObject {
    * @param type
    */
   public void setType(String type) {
-    if(type == null || type.equals("")) {
-      type = DB_EMPTY_STRING;
-    }
-    this.type = truncate(type, MAX_DB_STRING_LENGTH, "schedule type");
+    this.type = normalize(type, Row.MAX_DB_STRING_LENGTH, "schedule type");
   }
 
   /**
@@ -332,6 +315,7 @@ public class Schedule extends PersistentObject {
    *
    * @return an XmlBean Schedule object that contains equivalent information
    */
+  @Override
   public XmlObject toBean() {
     edu.sdsc.inca.dataModel.util.Schedule result =
       edu.sdsc.inca.dataModel.util.Schedule.Factory.newInstance();
@@ -350,6 +334,7 @@ public class Schedule extends PersistentObject {
     return result;
   }
 
+  @Override
   public String toString() {
     String result = this.getType();
     if(result.equals("cron")) {
@@ -369,6 +354,7 @@ public class Schedule extends PersistentObject {
   /**
    * Override of the default equals method.
    */
+  @Override
   public boolean equals(Object o) {
     return this.toString().equals(o.toString());
   }

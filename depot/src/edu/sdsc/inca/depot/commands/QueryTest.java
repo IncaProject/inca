@@ -11,10 +11,8 @@ import java.util.regex.Pattern;
 import edu.sdsc.inca.depot.persistent.AcceptedOutput;
 import edu.sdsc.inca.depot.persistent.PersistentTest;
 import edu.sdsc.inca.depot.persistent.Series;
-import edu.sdsc.inca.depot.persistent.SeriesConfigDAO;
-import edu.sdsc.inca.depot.persistent.Suite;
 import edu.sdsc.inca.depot.persistent.SeriesConfig;
-import edu.sdsc.inca.depot.persistent.SuiteDAO;
+import edu.sdsc.inca.depot.persistent.Suite;
 import edu.sdsc.inca.protocol.MessageHandler;
 import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.protocol.ProtocolReader;
@@ -70,7 +68,7 @@ public class QueryTest extends PersistentTest {
     for(int i = 0; i < CONFIG_COUNT; i++) {
       SeriesConfig sc = SeriesConfig.generate("localhost", "@@ " + i, 2);
       sc.setNickname("sc nickname " + i);
-      testSuite.addSeriesConfig(sc);
+      testSuite.getSeriesConfigs().add(sc);
       reports[i] = sc.getSeries().generateReport();
     }
 
@@ -138,7 +136,7 @@ public class QueryTest extends PersistentTest {
     String[] reports = new String[CONFIG_COUNT];
     for(int i = 0; i < CONFIG_COUNT; i++) {
       SeriesConfig sc = SeriesConfig.generate("localhost", "@@ " + i, 2);
-      testSuite.addSeriesConfig(sc);
+      testSuite.getSeriesConfigs().add(sc);
       reports[i] = sc.getSeries().generateReport();
     }
 
@@ -200,7 +198,7 @@ public class QueryTest extends PersistentTest {
       } else if(i == 2) {
         sc.setAcceptedOutput(new AcceptedOutput("ExprComparitor", "1 != 1"));
       }
-      testSuite.addSeriesConfig(sc);
+      testSuite.getSeriesConfigs().add(sc);
     }
     String reply = execHandler(new SuiteUpdate(),
         Protocol.SUITE_UPDATE_COMMAND + " " + testSuite.toXml() + CRLF
@@ -210,7 +208,7 @@ public class QueryTest extends PersistentTest {
     String[] replyParts = reply.split("\\s+");
     long suiteId = Long.parseLong(replyParts[1]);
 
-    testSuite = SuiteDAO.load(suiteId);
+    testSuite = new Suite(suiteId);
 
     Calendar activation = Calendar.getInstance();
 
@@ -218,8 +216,7 @@ public class QueryTest extends PersistentTest {
 
     for (SeriesConfig sc : testSuite.getSeriesConfigs()) {
     	sc.setActivated(activation.getTime());
-
-    	SeriesConfigDAO.update(sc);
+    	sc.save();
     }
 
     // Insert two weeks' of hourly reports for each config

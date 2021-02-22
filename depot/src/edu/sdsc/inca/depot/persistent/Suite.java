@@ -1,9 +1,18 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.math.BigInteger;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.xmlbeans.XmlObject;
@@ -12,180 +21,290 @@ import org.apache.xmlbeans.XmlObject;
 /**
  * A Suite is a named collection of SeriesConfigs.
  */
-public class Suite extends PersistentObject {
+public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
 
-  /** id set iff this object is stored in the DB. */
-  private Long id;
+  // nested classes
 
-  /** Persistent fields. */
-  private String name;
-  private String guid;
-  private String description;
-  private int version;
-
-  /** Relations. */
-  private Set<SeriesConfig> seriesConfigs;
 
   /**
-   * Default constructor.
+   *
    */
-  public Suite() {
-    this("", "", "");
+  private class AddSeriesConfigOp implements RowOperation {
+
+    // data fields
+
+
+    private final SeriesConfig m_element;
+
+
+    // constructors
+
+
+    protected AddSeriesConfigOp(SeriesConfig element)
+    {
+      m_element = element;
+    }
+
+
+    // public methods
+
+
+    @Override
+    public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
+    {
+      if (m_element.isNew())
+        m_element.save(dbConn);
+
+      Column<Long> seriesConfigId = new LongColumn("incaseriesconfig_id", false, m_element.getId());
+      Column<Long> suiteId = new LongColumn("incasuite_id", false, getId());
+      List<Column<?>> cols = new ArrayList<Column<?>>();
+
+      cols.add(seriesConfigId);
+      cols.add(suiteId);
+
+      (new InsertOp("INCASUITESSERIESCONFIGS", cols)).execute(dbConn);
+    }
   }
 
   /**
-   * Constructs a new Suite containing the specified values.
+   *
+   */
+  private class RemoveSeriesConfigOp implements RowOperation {
+
+    // data fields
+
+
+    private final SeriesConfig m_element;
+
+
+    // constructors
+
+
+    protected RemoveSeriesConfigOp(SeriesConfig element)
+    {
+      m_element = element;
+    }
+
+
+    // public methods
+
+
+    @Override
+    public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
+    {
+      assert !m_element.isNew();
+
+      Column<Long> seriesConfigId = new LongColumn("incaseriesconfig_id", false, m_element.getId());
+      Column<Long> suiteId = new LongColumn("incasuite_id", false, getId());
+      CompositeKey key = new CompositeKey(seriesConfigId, suiteId);
+
+      (new DeleteOp("INCASUITESSERIESCONFIGS", key)).execute(dbConn);
+    }
+  }
+
+  /**
+   *
+   */
+  private class SeriesConfigSet extends MonitoredSet<SeriesConfig> {
+
+    // constructors
+
+
+    protected SeriesConfigSet(Set<SeriesConfig> configs)
+    {
+      super(configs);
+    }
+
+
+    // protected methods
+
+
+    @Override
+    protected void addSetAddOp(SeriesConfig element)
+    {
+      m_opQueue.add(new AddSeriesConfigOp(element));
+    }
+
+    @Override
+    protected void addSetRemoveOp(SeriesConfig element)
+    {
+      m_opQueue.add(new RemoveSeriesConfigOp(element));
+    }
+
+    @Override
+    protected void addSetClearOp(List<SeriesConfig> elements)
+    {
+      for (SeriesConfig element : elements)
+        addSetRemoveOp(element);
+    }
+  }
+
+
+  // data fields
+
+
+  private static final String TABLE_NAME = "INCASUITE";
+  private static final String KEY_NAME = "incaid";
+  private final Column<String> m_name = new StringColumn("incaname", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_guid = new StringColumn("incaguid", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_description = new StringColumn("incadescription", true, MAX_DB_STRING_LENGTH);
+  private final Column<Integer> m_version = new IntegerColumn("incaversion", true);
+  private final Deque<RowOperation> m_opQueue = new LinkedList<RowOperation>();
+  private SeriesConfigSet m_seriesConfigs;
+
+
+  // constructors
+
+
+  /**
+   *
+   */
+  public Suite()
+  {
+    super(TABLE_NAME, KEY_NAME);
+
+    construct(m_name, m_guid, m_description, m_version);
+  }
+
+  /**
    *
    * @param name the name of the Suite
    * @param guid the guid (agent + name) of the Suite
    * @param description the description of the Suite
    */
-  public Suite(String name, String guid, String description) {
-    this.setName(name);
-    this.setGuid(guid);
-    this.setDescription(description);
-    this.setVersion(0);
-    this.setSeriesConfigs(new HashSet<SeriesConfig>());
+  public Suite(String name, String guid, String description)
+  {
+    this();
+
+    setName(name);
+    setGuid(guid);
+    setDescription(description);
+    setVersion(0);
   }
 
   /**
-   * Copies information from an Inca schema XmlBean Suite object so that this
-   * object contains equivalent information.
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public Suite(long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load();
+  }
+
+  /**
+   * @param dbConn
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  Suite(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load(dbConn);
+  }
+
+
+  // public methods
+
+
+  /**
    *
-   * @param o the XmlBean Suite object to copy
-   * @return this, for convenience
+   * @return
    */
-  public PersistentObject fromBean(XmlObject o) {
-    return this.fromBean((edu.sdsc.inca.dataModel.suite.Suite)o);
+  public String getName()
+  {
+    return m_name.getValue();
   }
 
   /**
-   * Copies information from an Inca schema XmlBean Suite object so that this
-   * object contains equivalent information.
    *
-   * @param s the XmlBean Suite object to copy
-   * @return this, for convenience
+   * @param name
    */
-  public Suite fromBean(edu.sdsc.inca.dataModel.suite.Suite s) {
-    this.setName(s.getName());
-    this.setGuid(s.getGuid());
-    this.setDescription(s.getDescription());
-    if(s.getVersion() != null) {
-      this.setVersion(s.getVersion().intValue());
-    }
-    edu.sdsc.inca.dataModel.util.SeriesConfig[] scs =
-      s.getSeriesConfigs().getSeriesConfigArray();
-    for(int i = 0; i < scs.length; i++) {
-      this.addSeriesConfig(new SeriesConfig().fromBean(scs[i]));
-    }
-    return this;
+  public void setName(String name)
+  {
+    name = normalize(name, MAX_DB_STRING_LENGTH, "suite name");
+
+    m_name.setValue(name);
   }
 
   /**
-   * Retrieve the id -- null if not yet connected to database.
    *
-   * @return The Long representation of the DB ID
+   * @return
    */
-  public Long getId() {
-    return this.id;
+  public String getGuid()
+  {
+    return m_guid.getValue();
   }
 
   /**
-   * Set the id.  Hibernate use only.
    *
-   * @param id The DB ID.
+   * @param guid
    */
-  protected void setId(Long id) {
-    this.id = id;
+  public void setGuid(String guid)
+  {
+    guid = normalize(guid, MAX_DB_STRING_LENGTH, "guid");
+
+    m_guid.setValue(guid);
   }
 
   /**
-   * Get the name of the Suite.
    *
-   * @return the Suite name
+   * @return
    */
-  public String getName() {
-    return this.name;
+  public String getDescription()
+  {
+    return m_description.getValue();
   }
 
   /**
-   * Set the name of the Suite.
    *
-   * @param name the Suite name
+   * @param description
    */
-  public void setName(String name) {
-    if(name == null || name.equals("")) {
-      name = DB_EMPTY_STRING;
-    }
-    this.name = truncate(name, MAX_DB_STRING_LENGTH, "suite name");
+  public void setDescription(String description)
+  {
+    description = normalize(description, MAX_DB_STRING_LENGTH, "suite description");
+
+    m_description.setValue(description);
   }
 
   /**
-   * Get the guid (agent id + name) of the Suite.
    *
-   * @return the Suite guid
+   * @return
    */
-  public String getGuid() {
-    return this.guid;
+  public int getVersion()
+  {
+    return m_version.getValue();
   }
 
   /**
-   * Set the guid (agent id + name) of the Suite.
    *
-   * @param guid the Suite guid
+   * @param version
    */
-  public void setGuid(String guid) {
-    if(guid == null || guid.equals("")) {
-      guid = DB_EMPTY_STRING;
-    }
-    this.guid = truncate(guid, MAX_DB_STRING_LENGTH, "guid");
+  public void setVersion(Integer version)
+  {
+    m_version.setValue(version);
   }
 
   /**
-   * Get the (usually user-supplied) Suite description string.
    *
-   * @return the Suite description
    */
-  public String getDescription() {
-    return this.description;
-  }
+  public void incrementVersion()
+  {
+    int version = m_version.getValue();
 
-  /**
-   * Set the (usually user-supplied) Suite description string.
-   *
-   * @param description the Suite description
-   */
-  public void setDescription(String description) {
-    if(description == null || description.equals("")) {
-      description = DB_EMPTY_STRING;
-    }
-    this.description =
-      truncate(description, MAX_DB_STRING_LENGTH, "suite description");
-  }
+    version += 1;
 
-  /**
-   * Get the version number of the Suite--the number of times updated.
-   *
-   * @return the Suite version number
-   */
-  public int getVersion() {
-    return this.version;
-  }
-
-  /**
-   * Set the version number of the Suite--the number of times updated.
-   *
-   * @param version the Suite version number
-   */
-  public void setVersion(int version) {
-    this.version = version;
-  }
-
-  /**
-   * Add 1 to the version number of the Suite--the number of times updated.
-   */
-  public void incrementVersion() {
-    this.version++;
+    m_version.setValue(version);
   }
 
   /**
@@ -194,33 +313,93 @@ public class Suite extends PersistentObject {
    * @param i the index into the set of the desired SeriesConfig
    * @return the specified SeriesConfig; null if none
    */
-  public SeriesConfig getSeriesConfig(int i) {
-    for(Iterator<SeriesConfig> it = seriesConfigs.iterator(); it.hasNext(); i--) {
-      SeriesConfig sc = (SeriesConfig)it.next();
-      if(i == 0) {
+  /*
+  public SeriesConfig getSeriesConfig(int i)
+  {
+    for(Iterator<SeriesConfig> it = m_seriesConfigs.iterator(); it.hasNext(); i--) {
+      SeriesConfig sc = it.next();
+
+      if(i == 0)
         return sc;
-      }
     }
+
     return null;
   }
+  */
 
   /**
    * Gets the collection of SeriesConfig objects associated with this Suite.
    *
    * @return the set of associated SeriesConfigs
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public Set<SeriesConfig> getSeriesConfigs() {
-    return seriesConfigs;
+  public Set<SeriesConfig> getSeriesConfigs() throws IOException, SQLException, PersistenceException
+  {
+    if (m_seriesConfigs == null) {
+      Set<SeriesConfig> configs = new HashSet<SeriesConfig>();
+
+      if (!isNew()) {
+        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+        PreparedStatement selectStmt = null;
+        ResultSet rows = null;
+
+        try {
+          selectStmt = dbConn.prepareStatement(
+            "SELECT incaseriesconfig_id " +
+            "FROM INCASUITESSERIESCONFIGS " +
+            "WHERE incasuite_id = ?"
+          );
+
+          m_key.setParameter(selectStmt, 1);
+
+          rows = selectStmt.executeQuery();
+
+          while (rows.next()) {
+            long seriesConfigId = rows.getLong(1);
+
+            configs.add(new SeriesConfig(seriesConfigId));
+          }
+        }
+        finally {
+          if (rows != null)
+            rows.close();
+
+          if (selectStmt != null)
+            selectStmt.close();
+
+          dbConn.close();
+        }
+      }
+
+      m_seriesConfigs = new SeriesConfigSet(configs);
+    }
+
+    return m_seriesConfigs;
   }
 
   /**
-   * Sets the collection of SeriesConfig objects associated with this Suite.
-   * Hibernate only.
+   * Retrieves a specified SeriesConfig from the associated set.
    *
-   * @param configs the set of associated SeriesConfigs
+   * @param i the index into the set of the desired SeriesConfig
+   * @return the specified SeriesConfig; null if none
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  protected void setSeriesConfigs(Set<SeriesConfig> configs) {
-    this.seriesConfigs = configs;
+  public SeriesConfig getSeriesConfig(int i) throws IOException, SQLException, PersistenceException
+  {
+    Set<SeriesConfig> configs = getSeriesConfigs();
+
+    for (SeriesConfig sc : configs) {
+      if (i == 0)
+        return sc;
+
+      i -= 1;
+    }
+
+    return null;
   }
 
   /**
@@ -228,68 +407,132 @@ public class Suite extends PersistentObject {
    *
    * @param sc a SeriesConfig to associate
    */
-  public void addSeriesConfig(SeriesConfig sc) {
-    this.seriesConfigs.add(sc);
+  /*
+  public void addSeriesConfig(SeriesConfig sc)
+  {
+    m_seriesConfigs.add(sc);
+
     sc.addSuite(this);
+  }
+  */
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public XmlBeanObject fromBean(XmlObject o) throws IOException, SQLException, PersistenceException
+  {
+    return fromBean((edu.sdsc.inca.dataModel.suite.Suite) o);
   }
 
   /**
-   * Returns a Inca schema XmlBean Suite object that contains information
-   * equivalent to this object.
+   * Copies information from an Inca schema XmlBean Suite object so that this
+   * object contains equivalent information.
    *
-   * @return an XmlBean Suite object that contains equivalent information
+   * @param s the XmlBean Suite object to copy
+   * @return this, for convenience
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public XmlObject toBean() {
-    edu.sdsc.inca.dataModel.suite.Suite result =
-      edu.sdsc.inca.dataModel.suite.Suite.Factory.newInstance();
-    result.setName(this.getName());
-    result.setGuid(this.getGuid());
-    result.setDescription(this.getDescription());
-    result.setVersion(BigInteger.valueOf(this.getVersion()));
-    edu.sdsc.inca.dataModel.suite.Suite.SeriesConfigs resultSeriesConfigs =
-      result.addNewSeriesConfigs();
-    Iterator<SeriesConfig> it = this.getSeriesConfigs().iterator();
-    for(int i = 0; it.hasNext(); i++) {
+  public Suite fromBean(edu.sdsc.inca.dataModel.suite.Suite s) throws IOException, SQLException, PersistenceException
+  {
+    setName(s.getName());
+    setGuid(s.getGuid());
+    setDescription(s.getDescription());
+
+    if (s.getVersion() != null)
+      setVersion(s.getVersion().intValue());
+
+    edu.sdsc.inca.dataModel.util.SeriesConfig[] scs = s.getSeriesConfigs().getSeriesConfigArray();
+    Set<SeriesConfig> configs = getSeriesConfigs();
+
+    for (int i = 0 ; i < scs.length ; i++)
+      configs.add(new SeriesConfig().fromBean(scs[i]));
+
+    return this;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public XmlObject toBean() throws IOException, SQLException, PersistenceException
+  {
+    edu.sdsc.inca.dataModel.suite.Suite result = edu.sdsc.inca.dataModel.suite.Suite.Factory.newInstance();
+
+    result.setName(getName());
+    result.setGuid(getGuid());
+    result.setDescription(getDescription());
+    result.setVersion(BigInteger.valueOf(getVersion()));
+
+    edu.sdsc.inca.dataModel.suite.Suite.SeriesConfigs resultSeriesConfigs = result.addNewSeriesConfigs();
+
+    Iterator<SeriesConfig> it = getSeriesConfigs().iterator();
+
+    for (int i = 0 ; it.hasNext() ; i++) {
       resultSeriesConfigs.addNewSeriesConfig();
-      resultSeriesConfigs.setSeriesConfigArray(i, (edu.sdsc.inca.dataModel.util.SeriesConfig)((SeriesConfig)it.next()).toBean());
+      resultSeriesConfigs.setSeriesConfigArray(i, (edu.sdsc.inca.dataModel.util.SeriesConfig) it.next().toBean());
     }
+
     return result;
   }
 
   /**
-   * Returns XML text for this Suite.
-   *
-   * @return XML text
+   * {@inheritDoc}
    */
-  public String toXml() {
-    edu.sdsc.inca.dataModel.suite.SuiteDocument doc =
-      edu.sdsc.inca.dataModel.suite.SuiteDocument.Factory.newInstance();
-    doc.setSuite((edu.sdsc.inca.dataModel.suite.Suite)this.toBean());
+  @Override
+  public String toXml() throws IOException, SQLException, PersistenceException
+  {
+    edu.sdsc.inca.dataModel.suite.SuiteDocument doc = edu.sdsc.inca.dataModel.suite.SuiteDocument.Factory.newInstance();
+
+    doc.setSuite((edu.sdsc.inca.dataModel.suite.Suite) toBean());
+
     return doc.xmlText();
   }
 
   /**
-   * Compares another object to this Suite for logical equality.
-   *
-   * @param o the object to compare
-   * @return true iff the comparison object represents the same Suite
+   * {@inheritDoc}
    */
-  public boolean equals(Object o) {
-    if(this == o) {
-      return true;
-    } else if(!(o instanceof Suite)) {
+  @Override
+  public boolean equals(Object other)
+  {
+    if (other == null)
       return false;
-    }
-    return this.guid.equals(((Suite)o).getGuid());
+
+    if (this == other)
+      return true;
+
+    if (other instanceof Suite == false)
+      return false;
+
+    Suite otherSuite = (Suite) other;
+
+    return getGuid().equals(otherSuite.getGuid());
   }
 
   /**
-   * Calculate a hash code using the same fields that where used in equals.
-   *
-   * @return a hash code for the Suite
+   * {@inheritDoc}
    */
-  public int hashCode() {
-    return 29 * this.getGuid().hashCode();
+  @Override
+  public int hashCode()
+  {
+    return 29 * getGuid().hashCode();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int compareTo(Suite other)
+  {
+    if (other == null)
+      throw new NullPointerException("other");
+
+    if (this == other)
+      return 0;
+
+    return hashCode() - other.hashCode();
   }
 
   /**
@@ -299,15 +542,205 @@ public class Suite extends PersistentObject {
    * @param guid the suite guid
    * @param seriesConfigs the number of series configs to populate the suite
    * @return a new Suite
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public static Suite generate(String guid, int seriesConfigs) {
+  public static Suite generate(String guid, int seriesConfigs) throws IOException, SQLException, PersistenceException
+  {
     Suite result = new Suite("A suite name", guid, "auto-suite");
-    for(int i = 0; i < seriesConfigs; i++) {
+
+    for (int i = 0 ; i < seriesConfigs ; i++) {
       SeriesConfig sc = SeriesConfig.generate("host" + i, "reporter" + i, 3);
+
       sc.setNickname(guid + " series " + i);
-      result.addSeriesConfig(sc);
+      result.getSeriesConfigs().add(sc);
     }
+
     return result;
   }
 
+  /**
+   *
+   * @param suite
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public static Suite find(Suite suite) throws IOException, SQLException, PersistenceException
+  {
+    return find(suite.getGuid());
+  }
+
+  /**
+   *
+   * @param guid
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public static Suite find(String guid) throws IOException, SQLException, PersistenceException
+  {
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+
+    try {
+      Long id = find(dbConn, guid);
+
+      if (id == null)
+        return null;
+
+      return new Suite(id);
+    }
+    finally {
+      dbConn.close();
+    }
+  }
+
+
+  // package methods
+
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  void save(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    super.save(dbConn);
+
+    while (!m_opQueue.isEmpty()) {
+      RowOperation op = m_opQueue.remove();
+
+      op.execute(dbConn);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  void load(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    super.load(dbConn);
+
+    m_opQueue.clear();
+
+    m_seriesConfigs = null;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  boolean delete(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    m_opQueue.clear();
+
+    m_seriesConfigs = null;
+
+    deleteDependencies(dbConn, m_key.getValue());
+
+    return super.delete(dbConn);
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @param id
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  static boolean delete(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    deleteDependencies(dbConn, id);
+
+    Criterion key = new LongCriterion(KEY_NAME, id);
+
+    return Row.delete(dbConn, TABLE_NAME, key);
+  }
+
+
+  // protected methods
+
+
+  /**
+   *
+   * @param configs
+   * @throws PersistenceException
+   * @throws SQLException
+   * @throws IOException
+   */
+  protected void setSeriesConfigs(Set<SeriesConfig> configs) throws IOException, SQLException, PersistenceException
+  {
+    getSeriesConfigs().clear();
+
+    if (configs != null)
+      getSeriesConfigs().addAll(configs);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected Long findDuplicate(Connection dbConn) throws SQLException
+  {
+    return find(dbConn, getGuid());
+  }
+
+
+  // private methods
+
+
+  /**
+   *
+   */
+  private static Long find(Connection dbConn, String guid) throws SQLException
+  {
+    PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid " +
+      "FROM INCASUITE " +
+      "WHERE incaguid = ?"
+    );
+    ResultSet row = null;
+
+    try {
+      selectStmt.setString(1, guid);
+
+      row = selectStmt.executeQuery();
+
+      if (!row.next())
+        return null;
+
+      return row.getLong(1);
+    }
+    finally {
+      if (row != null)
+        row.close();
+
+      selectStmt.close();
+    }
+  }
+
+  /**
+   *
+   */
+  private static void deleteDependencies(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM INCASUITESSERIESCONFIGS " +
+      "WHERE incasuite_id = ?"
+    );
+
+    try {
+      deleteStmt.setLong(1, id);
+      deleteStmt.executeUpdate();
+    }
+    finally {
+      deleteStmt.close();
+    }
+  }
 }

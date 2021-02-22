@@ -22,9 +22,9 @@ import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
 
-import edu.sdsc.inca.depot.persistent.ConnectionSource;
+import edu.sdsc.inca.depot.persistent.ConnectionManager;
 import edu.sdsc.inca.depot.persistent.DatabaseTools;
-import edu.sdsc.inca.depot.persistent.SeriesDAO;
+import edu.sdsc.inca.depot.persistent.Series;
 
 
 /**
@@ -97,7 +97,7 @@ public class UpdateDBSchema {
     @Override
     public int hashCode()
     {
-      return (new Long(configId)).hashCode();
+      return (Long.valueOf(configId)).hashCode();
     }
 
     /**
@@ -105,6 +105,7 @@ public class UpdateDBSchema {
      * @param other
      * @return
      */
+    @Override
     public int compareTo(ConfigRecord other)
     {
       if (other == null)
@@ -229,7 +230,7 @@ public class UpdateDBSchema {
    */
   public static boolean update() throws SQLException
   {
-    Connection dbConn = ConnectionSource.getConnection();
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
     boolean updated = false;
 
     try {
@@ -796,7 +797,7 @@ public class UpdateDBSchema {
    */
   private static Map<Long, Timestamp> getInstanceDates(long reportId) throws SQLException
   {
-    Connection dbConn = ConnectionSource.getConnection();
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
     PreparedStatement selectStmt = null;
     ResultSet rows = null;
 
@@ -1139,7 +1140,7 @@ public class UpdateDBSchema {
 
     String idList = listBuilder.toString();
 
-    SeriesDAO.createInstanceTables(dbConn, data.instanceTableName, data.linkTableName);
+    Series.createInstanceTables(dbConn, data.instanceTableName, data.linkTableName);
 
     int numInstances = copyInstances(dbConn, idList, data.instanceTableName);
 
@@ -1362,7 +1363,7 @@ public class UpdateDBSchema {
             " ( incainstance_id, incaseriesconfig_id ) " +
           "SELECT incainstance_id, incaseriesconfig_id " +
           "FROM incaseriesconfigsinstances, incainstanceinfo " +
-          "WHERE incaseriesconfig_id IN ( " + idList + " ) and " + 
+          "WHERE incaseriesconfig_id IN ( " + idList + " ) and " +
           "incaseriesconfigsinstances.incainstance_id = incainstanceinfo.incaid"
       );
 
@@ -1382,7 +1383,7 @@ public class UpdateDBSchema {
    */
   private static List<SeriesLinkingRecord> getSeriesLinkingRecords() throws SQLException
   {
-    Connection dbConn = ConnectionSource.getConnection();
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
     Statement selectStmt = null;
     ResultSet rows = null;
 
@@ -1469,7 +1470,7 @@ public class UpdateDBSchema {
                 if (numLinks == 0) {
                   m_logger.debug("Populating Instance tables for Series " + series.seriesId + "...\nInserting SeriesConfig/Instance links...");
 
-                  SeriesDAO.createInstanceTables(dbConn, series.linkTableName, series.instanceTableName);
+                  Series.createInstanceTables(dbConn, series.linkTableName, series.instanceTableName);
                 }
 
                 updates.add(new ConfigInstanceLink(config.configId, instanceId));

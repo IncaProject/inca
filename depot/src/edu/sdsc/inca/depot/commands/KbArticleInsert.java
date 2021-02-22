@@ -16,7 +16,6 @@ import edu.sdsc.inca.Depot;
 import edu.sdsc.inca.dataModel.article.KbArticleDocument;
 import edu.sdsc.inca.depot.DelayedWork;
 import edu.sdsc.inca.depot.DepotPeerClient;
-import edu.sdsc.inca.depot.persistent.DAO;
 import edu.sdsc.inca.depot.persistent.KbArticle;
 import edu.sdsc.inca.depot.util.HibernateMessageHandler;
 import edu.sdsc.inca.protocol.Protocol;
@@ -61,6 +60,7 @@ public class KbArticleInsert extends HibernateMessageHandler implements DelayedW
      * @param context
      * @throws ConfigurationException
      */
+    @Override
     public void doWork(Worker context) throws ConfigurationException
     {
       DepotPeerClient peer = new DepotPeerClient(m_peerConfig);
@@ -91,6 +91,7 @@ public class KbArticleInsert extends HibernateMessageHandler implements DelayedW
    * @param dn
    * @throws Exception
    */
+  @Override
   public void executeHibernateAction(ProtocolReader reader, ProtocolWriter writer, String dn) throws Exception
   {
     Statement stmt = reader.readStatement();
@@ -117,13 +118,14 @@ public class KbArticleInsert extends HibernateMessageHandler implements DelayedW
         return;
     }
 
-    DAO.save(article);
+    article.save();
   }
 
   /**
    *
    * @param state
    */
+  @Override
   public void loadState(String state)
   {
     m_xml = state;
@@ -133,6 +135,7 @@ public class KbArticleInsert extends HibernateMessageHandler implements DelayedW
    *
    * @return
    */
+  @Override
   public String getState()
   {
     return m_xml;
@@ -142,12 +145,13 @@ public class KbArticleInsert extends HibernateMessageHandler implements DelayedW
    *
    * @param context
    */
+  @Override
   public void doWork(Worker context)
   {
     try {
       KbArticle article = parseArticleXml(m_xml);
 
-      DAO.save(article);
+      article.save();
     }
     catch (Exception err) {
       ByteArrayOutputStream logMessage = new ByteArrayOutputStream();

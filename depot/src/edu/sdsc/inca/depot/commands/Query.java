@@ -28,10 +28,9 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import edu.sdsc.inca.dataModel.util.Tags;
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
-import org.hibernate.Session;
+import org.hibernate.cfg.Configuration;
 import org.hibernate.metadata.ClassMetadata;
 import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
@@ -43,21 +42,18 @@ import edu.sdsc.inca.dataModel.reportDetails.ReportDetailsDocument;
 import edu.sdsc.inca.dataModel.util.AnyXmlSequence;
 import edu.sdsc.inca.dataModel.util.Log;
 import edu.sdsc.inca.dataModel.util.ReportDetails;
+import edu.sdsc.inca.dataModel.util.Tags;
 import edu.sdsc.inca.depot.persistent.ComparisonResult;
-import edu.sdsc.inca.depot.persistent.ComparisonResultDAO;
-import edu.sdsc.inca.depot.persistent.ConnectionSource;
-import edu.sdsc.inca.depot.persistent.DAO;
-import edu.sdsc.inca.depot.persistent.HibernateUtil;
+import edu.sdsc.inca.depot.persistent.ConnectionManager;
+import edu.sdsc.inca.depot.persistent.HqlQuery;
 import edu.sdsc.inca.depot.persistent.InstanceInfo;
 import edu.sdsc.inca.depot.persistent.Notification;
 import edu.sdsc.inca.depot.persistent.PersistenceException;
-import edu.sdsc.inca.depot.persistent.PersistentObject;
 import edu.sdsc.inca.depot.persistent.Report;
-import edu.sdsc.inca.depot.persistent.ReportDAO;
+import edu.sdsc.inca.depot.persistent.Row;
 import edu.sdsc.inca.depot.persistent.Schedule;
 import edu.sdsc.inca.depot.persistent.Series;
 import edu.sdsc.inca.depot.persistent.SeriesConfig;
-import edu.sdsc.inca.depot.persistent.SeriesConfigDAO;
 import edu.sdsc.inca.depot.persistent.Suite;
 import edu.sdsc.inca.depot.util.HibernateMessageHandler;
 import edu.sdsc.inca.protocol.Protocol;
@@ -117,6 +113,7 @@ public class Query extends HibernateMessageHandler {
      * @param reports
      * @throws Exception
      */
+    @Override
     public void process(InstanceInfo instance, Map<Long, Report> reports) throws Exception {
 
       Long reportId = instance.getReportId();
@@ -124,7 +121,7 @@ public class Query extends HibernateMessageHandler {
       Report r = reports.get(reportId);
 
       if (r == null) {
-        r = ReportDAO.load(reportId);
+        r = new Report(reportId);
 
         reports.put(reportId, r);
       }
@@ -136,9 +133,9 @@ public class Query extends HibernateMessageHandler {
       gi.setResource(series.getResource());
       gi.setTargetHostname(series.getTargetHostname());
       gi.setNickname(config.getNickname());
-      gi.setInstanceId(instance.getId().toString());
+      gi.setInstanceId(String.valueOf(instance.getId()));
       gi.setReportId(reportId.toString());
-      gi.setConfigId(config.getId().toString());
+      gi.setConfigId(String.valueOf(config.getId()));
       gi.setBody( AnyXmlSequence.Factory.parse(r.getBody()) );
 
       Calendar cal = Calendar.getInstance();
@@ -187,6 +184,7 @@ public class Query extends HibernateMessageHandler {
      * @param reports
      * @throws Exception
      */
+    @Override
     public void process(InstanceInfo instance, Map<Long, Report> reports) throws Exception {
 
       Long reportId = instance.getReportId();
@@ -194,7 +192,7 @@ public class Query extends HibernateMessageHandler {
       Report r = reports.get(reportId);
 
       if (r == null) {
-        r = ReportDAO.load(reportId);
+        r = new Report(reportId);
 
         reports.put(reportId, r);
       }
@@ -202,7 +200,7 @@ public class Query extends HibernateMessageHandler {
       String message = r.getExit_message();
       String comparison = comparisons.get(reportId);
 
-      if ((message == null || message.equals(PersistentObject.DB_EMPTY_STRING)) && comparison != null && !comparison.equals("Success"))
+      if ((message == null || message.equals(Row.DB_EMPTY_STRING)) && comparison != null && !comparison.equals("Success"))
         message = comparison;
       else if (message != null && comparison != null && comparison.equals("Success"))
         message = comparison;
@@ -278,6 +276,7 @@ public class Query extends HibernateMessageHandler {
    * @param writer   Writer to the remote process making the request.
    * @throws Exception
    */
+  @Override
   public void executeHibernateAction(
     ProtocolReader reader, ProtocolWriter writer, String dn) throws Exception {
 
@@ -338,8 +337,10 @@ public class Query extends HibernateMessageHandler {
    * @throws Exception if trouble querying the database
    */
   private void getDbInfo(ProtocolWriter writer) throws Exception {
+    Configuration conf = new Configuration();
+    conf.configure();
     StringBuffer response = new StringBuffer("<incadb>\n");
-    Map<?, ?> metadata = HibernateUtil.getSessionFactory().getAllClassMetadata();
+    Map<?, ?> metadata = conf.buildSessionFactory().getAllClassMetadata();
     for( Object obj : metadata.keySet() ) {
       String name = (String)obj;
       response.append("  <dbclass>\n    <name>");
@@ -371,11 +372,11 @@ public class Query extends HibernateMessageHandler {
    * @throws Exception if trouble querying the database or writing result
    */
   private void getGuidList(ProtocolWriter writer) throws Exception {
-    Iterator<?> guids = DAO.selectMultiple("select s.guid from Suite as s", null);
+    List<Object> guids = (new HqlQuery("select s.guid from Suite as s")).select();
     List<String> guidList = new ArrayList<String>();
 
-    while (guids.hasNext())
-      guidList.add((String)guids.next());
+    for (Object guid : guids)
+      guidList.add((String)guid);
 
     String[] result = guidList.toArray(new String[guidList.size()]);
 
@@ -410,8 +411,12 @@ public class Query extends HibernateMessageHandler {
     }
 
     Date collected = new Date(milliSeconds);
-    InstanceInfo ii = new InstanceInfo(nickname, resource, target, collected);
-    Report r = ReportDAO.load(ii.getReportId());
+    InstanceInfo ii = InstanceInfo.find(nickname, resource, target, collected);
+
+    if (ii == null)
+      throw new PersistenceException("No InstanceInfo record found for nickname " + nickname + ", resource " + resource + ", target " + target + ", collected " + collected);
+
+    Report r = new Report(ii.getReportId());
     Set<SeriesConfig> scs = ii.getSeriesConfigs();
     SeriesConfig sc = null;
 
@@ -428,7 +433,7 @@ public class Query extends HibernateMessageHandler {
                      "and cr.seriesConfigId = :p1";
 
     Object[] params = { r.getId(), sc.getId() };
-    ComparisonResult cr = (ComparisonResult)DAO.selectUnique(query, params);
+    ComparisonResult cr = (ComparisonResult)(new HqlQuery(query)).selectUnique(params);
     ReportDetailsDocument rdd = toBean(sc, r, ii, cr);
 
     writer.write(new Statement(Protocol.QUERY_RESULT, rdd.toString()));
@@ -459,17 +464,13 @@ public class Query extends HibernateMessageHandler {
     } catch(NumberFormatException e) {
       throw new ProtocolException("Non-numeric id in '" + request + "'");
     }
-    SeriesConfig sc = SeriesConfigDAO.load(configId);
-
-    if(sc == null)
-      throw new PersistenceException("Request for unknown config " + configId);
-
+    SeriesConfig sc = new SeriesConfig(configId);
     InstanceInfo ii = new InstanceInfo(sc.getSeries(), instanceId);
-    Report r = ReportDAO.load(ii.getReportId());
+    Report r = new Report(ii.getReportId());
     String query = "select cr from ComparisonResult cr " +
                    "  where cr.reportId = " + r.getId() +
                    "  and cr.seriesConfigId = " + configId;
-    ComparisonResult cr = (ComparisonResult)DAO.selectUnique(query, null);
+    ComparisonResult cr = (ComparisonResult)(new HqlQuery(query)).selectUnique();
     ReportDetailsDocument rdd = toBean(sc, r, ii, cr);
     String response = rdd.toString();
     writer.write(new Statement(Protocol.QUERY_RESULT, response));
@@ -537,23 +538,49 @@ public class Query extends HibernateMessageHandler {
     }
     select = select.replaceFirst("xBODYx", "body");
     // Make the query
-    Session session = HibernateUtil.getCurrentSession();
-    List<?> l;
-    try {
-      l = isHql ? session.createQuery(select).list() :
-                  session.createSQLQuery(select).list();
-    } catch(Exception e) {
-      e.printStackTrace();
-      throw new PersistenceException(e.toString());
+    List<Object> l;
+
+    if (isHql)
+      l = (new HqlQuery(select)).select();
+    else {
+      Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+      PreparedStatement selectStmt = null;
+      ResultSet rows = null;
+
+      try {
+        selectStmt = dbConn.prepareStatement(select);
+        rows = selectStmt.executeQuery();
+        l = new ArrayList<Object>();
+
+        int numCols = rows.getMetaData().getColumnCount();
+
+        while (rows.next()) {
+          Object[] newRow = new Object[numCols];
+
+          for (int index = 0 ; index < numCols ; index += 1)
+            newRow[index] = rows.getObject(index + 1);
+
+          l.add(newRow);
+        }
+      }
+      finally {
+        if (rows != null)
+          rows.close();
+
+        if (selectStmt != null)
+          selectStmt.close();
+
+        dbConn.close();
+      }
     }
-    // Send one response per row.  If the row is a PersistentObject (e.g.,
+    // Send one response per row.  If the row is a Row object (e.g.,
     // "select sc from SeriesConfig sc", then we can use its toXml() method to
     // translate it; otherwise, we'll have an object array which we'll
     // translate to XML using the parsed names above.
     for( Object o : l ) {
       String xml;
-      if(o instanceof PersistentObject) {
-        xml = ((PersistentObject)o).toXml();
+      if(o instanceof Row) {
+        xml = ((Row) o).toXml();
       } else {
         StringBuffer sb = new StringBuffer();
         Object[] values;
@@ -567,7 +594,7 @@ public class Query extends HibernateMessageHandler {
           name = names.get(j) == null ? j + "" : names.get(j);
           Object value = values[j];
           String s = value == null ? "null" :
-            value instanceof PersistentObject?((PersistentObject)value).toXml():
+            value instanceof Row ? ((Row) value).toXml():
             XmlWrapper.escape( value.toString() );
           sb.append("<");
           sb.append(name);
@@ -595,43 +622,50 @@ public class Query extends HibernateMessageHandler {
    */
   private void getLatestInstances(ProtocolWriter writer, String expr) throws Exception {
 
-    Iterator<?> scList = getSelectedConfigs(expr);
-    Statement reply = new Statement(Protocol.QUERY_RESULT, null);
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
 
-    while (scList.hasNext()) {
-      SeriesConfig sc = (SeriesConfig)scList.next();
-      ComparisonResult cr = null;
-      InstanceInfo ii = null;
-      Report r = null;
-      Long id = sc.getLatestInstanceId();
+    try {
+      Iterator<Object> scList = getSelectedConfigs(dbConn, expr);
+      Statement reply = new Statement(Protocol.QUERY_RESULT, null);
 
-      if(id != null && id >= 0) {
-        ii = new InstanceInfo(sc.getSeries(), id);
-        id = ii.getReportId();
+      while (scList.hasNext()) {
+        SeriesConfig sc = (SeriesConfig)scList.next();
+        ComparisonResult cr = null;
+        InstanceInfo ii = null;
+        Report r = null;
+        Long id = sc.getLatestInstanceId();
+
+        if(id != null && id >= 0) {
+          ii = new InstanceInfo(sc.getSeries(), id);
+          id = ii.getReportId();
+
+          if (id != null && id >= 0)
+            r = new Report(id);
+        }
+
+        id = sc.getLatestComparisonId();
 
         if (id != null && id >= 0)
-          r = ReportDAO.load(id);
+          cr = new ComparisonResult(id);
+
+        if (ii == null)
+          logger.debug("No latest instance for SC " + sc);
+
+        if (r == null)
+          logger.debug("No latest report for SC " + sc);
+
+        if (cr == null)
+          logger.debug("No latest comparison for SC " + sc);
+
+        ReportSummaryDocument rsd = toBean(sc, cr, ii, r);
+        String s = rsd.toString();
+
+        reply.setData(s.toCharArray());
+        writer.write(reply);
       }
-
-      id = sc.getLatestComparisonId();
-
-      if (id != null && id >= 0)
-        cr = ComparisonResultDAO.load(id);
-
-      if (ii == null)
-        logger.debug("No latest instance for SC " + sc);
-
-      if (r == null)
-        logger.debug("No latest report for SC " + sc);
-
-      if (cr == null)
-        logger.debug("No latest comparison for SC " + sc);
-
-      ReportSummaryDocument rsd = toBean(sc, cr, ii, r);
-      String s = rsd.toString();
-
-      reply.setData(s.toCharArray());
-      writer.write(reply);
+    }
+    finally {
+      dbConn.close();
     }
   }
 
@@ -648,50 +682,57 @@ public class Query extends HibernateMessageHandler {
   private void getPeriodInstances(ProtocolWriter writer, String request)
     throws Exception {
 
-    // Parse the request
-    String[] pieces = request.split(" ", 3);
-    if(pieces.length != 3) {
-      throw new ProtocolException
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+
+    try {
+      // Parse the request
+      String[] pieces = request.split(" ", 3);
+      if(pieces.length != 3) {
+        throw new ProtocolException
         ("Expected 'begin end expr', got '" + request + "'");
-    }
-    Date begin, end;
-    if(pieces[0].matches("^\\d+$")) {
-      begin = new Date(Long.parseLong(pieces[0]));
-    } else {
-      throw new ProtocolException("Bad value '" + pieces[0] + "' for begin");
-    }
-    if(pieces[1].matches("^\\d+$")) {
-      end = new Date(Long.parseLong(pieces[1]));
-    } else {
-      throw new ProtocolException("Bad value '" + pieces[1] + "' for end");
-    }
+      }
+      Date begin, end;
+      if(pieces[0].matches("^\\d+$")) {
+        begin = new Date(Long.parseLong(pieces[0]));
+      } else {
+        throw new ProtocolException("Bad value '" + pieces[0] + "' for begin");
+      }
+      if(pieces[1].matches("^\\d+$")) {
+        end = new Date(Long.parseLong(pieces[1]));
+      } else {
+        throw new ProtocolException("Bad value '" + pieces[1] + "' for end");
+      }
 
-    Iterator<?> seriesList = getSelectedSeries(pieces[2], false);
-    Map<Date, GraphSeries> result = new TreeMap<Date, GraphSeries>();
+      Iterator<Object> seriesList = getSelectedSeries(dbConn, pieces[2], false);
+      Map<Date, GraphSeries> result = new TreeMap<Date, GraphSeries>();
 
-    while (seriesList.hasNext()) {
-      Series s = (Series)seriesList.next();
-      SeriesConfig[] scSorted = new SeriesConfig[s.getSeriesConfigs().size()];
-      scSorted = s.getSeriesConfigs().toArray(scSorted);
-      Arrays.sort( scSorted );
+      while (seriesList.hasNext()) {
+        Series s = (Series)seriesList.next();
+        SeriesConfig[] scSorted = new SeriesConfig[s.getSeriesConfigs().size()];
+        scSorted = s.getSeriesConfigs().toArray(scSorted);
+        Arrays.sort( scSorted );
 
-      for (SeriesConfig sc : scSorted ) {
-        if ( ! sc.getSchedule().getType().equals("cron") ) continue;
+        for (SeriesConfig sc : scSorted ) {
+          if ( ! sc.getSchedule().getType().equals("cron") ) continue;
 
-        Map<Long, String> comparisons = getRelatedComparisons(sc.getId());
+          Map<Long, String> comparisons = getRelatedComparisons(sc.getId());
 
-        processRelatedInstances(sc, begin, end, new PeriodProcessor(s, sc, comparisons, result));
+          processRelatedInstances(dbConn, sc, begin, end, new PeriodProcessor(s, sc, comparisons, result));
+        }
+      }
+
+      if (result.isEmpty())
+        return;
+
+      Statement reply = new Statement(Protocol.QUERY_RESULT, null);
+
+      for (GraphSeries gs : result.values()) {
+        reply.setData(gs.xmlText().toCharArray());
+        writer.write(reply);
       }
     }
-
-    if (result.isEmpty())
-      return;
-
-    Statement reply = new Statement(Protocol.QUERY_RESULT, null);
-
-    for (GraphSeries gs : result.values()) {
-      reply.setData(gs.xmlText().toCharArray());
-      writer.write(reply);
+    finally {
+      dbConn.close();
     }
   }
 
@@ -709,135 +750,142 @@ public class Query extends HibernateMessageHandler {
   private void getStatusHistory(ProtocolWriter writer, String request)
     throws Exception {
 
-    // Parse the request
-    String[] pieces = request.split(" ", 4);
-    if(pieces.length != 4) {
-      throw new ProtocolException
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+
+    try {
+      // Parse the request
+      String[] pieces = request.split(" ", 4);
+      if(pieces.length != 4) {
+        throw new ProtocolException
         ("Expected 'period begin end expr', got '" + request + "'");
-    }
-    long periodInMillis;
-    Date begin, end;
-    String [] temp = pieces[0].split(":");
-    Integer limitError = 0;
-    if (temp.length == 2) {
-      pieces[0] = temp[0];
-      if (temp[1].matches("^\\d+$")) {
-        limitError = Integer.parseInt(temp[1]);
+      }
+      long periodInMillis;
+      Date begin, end;
+      String [] temp = pieces[0].split(":");
+      Integer limitError = 0;
+      if (temp.length == 2) {
+        pieces[0] = temp[0];
+        if (temp[1].matches("^\\d+$")) {
+          limitError = Integer.parseInt(temp[1]);
+        }
+      }
+      if(pieces[0].equals("DAY")) {
+        periodInMillis = 24L * 60L * 60L * 1000L;
+      } else if(pieces[0].equals("WEEK")) {
+        periodInMillis = 7L * 24L * 60L * 60L * 1000L;
+      } else if(pieces[0].equals("MONTH")) {
+        periodInMillis = 30L * 24L * 60L * 60L * 1000L;
+      } else if(pieces[0].equals("QUARTER")) {
+        periodInMillis = 90L * 24L * 60L * 60L * 1000L;
+      } else if(pieces[0].matches("^\\d+$")) {
+        periodInMillis = Long.parseLong(pieces[0]) * 60L * 1000L;
+      } else {
+        throw new ProtocolException("Bad value '" + pieces[0] + "' for period");
+      }
+      if(pieces[1].matches("^\\d+$")) {
+        begin = new Date(Long.parseLong(pieces[1]));
+      } else {
+        throw new ProtocolException("Bad value '" + pieces[1] + "' for begin");
+      }
+      if(pieces[2].matches("^\\d+$")) {
+        end = new Date(Long.parseLong(pieces[2]));
+      } else {
+        throw new ProtocolException("Bad value '" + pieces[2] + "' for end");
+      }
+      Iterator<Object> seriesList = getSelectedSeries(dbConn, pieces[3], true);
+      Statement reply = new Statement(Protocol.QUERY_RESULT, null);;
+
+      while (seriesList.hasNext()) {
+        Series series = (Series)seriesList.next();
+
+        for (SeriesConfig sc : series.getSeriesConfigs()) {
+          Map<Long, String> comparisons = getRelatedComparisons(sc.getId());
+
+          StringBuilder xml = new StringBuilder();
+          xml.append("<series>\n");
+
+          if ( sc.getSuites().size() == 1 &&
+              sc.getSuite(0).getName().equals(Protocol.IMMEDIATE_SUITE_NAME)) {
+            break;
+          }
+          for (Suite s : sc.getSuites()) {
+            if ( ! s.getName().equals(Protocol.IMMEDIATE_SUITE_NAME) ) {
+              xml.append("  <guid>");
+              xml.append(s.getGuid());
+              xml.append("</guid>\n");
+            }
+          }
+
+          xml.append("  <nickname>");
+          xml.append(sc.getNickname());
+          xml.append("</nickname>\n");
+          xml.append("  <resource>");
+          xml.append(series.getResource());
+          xml.append("</resource>\n");
+          xml.append("  <targetHostname>");
+          xml.append(series.getTargetHostname());
+          xml.append("</targetHostname>\n");
+
+          List<StatusCount> counts = new ArrayList<StatusCount>();
+
+          // For each period, from least recent to most recent ...
+          for (long lowBound = begin.getTime() ; lowBound <= end.getTime() ; lowBound += periodInMillis) {
+            long highBound = lowBound + periodInMillis - 1;
+
+            counts.add(new StatusCount(lowBound, highBound));
+          }
+
+          processRelatedInstances(dbConn, sc, begin, end, new StatusProcessor(limitError, comparisons, counts));
+
+          for (StatusCount status : counts) {
+            // Add XML for the successes and failures in this period
+            xml.append("  <period>\n");
+            xml.append("    <begin>");
+            xml.append(status.lowBound);
+            xml.append("</begin>\n");
+            xml.append("    <end>");
+            xml.append(status.highBound);
+            xml.append("</end>\n");
+
+            long successes = 0;
+            Long count = status.messageCounts.get("Success");
+
+            if (count != null) {
+              status.messageCounts.remove("Success");
+              successes += count;
+            }
+
+            count = status.messageCounts.get(Row.DB_EMPTY_STRING);
+
+            if (count != null) {
+              status.messageCounts.remove(Row.DB_EMPTY_STRING);
+              successes += count;
+            }
+
+            xml.append("    <success>");
+            xml.append(successes);
+            xml.append("</success>\n");
+
+            for (String messageKey : status.messageCounts.keySet()) {
+              xml.append("    <failure><message>");
+              xml.append(XmlWrapper.escape(messageKey));
+              xml.append("</message><count>");
+              xml.append(status.messageCounts.get(messageKey));
+              xml.append("</count></failure>\n");
+            }
+
+            xml.append("  </period>\n" );
+          }
+
+          xml.append("</series>");
+
+          reply.setData(xml.toString().toCharArray());
+          writer.write(reply);
+        }
       }
     }
-    if(pieces[0].equals("DAY")) {
-      periodInMillis = 24L * 60L * 60L * 1000L;
-    } else if(pieces[0].equals("WEEK")) {
-      periodInMillis = 7L * 24L * 60L * 60L * 1000L;
-    } else if(pieces[0].equals("MONTH")) {
-      periodInMillis = 30L * 24L * 60L * 60L * 1000L;
-    } else if(pieces[0].equals("QUARTER")) {
-      periodInMillis = 90L * 24L * 60L * 60L * 1000L;
-    } else if(pieces[0].matches("^\\d+$")) {
-      periodInMillis = Long.parseLong(pieces[0]) * 60L * 1000L;
-    } else {
-      throw new ProtocolException("Bad value '" + pieces[0] + "' for period");
-    }
-    if(pieces[1].matches("^\\d+$")) {
-      begin = new Date(Long.parseLong(pieces[1]));
-    } else {
-      throw new ProtocolException("Bad value '" + pieces[1] + "' for begin");
-    }
-    if(pieces[2].matches("^\\d+$")) {
-      end = new Date(Long.parseLong(pieces[2]));
-    } else {
-      throw new ProtocolException("Bad value '" + pieces[2] + "' for end");
-    }
-    Iterator<?> seriesList = getSelectedSeries(pieces[3], true);
-    Statement reply = new Statement(Protocol.QUERY_RESULT, null);;
-
-    while (seriesList.hasNext()) {
-      Series series = (Series)seriesList.next();
-
-      for (SeriesConfig sc : series.getSeriesConfigs()) {
-        Map<Long, String> comparisons = getRelatedComparisons(sc.getId());
-
-        StringBuilder xml = new StringBuilder();
-        xml.append("<series>\n");
-
-        if ( sc.getSuites().size() == 1 &&
-          sc.getSuite(0).getName().equals(Protocol.IMMEDIATE_SUITE_NAME)) {
-          break;
-        }
-        for (Suite s : sc.getSuites()) {
-          if ( ! s.getName().equals(Protocol.IMMEDIATE_SUITE_NAME) ) {
-            xml.append("  <guid>");
-            xml.append(s.getGuid());
-            xml.append("</guid>\n");
-          }
-        }
-
-        xml.append("  <nickname>");
-        xml.append(sc.getNickname());
-        xml.append("</nickname>\n");
-        xml.append("  <resource>");
-        xml.append(series.getResource());
-        xml.append("</resource>\n");
-        xml.append("  <targetHostname>");
-        xml.append(series.getTargetHostname());
-        xml.append("</targetHostname>\n");
-
-        List<StatusCount> counts = new ArrayList<StatusCount>();
-
-        // For each period, from least recent to most recent ...
-        for (long lowBound = begin.getTime() ; lowBound <= end.getTime() ; lowBound += periodInMillis) {
-          long highBound = lowBound + periodInMillis - 1;
-
-          counts.add(new StatusCount(lowBound, highBound));
-        }
-
-        processRelatedInstances(sc, begin, end, new StatusProcessor(limitError, comparisons, counts));
-
-        for (StatusCount status : counts) {
-          // Add XML for the successes and failures in this period
-          xml.append("  <period>\n");
-          xml.append("    <begin>");
-          xml.append(status.lowBound);
-          xml.append("</begin>\n");
-          xml.append("    <end>");
-          xml.append(status.highBound);
-          xml.append("</end>\n");
-
-          long successes = 0;
-          Long count = status.messageCounts.get("Success");
-
-          if (count != null) {
-            status.messageCounts.remove("Success");
-            successes += count;
-          }
-
-          count = status.messageCounts.get(PersistentObject.DB_EMPTY_STRING);
-
-          if (count != null) {
-            status.messageCounts.remove(PersistentObject.DB_EMPTY_STRING);
-            successes += count;
-          }
-
-          xml.append("    <success>");
-          xml.append(successes);
-          xml.append("</success>\n");
-
-          for (String messageKey : status.messageCounts.keySet()) {
-            xml.append("    <failure><message>");
-            xml.append(XmlWrapper.escape(messageKey));
-            xml.append("</message><count>");
-            xml.append(status.messageCounts.get(messageKey));
-            xml.append("</count></failure>\n");
-          }
-
-          xml.append("  </period>\n" );
-        }
-
-        xml.append("</series>");
-
-        reply.setData(xml.toString().toCharArray());
-        writer.write(reply);
-      }
+    finally {
+      dbConn.close();
     }
   }
 
@@ -873,192 +921,197 @@ public class Query extends HibernateMessageHandler {
    */
   private void getReporterSeries(ProtocolWriter writer) throws Exception {
 
-    Pattern targetPattern = Pattern.compile("(.+)_to_.+");
-    Map<String, Timestamp> activatedDates = new TreeMap<String, Timestamp>();
-    Iterator<?> queryResult = DAO.selectMultiple(
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+
+    try {
+      Pattern targetPattern = Pattern.compile("(.+)_to_.+");
+      Map<String, Timestamp> activatedDates = new TreeMap<String, Timestamp>();
+      Iterator<Object> queryResult = (new HqlQuery(
         "SELECT seriesConfig.nickname AS nickname, seriesConfig.series.reporter AS seriesName, " +
           "MIN(seriesConfig.activated) AS minActivated " +
         "FROM SeriesConfig seriesConfig INNER JOIN seriesConfig.suites suite " +
         "WHERE suite.name != '_runNow' " +
-        "GROUP BY seriesConfig.nickname, seriesConfig.series.reporter",
-        null
-    );
+        "GROUP BY seriesConfig.nickname, seriesConfig.series.reporter"
+      )).select(dbConn);
 
-    while (queryResult.hasNext()) {
-      Object[] row = (Object[])queryResult.next();
-      String nickname = (String)row[0];
-      String seriesName = (String)row[1];
-      Timestamp minActivated = (Timestamp)row[2];
-      Matcher targetMatcher = targetPattern.matcher(nickname);
+      while (queryResult.hasNext()) {
+        Object[] row = (Object[])queryResult.next();
+        String nickname = (String)row[0];
+        String seriesName = (String)row[1];
+        Timestamp minActivated = (Timestamp)row[2];
+        Matcher targetMatcher = targetPattern.matcher(nickname);
 
-      if (targetMatcher.matches())
-        nickname = targetMatcher.group(1);
+        if (targetMatcher.matches())
+          nickname = targetMatcher.group(1);
 
-      String configKey = nickname + "/" + seriesName;
-      Date activated = activatedDates.get(configKey);
+        String configKey = nickname + "/" + seriesName;
+        Date activated = activatedDates.get(configKey);
 
-      if (activated == null || activated.after(minActivated))
-        activatedDates.put(configKey, minActivated);
-    }
+        if (activated == null || activated.after(minActivated))
+          activatedDates.put(configKey, minActivated);
+      }
 
-    Map<String, ConfigData> seriesConfigs = new TreeMap<String, ConfigData>();
+      Map<String, ConfigData> seriesConfigs = new TreeMap<String, ConfigData>();
 
-    queryResult = DAO.selectMultiple(
+      queryResult = (new HqlQuery(
         "SELECT seriesConfig, suite.name AS suiteName " +
         "FROM SeriesConfig seriesConfig INNER JOIN seriesConfig.suites suite " +
-        "WHERE seriesConfig.deactivated IS NULL AND suite.name != '_runNow'",
-        null
-    );
+        "WHERE seriesConfig.deactivated IS NULL AND suite.name != '_runNow'"
+      )).select(dbConn);
 
-    while (queryResult.hasNext()) {
-      Object[] row = (Object[])queryResult.next();
-      SeriesConfig config = (SeriesConfig)row[0];
-      Series configSeries = config.getSeries();
-      String nickname = config.getNickname();
-      String seriesName = config.getSeries().getReporter();
-      String targetHostname = configSeries.getTargetHostname().trim();
-      String frequency = buildFrequency(config.getSchedule());
-      if ( frequency == null ) {
-        Schedule s = config.getSchedule();
-        StringBuilder f = new StringBuilder();
-        f.append(s.getMinute());
-        f.append(" ");
-        f.append(s.getHour());
-        f.append(" ");
-        f.append(s.getMday());
-        f.append(" ");
-        f.append(s.getWday());
-        f.append(" ");
-        f.append(s.getMonth());
-        frequency = f.toString();
+      while (queryResult.hasNext()) {
+        Object[] row = (Object[])queryResult.next();
+        SeriesConfig config = (SeriesConfig)row[0];
+        Series configSeries = config.getSeries();
+        String nickname = config.getNickname();
+        String seriesName = config.getSeries().getReporter();
+        String targetHostname = configSeries.getTargetHostname().trim();
+        String frequency = buildFrequency(config.getSchedule());
+        if ( frequency == null ) {
+          Schedule s = config.getSchedule();
+          StringBuilder f = new StringBuilder();
+          f.append(s.getMinute());
+          f.append(" ");
+          f.append(s.getHour());
+          f.append(" ");
+          f.append(s.getMday());
+          f.append(" ");
+          f.append(s.getWday());
+          f.append(" ");
+          f.append(s.getMonth());
+          frequency = f.toString();
+        }
+
+        Matcher targetMatcher = targetPattern.matcher(nickname);
+
+        if (targetMatcher.matches())
+          nickname = targetMatcher.group(1);
+
+        String configKey = nickname + "/" + seriesName;
+        ConfigData data = seriesConfigs.get(configKey);
+
+        if (data == null) {
+          Timestamp deployed = activatedDates.get(configKey);
+
+          data = new ConfigData();
+
+          data.nickname = nickname;
+          data.seriesName = seriesName;
+          data.suiteName = (String)row[1];
+          data.seriesUri = configSeries.getUri();
+          data.instanceTable = configSeries.getInstanceTableName();
+          data.deployed = deployed;
+          data.lastRun = new Timestamp(1);
+
+          if (config.getAcceptedOutput() != null)
+            data.notification = "no";
+          else
+            data.notification = "yes";
+
+          seriesConfigs.put(configKey, data);
+        }
+
+        data.frequencies.add(frequency);
+        data.instanceIds.add(config.getLatestInstanceId());
+        data.resources.add(configSeries.getResource());
+
+        if (targetHostname.length() > 0)
+          data.targets.add(targetHostname);
       }
 
-      Matcher targetMatcher = targetPattern.matcher(nickname);
+      DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-      if (targetMatcher.matches())
-        nickname = targetMatcher.group(1);
+      writer.write(Protocol.SUCCESS_COMMAND);
+      writer.write(" <configs>");
 
-      String configKey = nickname + "/" + seriesName;
-      ConfigData data = seriesConfigs.get(configKey);
+      try {
+        for (ConfigData data : seriesConfigs.values()) {
+          Iterator<Long> ids = data.instanceIds.iterator();
+          StringBuilder idList = new StringBuilder();
 
-      if (data == null) {
-        Timestamp deployed = activatedDates.get(configKey);
-
-        data = new ConfigData();
-
-        data.nickname = nickname;
-        data.seriesName = seriesName;
-        data.suiteName = (String)row[1];
-        data.seriesUri = configSeries.getUri();
-        data.instanceTable = configSeries.getInstanceTableName();
-        data.deployed = deployed;
-        data.lastRun = new Timestamp(1);
-
-        if (config.getAcceptedOutput() != null)
-          data.notification = "no";
-        else
-          data.notification = "yes";
-
-        seriesConfigs.put(configKey, data);
-      }
-
-      data.frequencies.add(frequency);
-      data.instanceIds.add(config.getLatestInstanceId());
-      data.resources.add(configSeries.getResource());
-
-      if (targetHostname.length() > 0)
-        data.targets.add(targetHostname);
-    }
-
-    DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-    writer.write(Protocol.SUCCESS_COMMAND);
-    writer.write(" <configs>");
-
-    try {
-      for (ConfigData data : seriesConfigs.values()) {
-        Iterator<Long> ids = data.instanceIds.iterator();
-        StringBuilder idList = new StringBuilder();
-
-        idList.append(ids.next());
-
-        while (ids.hasNext()) {
-          idList.append(", ");
           idList.append(ids.next());
-        }
 
-        List<Timestamp> dates = getCollectedDates(data.instanceTable, idList.toString());
+          while (ids.hasNext()) {
+            idList.append(", ");
+            idList.append(ids.next());
+          }
 
-        for (Timestamp collected : dates) {
-          if (collected.after(data.lastRun))
-            data.lastRun = collected;
-        }
+          List<Timestamp> dates = getCollectedDates(dbConn, data.instanceTable, idList.toString());
 
-        StringBuilder resources = new StringBuilder();
+          for (Timestamp collected : dates) {
+            if (collected.after(data.lastRun))
+              data.lastRun = collected;
+          }
 
-        if (!data.resources.isEmpty()) {
-          Iterator<String> resourceNames = data.resources.iterator();
+          StringBuilder resources = new StringBuilder();
 
-          resources.append(resourceNames.next());
+          if (!data.resources.isEmpty()) {
+            Iterator<String> resourceNames = data.resources.iterator();
 
-          while (resourceNames.hasNext()) {
-            resources.append(", ");
             resources.append(resourceNames.next());
+
+            while (resourceNames.hasNext()) {
+              resources.append(", ");
+              resources.append(resourceNames.next());
+            }
           }
-        }
 
-        StringBuilder targets = new StringBuilder();
+          StringBuilder targets = new StringBuilder();
 
-        if (!data.targets.isEmpty()) {
-          Iterator<String> targetNames = data.targets.iterator();
+          if (!data.targets.isEmpty()) {
+            Iterator<String> targetNames = data.targets.iterator();
 
-          targets.append(targetNames.next());
-
-          while (targetNames.hasNext()) {
-            targets.append(", ");
             targets.append(targetNames.next());
+
+            while (targetNames.hasNext()) {
+              targets.append(", ");
+              targets.append(targetNames.next());
+            }
           }
-        }
 
-        StringBuilder frequencies = new StringBuilder();
+          StringBuilder frequencies = new StringBuilder();
 
-        if (!data.frequencies.isEmpty()) {
-          Iterator<String> elements = data.frequencies.iterator();
+          if (!data.frequencies.isEmpty()) {
+            Iterator<String> elements = data.frequencies.iterator();
 
-          frequencies.append(elements.next());
-
-          while (elements.hasNext()) {
-            frequencies.append(", ");
             frequencies.append(elements.next());
-          }
-        }
 
-        writer.write("<config><nickname>");
-        writer.write(data.nickname);
-        writer.write("</nickname><resources>");
-        writer.write(resources.toString());
-        writer.write("</resources><targets>");
-        writer.write(targets.toString());
-        writer.write("</targets><reportName>");
-        writer.write(data.seriesName);
-        writer.write("</reportName><suiteName>");
-        writer.write(data.suiteName);
-        writer.write("</suiteName><seriesUri>");
-        writer.write(data.seriesUri);
-        writer.write("</seriesUri><frequencies>");
-        writer.write(frequencies.toString());
-        writer.write("</frequencies><notification>");
-        writer.write(data.notification);
-        writer.write("</notification><deployed>");
-        writer.write(dateFormatter.format(data.deployed));
-        writer.write("</deployed><lastRun>");
-        writer.write(dateFormatter.format(data.lastRun));
-        writer.write("</lastRun></config>");
+            while (elements.hasNext()) {
+              frequencies.append(", ");
+              frequencies.append(elements.next());
+            }
+          }
+
+          writer.write("<config><nickname>");
+          writer.write(data.nickname);
+          writer.write("</nickname><resources>");
+          writer.write(resources.toString());
+          writer.write("</resources><targets>");
+          writer.write(targets.toString());
+          writer.write("</targets><reportName>");
+          writer.write(data.seriesName);
+          writer.write("</reportName><suiteName>");
+          writer.write(data.suiteName);
+          writer.write("</suiteName><seriesUri>");
+          writer.write(data.seriesUri);
+          writer.write("</seriesUri><frequencies>");
+          writer.write(frequencies.toString());
+          writer.write("</frequencies><notification>");
+          writer.write(data.notification);
+          writer.write("</notification><deployed>");
+          writer.write(dateFormatter.format(data.deployed));
+          writer.write("</deployed><lastRun>");
+          writer.write(dateFormatter.format(data.lastRun));
+          writer.write("</lastRun></config>");
+        }
+      }
+      finally {
+        writer.write("</configs>\r\n");
+        writer.flush();
       }
     }
     finally {
-      writer.write("</configs>\r\n");
-      writer.flush();
+      dbConn.close();
     }
   }
 
@@ -1069,67 +1122,73 @@ public class Query extends HibernateMessageHandler {
    */
   private void getReporterSeriesDetail(ProtocolWriter writer) throws Exception {
 
-    Iterator<?> queryResult = DAO.selectMultiple(
-        "SELECT seriesConfig, suite.name AS suiteName " +
-        "FROM SeriesConfig seriesConfig INNER JOIN seriesConfig.suites suite " +
-        "INNER JOIN seriesConfig.series series " +
-        "WHERE seriesConfig.deactivated IS NULL AND suite.name != '_runNow'",
-        null
-    );
-
-    writer.write(Protocol.SUCCESS_COMMAND);
-    writer.write(" <configs>");
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
 
     try {
-      while (queryResult.hasNext()) {
-        Object[] row = (Object[])queryResult.next();
-        SeriesConfig config = (SeriesConfig)row[0];
-        Series configSeries = config.getSeries();
-        String suiteName = (String)row[1];
-        String nickname = config.getNickname();
-        String resourceHostname = configSeries.getResource();
-        String targetHostname = configSeries.getTargetHostname().trim();
-        String seriesName = configSeries.getReporter();
-        String seriesUri = configSeries.getUri();
-        String frequency = buildFrequency(config.getSchedule());
-        String notifier;
-        String emailTarget;
+      Iterator<Object> queryResult = (new HqlQuery(
+        "SELECT seriesConfig, suite.name AS suiteName " +
+        "FROM SeriesConfig seriesConfig INNER JOIN seriesConfig.suites suite " +
+          "INNER JOIN seriesConfig.series series " +
+        "WHERE seriesConfig.deactivated IS NULL AND suite.name != '_runNow'"
+      )).select(dbConn);
 
-        if (config.getAcceptedOutput() != null && config.getAcceptedOutput().getNotification() != null) {
-          Notification notice = config.getAcceptedOutput().getNotification();
+      writer.write(Protocol.SUCCESS_COMMAND);
+      writer.write(" <configs>");
 
-          notifier = notice.getNotifier().replaceAll("(\\w+\\.)", "");
-          emailTarget = notice.getTarget();
+      try {
+        while (queryResult.hasNext()) {
+          Object[] row = (Object[])queryResult.next();
+          SeriesConfig config = (SeriesConfig)row[0];
+          Series configSeries = config.getSeries();
+          String suiteName = (String)row[1];
+          String nickname = config.getNickname();
+          String resourceHostname = configSeries.getResource();
+          String targetHostname = configSeries.getTargetHostname().trim();
+          String seriesName = configSeries.getReporter();
+          String seriesUri = configSeries.getUri();
+          String frequency = buildFrequency(config.getSchedule());
+          String notifier;
+          String emailTarget;
+
+          if (config.getAcceptedOutput() != null && config.getAcceptedOutput().getNotification() != null) {
+            Notification notice = config.getAcceptedOutput().getNotification();
+
+            notifier = notice.getNotifier().replaceAll("(\\w+\\.)", "");
+            emailTarget = notice.getTarget();
+          }
+          else {
+            notifier = "none";
+            emailTarget = "";
+          }
+
+          writer.write("<config><suiteName>");
+          writer.write(suiteName);
+          writer.write("</suiteName><seriesName>");
+          writer.write(seriesName);
+          writer.write("</seriesName><nickname>");
+          writer.write(nickname);
+          writer.write("</nickname><resource>");
+          writer.write(resourceHostname);
+          writer.write("</resource><target>");
+          writer.write(targetHostname);
+          writer.write("</target><seriesUri>");
+          writer.write(seriesUri);
+          writer.write("</seriesUri><frequency>");
+          writer.write(frequency);
+          writer.write("</frequency><notifier>");
+          writer.write(notifier);
+          writer.write("</notifier><emailTarget>");
+          writer.write(emailTarget);
+          writer.write("</emailTarget></config>");
         }
-        else {
-          notifier = "none";
-          emailTarget = "";
-        }
-
-        writer.write("<config><suiteName>");
-        writer.write(suiteName);
-        writer.write("</suiteName><seriesName>");
-        writer.write(seriesName);
-        writer.write("</seriesName><nickname>");
-        writer.write(nickname);
-        writer.write("</nickname><resource>");
-        writer.write(resourceHostname);
-        writer.write("</resource><target>");
-        writer.write(targetHostname);
-        writer.write("</target><seriesUri>");
-        writer.write(seriesUri);
-        writer.write("</seriesUri><frequency>");
-        writer.write(frequency);
-        writer.write("</frequency><notifier>");
-        writer.write(notifier);
-        writer.write("</notifier><emailTarget>");
-        writer.write(emailTarget);
-        writer.write("</emailTarget></config>");
+      }
+      finally {
+        writer.write("</configs>\r\n");
+        writer.flush();
       }
     }
     finally {
-      writer.write("</configs>\r\n");
-      writer.flush();
+      dbConn.close();
     }
   }
 
@@ -1200,9 +1259,12 @@ public class Query extends HibernateMessageHandler {
    * @param cr the latest ComparisonResult for the document
    *
    * @return report details document object
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
   private static ReportDetailsDocument toBean
-    (SeriesConfig sc, Report r, InstanceInfo ii, ComparisonResult cr) {
+    (SeriesConfig sc, Report r, InstanceInfo ii, ComparisonResult cr) throws IOException, SQLException, PersistenceException {
     Set<Suite> suites = sc.getSuites();
     long[] suiteIds = new long[suites.size()];
     int index = 0;
@@ -1227,7 +1289,7 @@ public class Query extends HibernateMessageHandler {
     rd.getReport().setGmt(gmt);
     String log = ii.getLog();
     if(log != null && !log.equals("") &&
-      !log.equals(PersistentObject.DB_EMPTY_STRING)) {
+      !log.equals(Row.DB_EMPTY_STRING)) {
       try {
         rd.getReport().setLog(Log.Factory.parse(log));
       } catch(Exception e) {
@@ -1249,11 +1311,13 @@ public class Query extends HibernateMessageHandler {
    * @param cr the latest comparison result for sc
    * @param ii the latest instance info for sc
    * @param r the latest report for sc
-   *
    * @return report summary document
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
   private static ReportSummaryDocument toBean
-    (SeriesConfig sc, ComparisonResult cr, InstanceInfo ii, Report r)
+    (SeriesConfig sc, ComparisonResult cr, InstanceInfo ii, Report r) throws IOException, SQLException, PersistenceException
      {
     ReportSummaryDocument result = ReportSummaryDocument.Factory.newInstance();
     ReportSummaryDocument.ReportSummary summary = result.addNewReportSummary();
@@ -1305,28 +1369,37 @@ public class Query extends HibernateMessageHandler {
    * @return Map where the keys are report ids and the values are the
    *         result
    *
+   * @throws SQLException
    * @throws PersistenceException on DB error
    */
-  private Map<Long, String> getRelatedComparisons(long configId) throws PersistenceException {
+  private Map<Long, String> getRelatedComparisons(long configId) throws SQLException, PersistenceException {
 
-    StopWatch timer = new Log4JStopWatch(logger);
-    String query = "SELECT cr.reportId, cr.result FROM ComparisonResult cr " +
-      "WHERE cr.seriesConfigId = " + configId;
-    // execute query and parse results
-    Iterator<?> crList = DAO.selectMultiple(query, null);
-    Map<Long, String> crResultsByReportId = new HashMap<Long, String>();
-    while (crList.hasNext()) {
-      Object[] info = (Object[])crList.next();
-      crResultsByReportId.put( (Long)info[0], (String)info[1] );
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+
+    try {
+      StopWatch timer = new Log4JStopWatch(logger);
+      String query = "SELECT cr.reportId, cr.result FROM ComparisonResult cr " +
+        "WHERE cr.seriesConfigId = " + configId;
+      // execute query and parse results
+      Iterator<Object> crList = (new HqlQuery(query)).select(dbConn);
+      Map<Long, String> crResultsByReportId = new HashMap<Long, String>();
+      while (crList.hasNext()) {
+        Object[] info = (Object[])crList.next();
+        crResultsByReportId.put( (Long)info[0], (String)info[1] );
+      }
+      timer.lap("getRelatedComparisons", "numCRs=" + crResultsByReportId.size());
+      return crResultsByReportId;
     }
-    timer.lap("getRelatedComparisons", "numCRs=" + crResultsByReportId.size());
-    return crResultsByReportId;
+    finally {
+      dbConn.close();
+    }
   }
 
   /**
    * Handle the related instances for the provided reports within a specified
    * time interval
    *
+   * @param dbConn
    * @param sc a SeriesConfig for which we need to fetch instances
    * @param begin the begin time expressed as a Date object
    * @param end the end time expressed as a Date object
@@ -1336,100 +1409,91 @@ public class Query extends HibernateMessageHandler {
    *
    * @throws Exception if trouble executing query
    */
-  private void processRelatedInstances(SeriesConfig sc, Date begin, Date end, InstanceProcessor processor) throws Exception {
+  private void processRelatedInstances(Connection dbConn, SeriesConfig sc, Date begin, Date end, InstanceProcessor processor) throws Exception {
+
+    Series s = sc.getSeries();
+    String instanceTableName = s.getInstanceTableName();
+    String linkTableName = s.getLinkTableName();
+    PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT instanceid " +
+      "FROM " + linkTableName +
+      " INNER JOIN (" +
+          "SELECT incaid AS instanceId " +
+          "FROM " + instanceTableName +
+          " WHERE incacollected >= ? " +
+          "AND incacollected <= ?" +
+        ") AS instances ON " + linkTableName + ".incainstance_id = instances.instanceid " +
+      "WHERE " + linkTableName + ".incaseriesconfig_id = ?"
+    );
+    ResultSet rows = null;
 
     try {
-      Connection dbConn = ConnectionSource.getConnection();
-      PreparedStatement selectStmt = null;
-      ResultSet rows = null;
+      selectStmt.setFetchSize(FETCH_SIZE);
+      selectStmt.setTimestamp(1, new Timestamp(begin.getTime()));
+      selectStmt.setTimestamp(2, new Timestamp(end.getTime()));
+      selectStmt.setLong(3, sc.getId());
 
-      try {
-        Series s = sc.getSeries();
-        String instanceTableName = s.getInstanceTableName();
-        String linkTableName = s.getLinkTableName();
+      rows = selectStmt.executeQuery();
 
-        selectStmt = dbConn.prepareStatement(
-            "SELECT instanceid " +
-            "FROM " + linkTableName +
-              " INNER JOIN (" +
-                "SELECT incaid AS instanceId " +
-                "FROM " + instanceTableName +
-                " WHERE incacollected >= ? " +
-                  "AND incacollected <= ?" +
-              ") AS instances ON " + linkTableName + ".incainstance_id = instances.instanceid " +
-            "WHERE " + linkTableName + ".incaseriesconfig_id = ?"
-        );
+      Map<Long, Report> reports = new TreeMap<Long, Report>();
 
-        selectStmt.setFetchSize(FETCH_SIZE);
-        selectStmt.setTimestamp(1, new Timestamp(begin.getTime()));
-        selectStmt.setTimestamp(2, new Timestamp(end.getTime()));
-        selectStmt.setLong(3, sc.getId());
+      while (rows.next()) {
+        InstanceInfo instance = new InstanceInfo(s, rows.getLong(1));
 
-        rows = selectStmt.executeQuery();
-
-        Map<Long, Report> reports = new TreeMap<Long, Report>();
-
-        while (rows.next()) {
-          InstanceInfo instance = new InstanceInfo(s, rows.getLong(1));
-
-          processor.process(instance, reports);
-        }
-      }
-      finally {
-        if (rows != null)
-          rows.close();
-
-        if (selectStmt != null)
-          selectStmt.close();
-
-        dbConn.close();
+        processor.process(instance, reports);
       }
     }
-    catch (SQLException sqlErr) {
-      throw new PersistenceException(sqlErr.getMessage());
+    finally {
+      if (rows != null)
+        rows.close();
+
+      if (selectStmt != null)
+        selectStmt.close();
     }
   }
 
   /**
    * Returns a list of SeriesConfig objects selected by a WHERE expression.
    *
+   * @param dbConn
    * @param expr the HQL WHERE clause to select objects of interest
    *
    * @return list of active series configs that match the expression
    *
-   * @throws PersistenceException on DB error
+   * @throws SQLException on DB error
    */
-  private Iterator<?> getSelectedConfigs(String expr) throws PersistenceException {
+  private Iterator<Object> getSelectedConfigs(Connection dbConn, String expr) throws SQLException {
 
     String query =
       "SELECT config " +
-        "FROM SeriesConfig config " +
-          "INNER JOIN config.suites suite " +
-          "INNER JOIN config.series series " +
-        "WHERE config.deactivated IS NULL AND suite.name != '" +
-        Protocol.IMMEDIATE_SUITE_NAME + "' AND (" + expr + ")";
+      "FROM SeriesConfig config " +
+        "INNER JOIN config.suites suite " +
+        "INNER JOIN config.series series " +
+      "WHERE config.deactivated IS NULL AND suite.name != '" +
+      Protocol.IMMEDIATE_SUITE_NAME + "' AND (" + expr + ")";
 
-    return DAO.selectMultiple(query, null);
+    return (new HqlQuery(query)).select(dbConn);
   }
 
   /**
    * Returns a list of Series objects selected by a WHERE expression.
    *
+   * @param dbConn
    * @param expr the HQL WHERE clause to select objects of interest
    * @param active only select series that have active series configs
    * @return a list of Series objects that match the expression
-   * @throws PersistenceException
+   * @throws SQLException
    */
-  private Iterator<?> getSelectedSeries(String expr, boolean active) throws PersistenceException {
+  private Iterator<Object> getSelectedSeries(Connection dbConn, String expr, boolean active) throws SQLException {
 
     StringBuilder query = new StringBuilder();
 
     query.append(
       "SELECT DISTINCT series " +
-        "FROM SeriesConfig config " +
-          "INNER JOIN config.suites suite " +
-          "INNER JOIN config.series series " +
-        "WHERE "
+      "FROM SeriesConfig config " +
+        "INNER JOIN config.suites suite " +
+        "INNER JOIN config.series series " +
+      "WHERE "
     );
 
     if (active)
@@ -1441,53 +1505,43 @@ public class Query extends HibernateMessageHandler {
     query.append(expr);
     query.append(" )");
 
-    return DAO.selectMultiple(query.toString(), null);
+    return (new HqlQuery(query.toString())).select(dbConn);
   }
 
   /**
    *
+   * @param dbConn
    * @param tableName
    * @param idList
    * @return
-   * @throws PersistenceException
+   * @throws SQLException
    */
-  private List<Timestamp> getCollectedDates(String tableName, String idList) throws PersistenceException {
+  private List<Timestamp> getCollectedDates(Connection dbConn, String tableName, String idList) throws SQLException {
+
+    PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incacollected " +
+      "FROM " + tableName +
+      " WHERE incaid IN ( " + idList + " )"
+    );
+    ResultSet rows = null;
 
     try {
-      Connection dbConn = ConnectionSource.getConnection();
-      PreparedStatement selectStmt = null;
-      ResultSet rows = null;
+      selectStmt.setFetchSize(FETCH_SIZE);
 
-      try {
-        selectStmt = dbConn.prepareStatement(
-          "SELECT incacollected " +
-          "FROM " + tableName +
-          " WHERE incaid IN ( " + idList + " )"
-        );
+      rows = selectStmt.executeQuery();
 
-        selectStmt.setFetchSize(FETCH_SIZE);
+      List<Timestamp> result = new ArrayList<Timestamp>();
 
-        rows = selectStmt.executeQuery();
+      while (rows.next())
+        result.add(rows.getTimestamp(1));
 
-        List<Timestamp> result = new ArrayList<Timestamp>();
-
-        while (rows.next())
-          result.add(rows.getTimestamp(1));
-
-        return result;
-      }
-      finally {
-        if (rows != null)
-          rows.close();
-
-        if (selectStmt != null)
-          selectStmt.close();
-
-        dbConn.close();
-      }
+      return result;
     }
-    catch (SQLException sqlErr) {
-      throw new PersistenceException(sqlErr.getMessage());
+    finally {
+      if (rows != null)
+        rows.close();
+
+      selectStmt.close();
     }
   }
 }

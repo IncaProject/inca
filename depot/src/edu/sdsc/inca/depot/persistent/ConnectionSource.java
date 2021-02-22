@@ -4,8 +4,8 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
@@ -19,26 +19,12 @@ import org.hibernate.cfg.Configuration;
  * @author Paul Hoover
  *
  */
-public class ConnectionSource {
+public abstract class ConnectionSource {
 
-  protected static final Logger m_logger = Logger.getLogger(ConnectionSource.class);
-  private static String m_dbUsername;
-  private static String m_dbPassword;
-  private static String m_dbUrl;
+  // data fields
 
 
-  static {
-    try {
-      Configuration config = new Configuration();
-
-      m_dbUsername = config.getProperty("hibernate.connection.username");
-      m_dbPassword = config.getProperty("hibernate.connection.password");
-      m_dbUrl = config.getProperty("hibernate.connection.url");
-    }
-    catch (Exception err) {
-      err.printStackTrace(System.err);
-    }
-  }
+  private static final Logger m_baseLog = Logger.getLogger(ConnectionSource.class);
 
 
   // public methods
@@ -50,13 +36,49 @@ public class ConnectionSource {
    * @return a <code>Connection</code> object
    * @throws SQLException
    */
-  public static Connection getConnection() throws SQLException
+  public abstract Connection getConnection() throws SQLException;
+
+  /**
+   * Releases any resources required by the data source.
+   *
+   * @throws SQLException
+   */
+  public abstract void close() throws SQLException;
+
+  /**
+   * Returns a set of database properties from the resource located at <code>DATABASE_CONFIG_URL</code>.
+   *
+   * @return a <code>Properties</code> object containing the set of database properties
+   */
+  public static Properties getDatabaseConfiguration()
   {
-    Properties connProps = new Properties();
+    Configuration config = new Configuration();
 
-    connProps.setProperty("user", m_dbUsername);
-    connProps.setProperty("password", m_dbPassword);
+    return config.getProperties();
+  }
 
-    return DriverManager.getConnection(m_dbUrl, connProps);
+
+  // protected methods
+
+
+  /**
+   * Loads the database vendor's JDBC driver class, using a property from the provided <code>Properties</code> object.
+   *
+   * @param configProps a <code>Properties</code> object that contains a value for the key "driverClass"
+   * @throws ClassNotFoundException
+   * @throws SecurityException
+   * @throws NoSuchMethodException
+   * @throws InvocationTargetException
+   * @throws IllegalArgumentException
+   * @throws IllegalAccessException
+   * @throws InstantiationException
+   */
+  protected static void loadDriver(Properties configProps) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException
+  {
+    String driverClassName = configProps.getProperty("hibernate.connection.driver_class");
+
+    m_baseLog.debug("Loading driver " + driverClassName);
+
+    Class.forName(driverClassName).getDeclaredConstructor().newInstance();
   }
 }

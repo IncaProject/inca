@@ -19,7 +19,6 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
-import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
 import edu.sdsc.inca.util.StringMethods;
@@ -33,6 +32,7 @@ import edu.sdsc.inca.depot.PurgeDatabase;
 import edu.sdsc.inca.depot.ScheduledPurge;
 import edu.sdsc.inca.depot.SyncResponseParser;
 import edu.sdsc.inca.depot.UpdateDBSchema;
+import edu.sdsc.inca.depot.persistent.ConnectionManager;
 import edu.sdsc.inca.depot.persistent.DatabaseTools;
 import edu.sdsc.inca.depot.util.AmqpNotifier;
 import edu.sdsc.inca.depot.util.ReportNotifier;
@@ -285,6 +285,14 @@ public class Depot extends Server {
    * @param args
    */
   public static void main(String[] args) {
+    try {
+      ConnectionManager.setConnectionSource();
+    } catch(Exception e) {
+      logger.fatal("Couldn't set the database connection source: " + e, e);
+      System.err.println("Couldn't set the database connection source: " + e);
+      System.exit(1);
+    }
+
     Depot d = new Depot();
 
     Depot.setRunningDepot(d);

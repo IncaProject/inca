@@ -4,6 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -14,7 +15,7 @@ import java.sql.SQLException;
  * @author Paul Hoover
  *
  */
-class DeleteOp implements DatabaseOperation {
+class DeleteOp implements RowOperation {
 
   // data fields
 
@@ -44,11 +45,12 @@ class DeleteOp implements DatabaseOperation {
   /**
    *
    * @param dbConn
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
   @Override
-  public boolean execute(Connection dbConn) throws SQLException, PersistenceException
+  public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
   {
     StringBuilder stmtBuilder = new StringBuilder();
 
@@ -62,7 +64,7 @@ class DeleteOp implements DatabaseOperation {
     try {
       m_key.setParameter(deleteStmt, 1);
 
-      return deleteStmt.executeUpdate() > 0;
+      deleteStmt.executeUpdate();
     }
     finally {
       deleteStmt.close();

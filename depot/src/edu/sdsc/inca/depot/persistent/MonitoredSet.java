@@ -4,8 +4,10 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 
@@ -29,10 +31,6 @@ abstract class MonitoredSet<E> implements Set<E> {
     // constructors
 
 
-    /**
-     *
-     * @param setIter
-     */
     protected SetIterator(Iterator<E> setIter)
     {
       m_setIter = setIter;
@@ -42,19 +40,13 @@ abstract class MonitoredSet<E> implements Set<E> {
     // public methods
 
 
-    /**
-     *
-     * @return
-     */
+    @Override
     public boolean hasNext()
     {
       return m_setIter.hasNext();
     }
 
-    /**
-     *
-     * @return
-     */
+    @Override
     public E next()
     {
       m_currentElement = m_setIter.next();
@@ -62,9 +54,7 @@ abstract class MonitoredSet<E> implements Set<E> {
       return m_currentElement;
     }
 
-    /**
-     *
-     */
+    @Override
     public void remove()
     {
       addSetRemoveOp(m_currentElement);
@@ -98,6 +88,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param o
    * @return
    */
+  @Override
   public boolean add(E o)
   {
     if (m_set.add(o)) {
@@ -114,6 +105,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param c
    * @return
    */
+  @Override
   public boolean addAll(Collection<? extends E> c)
   {
     boolean changed = false;
@@ -129,11 +121,14 @@ abstract class MonitoredSet<E> implements Set<E> {
   /**
    *
    */
+  @Override
   public void clear()
   {
+    List<E> elements = new ArrayList<E>(m_set);
+
     m_set.clear();
 
-    addSetClearOp();
+    addSetClearOp(elements);
   }
 
   /**
@@ -141,6 +136,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param o
    * @return
    */
+  @Override
   public boolean contains(Object o)
   {
     return m_set.contains(o);
@@ -151,6 +147,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param c
    * @return
    */
+  @Override
   public boolean containsAll(Collection<?> c)
   {
     return m_set.containsAll(c);
@@ -160,6 +157,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    *
    * @return
    */
+  @Override
   public boolean isEmpty()
   {
     return m_set.isEmpty();
@@ -169,6 +167,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    *
    * @return
    */
+  @Override
   public Iterator<E> iterator()
   {
     return new SetIterator(m_set.iterator());
@@ -179,6 +178,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param o
    * @return
    */
+  @Override
   @SuppressWarnings("unchecked")
   public boolean remove(Object o)
   {
@@ -196,6 +196,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param c
    * @return
    */
+  @Override
   public boolean removeAll(Collection<?> c)
   {
     boolean changed = false;
@@ -213,6 +214,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param c
    * @return
    */
+  @Override
   public boolean retainAll(Collection<?> c)
   {
     boolean changed = false;
@@ -232,6 +234,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    *
    * @return
    */
+  @Override
   public int size()
   {
     return m_set.size();
@@ -241,6 +244,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    *
    * @return
    */
+  @Override
   public Object[] toArray()
   {
     return m_set.toArray();
@@ -251,6 +255,7 @@ abstract class MonitoredSet<E> implements Set<E> {
    * @param a
    * @return
    */
+  @Override
   public <T> T[] toArray(T[] a)
   {
     return m_set.toArray(a);
@@ -296,5 +301,5 @@ abstract class MonitoredSet<E> implements Set<E> {
   /**
    *
    */
-  protected abstract void addSetClearOp();
+  protected abstract void addSetClearOp(List<E> elements);
 }

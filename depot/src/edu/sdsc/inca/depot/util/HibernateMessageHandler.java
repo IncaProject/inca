@@ -7,7 +7,6 @@ import edu.sdsc.inca.protocol.MessageHandler;
 import edu.sdsc.inca.protocol.ProtocolException;
 import edu.sdsc.inca.protocol.ProtocolReader;
 import edu.sdsc.inca.protocol.ProtocolWriter;
-import edu.sdsc.inca.depot.persistent.HibernateUtil;
 
 
 /**
@@ -25,16 +24,12 @@ public abstract class HibernateMessageHandler extends MessageHandler {
    *
    * @throws Exception
    */
+  @Override
   public void execute(ProtocolReader reader,
                       OutputStream output,
                       String dn) throws Exception {
 
-    try {
-      HibernateUtil.getCurrentSession();
-      executeHibernateAction(reader, new ProtocolWriter(output), dn);
-    } finally {
-      HibernateUtil.closeSession();
-    }
+    executeHibernateAction(reader, new ProtocolWriter(output), dn);
   }
 
   /**

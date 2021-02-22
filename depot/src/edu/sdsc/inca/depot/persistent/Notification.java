@@ -6,7 +6,7 @@ import org.apache.xmlbeans.XmlObject;
 /**
  * @author cmills
  */
-public class Notification extends PersistentObject {
+public class Notification extends XmlBeanObject {
 
   private String notifier;
   private String target;
@@ -33,7 +33,8 @@ public class Notification extends PersistentObject {
    * @param o the XmlBean Notification object to copy
    * @return this, for convenience
    */
-  public PersistentObject fromBean(XmlObject o) {
+  @Override
+  public XmlBeanObject fromBean(XmlObject o) {
     return this.fromBean((edu.sdsc.inca.dataModel.util.Notifications.Notification)o);
   }
 
@@ -65,10 +66,7 @@ public class Notification extends PersistentObject {
    * @param notifier this name of the class that performs this notification.
    */
   public void setNotifier(String notifier) {
-    if(notifier == null || notifier.equals("")) {
-      notifier = DB_EMPTY_STRING;
-    }
-    this.notifier = truncate(notifier, MAX_DB_STRING_LENGTH, "notifier");
+    this.notifier = normalize(notifier, Row.MAX_DB_STRING_LENGTH, "notifier");
   }
 
   /**
@@ -86,10 +84,7 @@ public class Notification extends PersistentObject {
    * @param target the target that is sent this notification.
    */
   public void setTarget(String target) {
-    if(target == null || target.equals("")) {
-      target = DB_EMPTY_STRING;
-    }
-    this.target = truncate(target, MAX_DB_STRING_LENGTH, "target");
+    this.target = normalize(target, Row.MAX_DB_STRING_LENGTH, "target");
   }
 
   /**
@@ -98,6 +93,7 @@ public class Notification extends PersistentObject {
    *
    * @return an XmlBean Notification object that contains equivalent information
    */
+  @Override
   public XmlObject toBean() {
     Notifications.Notification result =
       Notifications.Notification.Factory.newInstance();

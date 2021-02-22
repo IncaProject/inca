@@ -1,7 +1,8 @@
 package edu.sdsc.inca.depot.persistent;
 
+
 import edu.sdsc.inca.dataModel.suite.SuiteDocument;
-import org.apache.xmlbeans.XmlException;
+
 
 /**
  * Test the functionality of the Suite and SuiteDAO classes.
@@ -11,7 +12,7 @@ public class SuiteTest extends PersistentTest {
   /**
    * Test the Suite class constructors.
    */
-  public void testConstructors() {
+  public void testConstructors() throws Exception {
     Suite aSuite = new Suite();
     assertEquals(0, aSuite.getVersion());
     assertNotNull(aSuite.getName());
@@ -29,7 +30,7 @@ public class SuiteTest extends PersistentTest {
   /**
    * Test SuiteDAO's fromBean method.
    */
-  public void testFromBean() throws XmlException {
+  public void testFromBean() throws Exception {
     Suite s = Suite.generate("aSuite", 3);
     SuiteDocument doc = SuiteDocument.Factory.parse(s.toXml());
     Suite aSuite = new Suite().fromBean(doc.getSuite());

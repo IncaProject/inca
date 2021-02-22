@@ -31,6 +31,7 @@ import edu.sdsc.inca.depot.util.ExprComparitor;
 import edu.sdsc.inca.depot.util.HibernateMessageHandler;
 import edu.sdsc.inca.depot.util.ReportFilter;
 import edu.sdsc.inca.depot.util.ReportNotifier;
+import edu.sdsc.inca.depot.persistent.Row;
 import edu.sdsc.inca.protocol.MessageHandler;
 import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.protocol.ProtocolException;
@@ -85,6 +86,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
      * @param context
      * @throws ConfigurationException
      */
+    @Override
     public void doWork(Worker context) throws ConfigurationException
     {
       DepotPeerClient peer = new DepotPeerClient(peerConfig);
@@ -123,6 +125,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
    * @param dn
    * @throws Exception
    */
+  @Override
   public void executeHibernateAction(
     ProtocolReader reader, ProtocolWriter writer, String dn) throws Exception {
 
@@ -191,7 +194,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
       ReportFilter rf = null;
       for(int i = 0; i < reportFilterNames.length; i++) {
         try {
-          rf = (ReportFilter)(cl.loadClass(reportFilterNames[i]).newInstance());
+          rf = (ReportFilter)(cl.loadClass(reportFilterNames[i]).getDeclaredConstructor().newInstance());
         } catch(Exception e) {
           logger.warn
             ("Unable to load ReportFilter '" + reportFilterNames[i] + "' " + e);
@@ -256,6 +259,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
    * @param state
    * @throws Exception
    */
+  @Override
   public void loadState(String state) throws Exception
   {
     try {
@@ -297,6 +301,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
    * @return
    * @throws IOException
    */
+  @Override
   public String getState() throws IOException
   {
     ByteArrayOutputStream timingBytes = new ByteArrayOutputStream();
@@ -334,6 +339,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
    *
    * @param context
    */
+  @Override
   public void doWork(Worker context)
   {
     try {
@@ -412,22 +418,25 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
     long before = System.currentTimeMillis();
 
     // Retrieve them from (existing) or store them in (new) the DB.
-    if((dbSeries = SeriesDAO.load(s)) == null) {
+    if((dbSeries = Series.find(s)) == null) {
       logger.warn
         ("Report of " + s.getReporter() + " unattached to any DB series");
       logger.debug("Auto-add new series to DB");
-      dbSeries = SeriesDAO.loadOrSave(s);
+      s.save();
+      dbSeries = s;
     }
-    dbRunInfo = RunInfoDAO.loadOrSave(ri);
-    r.setSeries(dbSeries);  // ReportDAO.load depends on these being set
+    ri.save();
+    dbRunInfo = ri;
+    r.setSeries(dbSeries);  // Report.load depends on these being set
     r.setRunInfo(dbRunInfo);
-    if((dbReport = ReportDAO.load(r)) == null) {
+    if((dbReport = Report.find(r)) == null) {
       logger.debug("Auto-add new report to DB");
-      dbReport = ReportDAO.loadOrSave(r);
+      r.save();
+      dbReport = r;
     }
-    dbSeries.addReport(dbReport);
-    SeriesDAO.update(dbSeries);
-    ReportDAO.update(dbReport);
+    dbSeries.getReports().add(dbReport);
+    dbSeries.save();
+    dbReport.save();
     logger.debug("Add new instance to DB");
     InstanceInfo ii = new InstanceInfo(dbSeries, report.getGmt().getTime(), sysUsage);
     if(report.getLog() != null)
@@ -466,14 +475,14 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
 
       boolean isLatest =
         command.equals(Protocol.INSERT_COMMAND) ||
-        dbSc.getLatestInstanceId().longValue() < 0 ||
+        dbSc.getLatestInstanceId() < 0 ||
         (new InstanceInfo(dbSeries, dbSc.getLatestInstanceId())).getCollected().
           before(ii.getCollected());
       if(isLatest) {
         // Update the SeriesConfig's latest instance field
         dbSc.setLatestInstanceId(ii.getId());
         try {
-          SeriesConfigDAO.update(dbSc);
+          dbSc.save();
         } catch(PersistenceException e) {
           logger.error("Error storing report series config:" + e);
         }
@@ -488,18 +497,14 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
       }
       String comparitor = ao.getComparitor();
       if(comparitor == null || comparitor.equals("") ||
-         comparitor.equals(PersistentObject.DB_EMPTY_STRING)) {
+         comparitor.equals(Row.DB_EMPTY_STRING)) {
         continue;
       }
 
       String result = new ExprComparitor().compare(ao, dbReport);
-      ComparisonResult cr = new ComparisonResult();
-      cr.setResult(result);
-      cr.setReportId(dbReport.getId());
-      cr.setSeriesConfigId(dbSc.getId());
       ComparisonResult dbCr = null;
       try {
-        dbCr = ComparisonResultDAO.loadOrSave(cr);
+        dbCr = new ComparisonResult(result, dbReport.getId(), dbSc.getId());
       } catch(Exception e) {
         logger.error("Error storing comparison result:" + e);
       }
@@ -507,12 +512,12 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
       // Update the id in the SeriesConfig if the comparison result changed
       Long priorComparisonId = dbSc.getLatestComparisonId();
       if(!isLatest ||
-         dbCr.getId().longValue() == priorComparisonId.longValue()) {
+         dbCr.getId() == priorComparisonId.longValue()) {
         continue;
       }
       try {
         dbSc.setLatestComparisonId(dbCr.getId());
-        SeriesConfigDAO.update(dbSc);
+        dbSc.save();
       } catch(Exception e) {
         logger.error("Error updating series config:" + e);
       }

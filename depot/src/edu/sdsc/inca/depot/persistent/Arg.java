@@ -1,6 +1,17 @@
+/*
+ * Arg.java
+ */
 package edu.sdsc.inca.depot.persistent;
 
+
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import org.apache.xmlbeans.XmlObject;
+
 
 /**
  * This class represents a command line input to a reporter.
@@ -9,161 +20,310 @@ import org.apache.xmlbeans.XmlObject;
  * name value combination.  This means that on save there will be an exception
  * thrown if the combo already exists.
  */
-public class Arg extends PersistentObject {
+public class Arg extends GeneratedKeyRow implements Comparable<Arg> {
 
-  /** id set iff this object is stored in the DB. */
-  private Long id;
+  // data fields
 
-  /** Persistent fields. */
-  private String name;
-  private String value;
+
+  private static final String TABLE_NAME = "INCAARG";
+  private static final String KEY_NAME = "incaid";
+  private final Column<String> m_name = new StringColumn("incaname", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_value = new StringColumn("incavalue", false, MAX_DB_STRING_LENGTH);
+
+
+  // constructors
+
 
   /**
-   * Default constructor.
+   *
    */
-  public Arg() {
-    this("", "");
+  public Arg()
+  {
+    super(TABLE_NAME, KEY_NAME);
+
+    construct(m_name, m_value);
   }
 
   /**
-   * Creates an Arg object with the associated name and value.
    *
-   * @param name  The name of the command line argument
-   * @param value The value of the command line argument
+   * @param name
+   * @param value
    */
-  public Arg(String name, String value) {
-    this.setName(name);
-    this.setValue(value);
+  public Arg(String name, String value)
+  {
+    this();
+
+    setName(name);
+    setValue(value);
   }
 
   /**
-   * Copies information from an Inca schema XmlBean Arg object so that this
-   * object contains equivalent information.
-   *
-   * @param o the XmlBean Arg object to copy
-   * @return this, for convenience
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public PersistentObject fromBean(XmlObject o) {
-    return this.fromBean((edu.sdsc.inca.dataModel.util.Args.Arg)o);
+  public Arg(long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load();
   }
 
   /**
-   * Copies information from an Inca schema XmlBean Arg object so that this
-   * object contains equivalent information.
-   *
-   * @param a the XmlBean Arg object to copy
-   * @return this, for convenience
+   * @param dbConn
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public Arg fromBean(edu.sdsc.inca.dataModel.util.Args.Arg a) {
-    this.setName(a.getName());
-    this.setValue(a.getValue());
+  Arg(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load(dbConn);
+  }
+
+
+  // public methods
+
+
+  /**
+   *
+   * @return
+   */
+  public String getName()
+  {
+    return m_name.getValue();
+  }
+
+  /**
+   *
+   * @param name
+   */
+  public void setName(String name)
+  {
+    name = normalize(name, MAX_DB_STRING_LENGTH, "arg name");
+
+    m_name.setValue(name);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getValue()
+  {
+    return m_value.getValue();
+  }
+
+  /**
+   *
+   * @param value
+   */
+  public void setValue(String value)
+  {
+    value = normalize(value, MAX_DB_STRING_LENGTH, "arg value");
+
+    m_value.setValue(value);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Row fromBean(XmlObject o)
+  {
+    return fromBean((edu.sdsc.inca.dataModel.util.Args.Arg)o);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  public Arg fromBean(edu.sdsc.inca.dataModel.util.Args.Arg a)
+  {
+    setName(a.getName());
+    setValue(a.getValue());
+
     return this;
   }
 
   /**
-   * Retrieve the id -- null if not yet connected to database.
-   *
-   * @return The Long representation of the DB ID
+   * {@inheritDoc}
    */
-  public Long getId() {
-    return this.id;
-  }
+  @Override
+  public XmlObject toBean()
+  {
+    edu.sdsc.inca.dataModel.util.Args.Arg result = edu.sdsc.inca.dataModel.util.Args.Arg.Factory.newInstance();
 
-  /**
-   * Set the id.  Hibernate use only.
-   *
-   * @param id The DB ID.
-   */
-  public void setId(Long id) {
-    this.id = id;
-  }
+    result.setName(getName());
+    result.setValue(getValue());
 
-  /**
-   * retrieve the input name.
-   *
-   * @return The name of the command line argument.
-   */
-  public String getName() {
-    return this.name;
-  }
-
-  /**
-   * set the input name.
-   *
-   * @param name The name of the command line argument.
-   */
-  public void setName(String name) {
-    if(name == null || name.equals("")) {
-      name = DB_EMPTY_STRING;
-    }
-    this.name = truncate(name, MAX_DB_STRING_LENGTH, "arg name");
-  }
-
-  /**
-   * retrieve the input value.
-   *
-   * @return The value of the command line argument.
-   */
-  public String getValue() {
-    return this.value;
-  }
-
-  /**
-   * retrieve the input value.
-   *
-   * @param value The value of the command line argument.
-   */
-  public void setValue(String value) {
-    if(value == null || value.equals("")) {
-      value = DB_EMPTY_STRING;
-    }
-    this.value = truncate(value, MAX_DB_STRING_LENGTH, "arg value");
-  }
-
-  /**
-   * Returns a Inca schema XmlBean Arg object that contains information
-   * equivalent to this object.
-   *
-   * @return an XmlBean Arg object that contains equivalent information
-   */
-  public XmlObject toBean() {
-    edu.sdsc.inca.dataModel.util.Args.Arg result =
-      edu.sdsc.inca.dataModel.util.Args.Arg.Factory.newInstance();
-    result.setName(this.getName());
-    result.setValue(this.getValue());
     return result;
   }
 
   /**
-   * For debugging purposes.
-   *
-   * @return A string representation of this class.
+   * {@inheritDoc}
    */
-  public String toString() {
-    return this.getName() + "=" + this.getValue();
-  }
-
-  /**
-   * Compares another object to this Arg for logical equality.
-   *
-   * @param o the object to compare
-   * @return true iff the comparison object represents the same Arg
-   */
-  public boolean equals(Object o) {
-    if(o == this) {
-      return true;
-    } else if(!(o instanceof Arg)) {
+  @Override
+  public boolean equals(Object other)
+  {
+    if (other == null)
       return false;
-    }
-    return this.toString().equals(o.toString());
+
+    if (this == other)
+      return true;
+
+    if (other instanceof Arg == false)
+      return false;
+
+    Arg otherArg = (Arg) other;
+
+    return getName().equals(otherArg.getName()) && getValue().equals(otherArg.getValue());
   }
 
   /**
-   * Calculate a hash code using the same fields that where used in equals.
-   * @return a hash code for this object
+   * {@inheritDoc}
    */
-  public int hashCode() {
-    return 29 + (this.getName().hashCode() * this.getValue().hashCode());
+  @Override
+  public int hashCode()
+  {
+    return 29 * (getName().hashCode() + getValue().hashCode());
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int compareTo(Arg other)
+  {
+    if (other == null)
+      throw new NullPointerException("other");
+
+    if (this == other)
+      return 0;
+
+    return hashCode() - other.hashCode();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public String toString()
+  {
+    return getName() + "=" + getValue();
+  }
+
+  /**
+   *
+   * @param arg
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public static Arg find(Arg arg) throws IOException, SQLException, PersistenceException
+  {
+    return find(arg.getName(), arg.getValue());
+  }
+
+  /**
+   *
+   * @param name
+   * @param value
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public static Arg find(String name, String value) throws IOException, SQLException, PersistenceException
+  {
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+
+    try {
+      Long id = find(dbConn, name, value);
+
+      if (id == null)
+        return null;
+
+      return new Arg(id);
+    }
+    finally {
+      dbConn.close();
+    }
+  }
+
+
+  // package methods
+
+
+  /**
+   *
+   * @param dbConn
+   * @param id
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  static boolean delete(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    Criterion key = new LongCriterion(KEY_NAME, id);
+
+    return Row.delete(dbConn, TABLE_NAME, key);
+  }
+
+
+  // protected methods
+
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected Long findDuplicate(Connection dbConn) throws SQLException
+  {
+    return find(dbConn, getName(), getValue());
+  }
+
+
+  // private methods
+
+
+  /*
+   *
+   */
+  private static Long find(Connection dbConn, String name, String value) throws SQLException
+  {
+    PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid " +
+      "FROM INCAARG " +
+      "WHERE incaname = ? " +
+        "AND incavalue = ?"
+    );
+    ResultSet row = null;
+
+    try {
+      selectStmt.setString(1, name);
+      selectStmt.setString(2, value);
+
+      row = selectStmt.executeQuery();
+
+      if (!row.next())
+        return null;
+
+      return row.getLong(1);
+    }
+    finally {
+      if (row != null)
+        row.close();
+
+      selectStmt.close();
+    }
+  }
 }

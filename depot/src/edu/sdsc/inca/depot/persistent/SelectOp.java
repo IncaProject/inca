@@ -4,6 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,7 +19,7 @@ import java.util.List;
  * @author Paul Hoover
  *
  */
-class SelectOp implements DatabaseOperation {
+class SelectOp implements RowOperation {
 
   // data fields
 
@@ -66,15 +67,15 @@ class SelectOp implements DatabaseOperation {
   /**
    *
    * @param dbConn
-   * @return
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
   @Override
-  public boolean execute(Connection dbConn) throws SQLException, PersistenceException
+  public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
   {
     if (m_columns.isEmpty())
-      return false;
+      return;
 
     StringBuilder stmtBuilder = new StringBuilder();
     Iterator<Column<?>> columns = m_columns.iterator();
@@ -103,14 +104,12 @@ class SelectOp implements DatabaseOperation {
       row = selectStmt.executeQuery();
 
       if (!row.next())
-        return false;
+        throw new PersistenceException("No row in " + m_tableName +  " for key " + m_key.toString());
 
       int index = 1;
 
       for (columns = m_columns.iterator() ; columns.hasNext() ; index += 1)
         columns.next().assignValue(row, index);
-
-      return true;
     }
     finally {
       if (row != null)

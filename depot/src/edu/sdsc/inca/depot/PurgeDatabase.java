@@ -17,7 +17,7 @@ import java.util.List;
 
 import org.apache.log4j.Logger;
 
-import edu.sdsc.inca.depot.persistent.ConnectionSource;
+import edu.sdsc.inca.depot.persistent.ConnectionManager;
 
 
 /**
@@ -74,7 +74,7 @@ public class PurgeDatabase {
   {
     m_logger.info("purging database...");
 
-    Connection dbConn = ConnectionSource.getConnection();
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
 
     try {
       dbConn.setAutoCommit(false);
@@ -82,7 +82,8 @@ public class PurgeDatabase {
       List<SeriesRecord> names = getSeriesRecords(dbConn);
       int numSeries = names.size();
       int currentSeries = 1;
-      int totalDeleted = 0;
+      int totalInstancesDeleted = 0;
+      int totalReportsDeleted = 0;
 
       for (SeriesRecord record : names) {
         m_logger.debug("examining Series " + record.seriesId + " (" + currentSeries + " of " + numSeries + ")... ");
@@ -95,16 +96,32 @@ public class PurgeDatabase {
           continue;
         }
 
-        deleteInstanceLinks(dbConn, record.instanceTableName, record.linkTableName, cutoff);
+        int maxReports = 35000;
+        int numReports = getNumReports(dbConn, record.seriesId);
+        Date instanceCutoff;
 
-        int numDeleted = deleteInstances(dbConn, record.instanceTableName, cutoff);
+        if (numReports > maxReports) {
+          Date reportCutoff = getReportCutoff(dbConn, record.instanceTableName, maxReports);
+
+          if (reportCutoff.after(cutoff))
+            instanceCutoff = reportCutoff;
+          else
+            instanceCutoff = cutoff;
+        }
+        else
+          instanceCutoff = cutoff;
+
+        deleteInstanceLinks(dbConn, record.instanceTableName, record.linkTableName, instanceCutoff);
+
+        int numInstancesDeleted = deleteInstances(dbConn, record.instanceTableName, instanceCutoff);
 
         resetLatestIds(dbConn, record.seriesId, record.instanceTableName);
-        deleteOrphanedReports(dbConn, record.seriesId, record.instanceTableName);
+        int numReportsDeleted = deleteOrphanedReports(dbConn, record.seriesId, record.instanceTableName);
 
-        totalDeleted += numDeleted;
+        totalInstancesDeleted += numInstancesDeleted;
+        totalReportsDeleted += numReportsDeleted;
 
-        m_logger.debug("deleted " + numDeleted + " InstanceInfo records from Series " + record.seriesId);
+        m_logger.debug("deleted " + numInstancesDeleted + " InstanceInfo records and " + numReportsDeleted +  " Reports from Series " + record.seriesId);
       }
 
       m_logger.debug("cleaning up ComparisonResult table...");
@@ -115,7 +132,7 @@ public class PurgeDatabase {
 
       deleteOrphanedRunInfo(dbConn);
 
-      m_logger.info("finished purge, deleted " + totalDeleted + " InstanceInfo records overall");
+      m_logger.info("finished purge, deleted " + totalInstancesDeleted + " InstanceInfo records and " + totalReportsDeleted +  " Reports");
     }
     finally {
       dbConn.close();
@@ -198,6 +215,78 @@ public class PurgeDatabase {
     finally {
       if (rows != null)
         rows.close();
+
+      selectStmt.close();
+    }
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @param seriesId
+   * @return
+   * @throws SQLException
+   */
+  private int getNumReports(Connection dbConn, long seriesId) throws SQLException
+  {
+    PreparedStatement selectStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM incareport WHERE incaseries_id = ?");
+    ResultSet row = null;
+
+    try {
+      selectStmt.setLong(1, seriesId);
+
+      row = selectStmt.executeQuery();
+
+      if (!row.next())
+        return 0;
+
+      return row.getInt(1);
+    }
+    finally {
+      if (row != null)
+        row.close();
+
+      selectStmt.close();
+    }
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @param table
+   * @param cutoff
+   * @return
+   * @throws SQLException
+   */
+  private Date getReportCutoff(Connection dbConn, String table, int cutoff) throws SQLException
+  {
+    StringBuilder queryBuilder = new StringBuilder();
+
+    queryBuilder.append("SELECT incareport.incaid, MAX(");
+    queryBuilder.append(table);
+    queryBuilder.append(".incacollected) AS latest FROM incareport INNER JOIN ");
+    queryBuilder.append(table);
+    queryBuilder.append(" ON incareport.incaid = ");
+    queryBuilder.append(table);
+    queryBuilder.append(".incareportid GROUP BY incareport.incaid ORDER BY latest DESC LIMIT 1 OFFSET ");
+    queryBuilder.append(cutoff);
+
+    Statement selectStmt = dbConn.createStatement();
+    ResultSet row = null;
+
+    try {
+      row = selectStmt.executeQuery(queryBuilder.toString());
+
+      if (!row.next())
+        return null;
+
+      Timestamp result = row.getTimestamp(2);
+
+      return new Date(result.getTime());
+    }
+    finally {
+      if (row != null)
+        row.close();
 
       selectStmt.close();
     }
@@ -308,9 +397,10 @@ public class PurgeDatabase {
    * @param dbConn
    * @param seriesId
    * @param table
+   * @return
    * @throws SQLException
    */
-  private void deleteOrphanedReports(Connection dbConn, long seriesId, String table) throws SQLException
+  private int deleteOrphanedReports(Connection dbConn, long seriesId, String table) throws SQLException
   {
     StringBuilder queryBuilder = new StringBuilder();
 
@@ -326,9 +416,12 @@ public class PurgeDatabase {
 
     try {
       deleteStmt.setLong(1, seriesId);
-      deleteStmt.executeUpdate();
+
+      int result = deleteStmt.executeUpdate();
 
       dbConn.commit();
+
+      return result;
     }
     finally {
       deleteStmt.close();
@@ -338,14 +431,15 @@ public class PurgeDatabase {
   /**
    *
    * @param dbConn
+   * @return
    * @throws SQLException
    */
-  private void deleteOrphanedComparisons(Connection dbConn) throws SQLException
+  private int deleteOrphanedComparisons(Connection dbConn) throws SQLException
   {
     Statement deleteStmt = dbConn.createStatement();
 
     try {
-      deleteStmt.executeUpdate(
+      int result = deleteStmt.executeUpdate(
           "DELETE FROM incacomparisonresult " +
           "WHERE incareportid NOT IN ( " +
             "SELECT incaid " +
@@ -354,6 +448,8 @@ public class PurgeDatabase {
       );
 
       dbConn.commit();
+
+      return result;
     }
     finally {
       deleteStmt.close();
@@ -363,14 +459,15 @@ public class PurgeDatabase {
   /**
    *
    * @param dbConn
+   * @return
    * @throws SQLException
    */
-  private void deleteOrphanedRunInfo(Connection dbConn) throws SQLException
+  private int deleteOrphanedRunInfo(Connection dbConn) throws SQLException
   {
     Statement deleteStmt = dbConn.createStatement();
 
     try {
-      deleteStmt.executeUpdate(
+      int result = deleteStmt.executeUpdate(
           "DELETE FROM incaruninfo " +
           "WHERE incaid NOT IN ( " +
             "SELECT incaruninfo_id " +
@@ -379,6 +476,8 @@ public class PurgeDatabase {
       );
 
       dbConn.commit();
+
+      return result;
     }
     finally {
       deleteStmt.close();

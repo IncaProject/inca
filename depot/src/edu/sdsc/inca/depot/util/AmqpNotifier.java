@@ -13,6 +13,7 @@ import java.security.*;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.sql.SQLException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -169,7 +170,7 @@ public class AmqpNotifier implements ReportNotifier {
   }
 
   protected AmqpMessage createMessage(SeriesConfig dbSc, Report report, Series series, InstanceInfo instance)
-          throws PersistenceException, JSONException {
+          throws IOException, SQLException, PersistenceException, JSONException {
 
     m_logger.debug("Located series config " + dbSc.getId() + ": " + dbSc.getNickname() + ", " + series.getResource());
     String testResult = "success";
@@ -215,7 +216,7 @@ public class AmqpNotifier implements ReportNotifier {
     if (routingKey.matches("^.*@[^@]+@.*$")) {
       m_logger.warn("Routing key " + routingKey + " had unresolved variables; simplifying to nickname.targetResource");
       String resource = series.getTargetHostname() == null ||
-              series.getTargetHostname().equals(PersistentObject.DB_EMPTY_STRING) ? series.getResource() : series.getTargetHostname();
+              series.getTargetHostname().equals(Row.DB_EMPTY_STRING) ? series.getResource() : series.getTargetHostname();
       routingKey = dbSc.getNickname() + "." + resource;
     }
 
@@ -331,12 +332,19 @@ public class AmqpNotifier implements ReportNotifier {
    * @param instance Incoming instance object
    * @param dbSc     Matching series config object
    * @return String if successfully inteprets success or failure; otherwise null
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  private String getReportResult(Report report, InstanceInfo instance, SeriesConfig dbSc) throws PersistenceException {
-    edu.sdsc.inca.depot.persistent.Report dbReport = ReportDAO.load(instance.getReportId());
+  private String getReportResult(Report report, InstanceInfo instance, SeriesConfig dbSc) throws IOException, SQLException, PersistenceException {
+    edu.sdsc.inca.depot.persistent.Report dbReport;
 
-    if (dbReport == null) {
+    try {
+      dbReport = new edu.sdsc.inca.depot.persistent.Report(instance.getReportId());
+    }
+    catch (IOException | SQLException | PersistenceException err) {
       m_logger.warn("InstanceInfo " + instance.getId() + " has invalid Report id " + instance.getReportId());
+
       return null;
     }
 
@@ -345,7 +353,7 @@ public class AmqpNotifier implements ReportNotifier {
     AcceptedOutput ao = dbSc.getAcceptedOutput();
     if (ao != null) {
       String comparitor = ao.getComparitor();
-      if (comparitor == null || comparitor.length() < 1 || comparitor.equals(PersistentObject.DB_EMPTY_STRING)) {
+      if (comparitor == null || comparitor.length() < 1 || comparitor.equals(Row.DB_EMPTY_STRING)) {
         m_logger.warn("Found empty comparitor for series " + dbSc.getNickname());
         return testResult;
       }

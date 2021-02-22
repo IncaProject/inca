@@ -1,10 +1,12 @@
 package edu.sdsc.inca.depot.persistent;
 
-import edu.sdsc.inca.dataModel.report.ReportDocument;
-import java.util.Iterator;
-import java.util.Set;
+
+import java.io.IOException;
+import java.sql.SQLException;
+
 import org.apache.xmlbeans.XmlException;
-import org.apache.xmlbeans.XmlOptions;
+
+import edu.sdsc.inca.dataModel.report.ReportDocument;
 
 
 /**
@@ -18,9 +20,9 @@ public class ReportTest extends PersistentTest {
    * @param exec the reporter exec string
    * @param stderr the reporter stderr output
    * @return a report object incorporating the parameters
-   * @throws org.apache.xmlbeans.XmlException
+   * @throws Exception
    */
-  public Report createReport(String exec, String stderr) throws XmlException {
+  public Report createReport(String exec, String stderr) throws Exception {
 
     Series s = Series.generate("localhost", exec, 4);
 
@@ -39,16 +41,17 @@ public class ReportTest extends PersistentTest {
 
   }
 
-  public Report saveReportAndSeries(Report r) throws PersistenceException {
-    Series dbSeries = SeriesDAO.load(r.getSeries());
+  public Report saveReportAndSeries(Report r) throws IOException, SQLException, PersistenceException {
+    Series dbSeries = Series.find(r.getSeries());
     if(dbSeries != null) {
-      dbSeries.addReport(r);
-      SeriesDAO.update(dbSeries);
+      dbSeries.getReports().add(r);
+      dbSeries.save();
     } else {
-      r.setSeries(SeriesDAO.loadOrSave(r.getSeries()));
+      r.getSeries().save();
     }
-    r.setRunInfo(RunInfoDAO.loadOrSave(r.getRunInfo()));
-    return ReportDAO.loadOrSave(r);
+    r.getRunInfo().save();
+    r.save();
+    return r;
   }
 
   /**
@@ -64,7 +67,7 @@ public class ReportTest extends PersistentTest {
     assertNotNull(r);
     r.setBody("<body>xml</body>");
     r.setExit_message(null);
-    r.setExit_status(new Boolean(true));
+    r.setExit_status(Boolean.valueOf(true));
     r.setStderr(null);
     r.setSeries(s);
 
@@ -84,29 +87,29 @@ public class ReportTest extends PersistentTest {
     String fourK = thousand + thousand + thousand + thousand;
     String eightK = fourK + fourK;
     String twelveK = fourK + fourK + fourK;
-    String body = "<a>" + fourK.substring(0, PersistentObject.MAX_DB_LONG_STRING_LENGTH - 7) + "</a>";
+    String body = "<a>" + fourK.substring(0, Row.MAX_DB_LONG_STRING_LENGTH - 7) + "</a>";
     Report r = new Report();
     r.setBody(body);
     assertEquals(body, r.getBody());
-    body = "<a>" + eightK.substring(0, PersistentObject.MAX_DB_LONG_STRING_LENGTH * 2 - 7) + "</a>";
+    body = "<a>" + eightK.substring(0, Row.MAX_DB_LONG_STRING_LENGTH * 2 - 7) + "</a>";
     r.setBody(body);
     assertEquals(body, r.getBody());
-    body = "<a>" + twelveK.substring(0, PersistentObject.MAX_DB_LONG_STRING_LENGTH * 3 - 7) + "</a>";
+    body = "<a>" + twelveK.substring(0, Row.MAX_DB_LONG_STRING_LENGTH * 3 - 7) + "</a>";
     r.setBody(body);
     assertEquals(body, r.getBody());
     assertTrue(r.getBodypart1().length() <=
-               PersistentObject.MAX_DB_LONG_STRING_LENGTH);
+               Row.MAX_DB_LONG_STRING_LENGTH);
     assertTrue(r.getBodypart2().length() <=
-               PersistentObject.MAX_DB_LONG_STRING_LENGTH);
+               Row.MAX_DB_LONG_STRING_LENGTH);
     assertTrue(r.getBodypart3().length() <=
-               PersistentObject.MAX_DB_LONG_STRING_LENGTH);
+               Row.MAX_DB_LONG_STRING_LENGTH);
     body = "<a>" + twelveK + "</a>";
     r.setBody(body);
     assertTrue(r.getBody().equals("") ||
-               r.getBody().equals(PersistentObject.DB_EMPTY_STRING));
+               r.getBody().equals(Row.DB_EMPTY_STRING));
   }
 
-  public void testXMLStuff() {
+  public void testXMLStuff() throws Exception {
 
     Report r = null;
     try {
@@ -192,7 +195,7 @@ public class ReportTest extends PersistentTest {
     }
     assertNotNull(r2.getId());
     assertEquals
-      (r.getSeries().getId().longValue(), r2.getSeries().getId().longValue());
+      (r.getSeries().getId(), r2.getSeries().getId());
 
     // save 2 that are different
     try {
@@ -205,9 +208,9 @@ public class ReportTest extends PersistentTest {
       fail(e.toString());
     }
     assertNotNull(r4.getId());
-    assertFalse(r4.getId().longValue() == r2.getId().longValue());
+    assertFalse(r4.getId() == r2.getId());
     assertNotNull(r5.getId());
-    assertFalse(r5.getId().longValue() == r2.getId().longValue());
+    assertFalse(r5.getId() == r2.getId());
 
     //save a third
     try {
@@ -218,7 +221,7 @@ public class ReportTest extends PersistentTest {
       fail(e.toString());
     }
     assertTrue
-      (r3.getSeries().getId().longValue()==r4.getSeries().getId().longValue());
+      (r3.getSeries().getId()==r4.getSeries().getId());
 
   }
 

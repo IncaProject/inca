@@ -1,6 +1,8 @@
 package edu.sdsc.inca.depot.persistent;
 
 import java.util.Set;
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.HashSet;
 
 /**
@@ -10,7 +12,7 @@ import java.util.HashSet;
 public class SeriesTest extends PersistentTest {
 
 
-  public void testConstructors(){
+  public void testConstructors() throws Exception {
 
     Series series = new Series();
     assertNotNull(series);
@@ -28,7 +30,7 @@ public class SeriesTest extends PersistentTest {
 
     // create another one with a different constructor
     Series series2 = new Series("hostname.org", "execute this", "reporter");
-    series2.setArgs(args);
+    series2.getArgSignature().setArgs(args);
     assertEquals(series, series2);
 
     // and on last one
@@ -43,8 +45,11 @@ public class SeriesTest extends PersistentTest {
   /**
    * Tests loading a single instance.
    *
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public void testPersistence(){
+  public void testPersistence() throws IOException, SQLException, PersistenceException{
 
     Series series = new Series();
     assertNotNull(series);
@@ -62,9 +67,9 @@ public class SeriesTest extends PersistentTest {
     series.setReporter("reporter");
 
     try {
-      SeriesDAO.loadOrSave(series);
-      assertNotNull("Series loaded from db", SeriesDAO.load( series ));
-    } catch (PersistenceException e) {
+      series.save();
+      assertNotNull("Series loaded from db", Series.find( series ));
+    } catch (Exception e) {
       e.printStackTrace();
       fail(e.toString());
     }
@@ -73,13 +78,13 @@ public class SeriesTest extends PersistentTest {
     series2.setResource("hostname.org");
     series2.setReporter("reporter");
    try {
-      SeriesDAO.loadOrSave(series2);
-      Series series3 = SeriesDAO.load( series2 );
-      logger.debug( "Context is '" + series3.getContext() + "'" );
-    } catch (PersistenceException e) {
-      e.printStackTrace();
-      fail(e.toString());
-    }
+     series2.save();
+     Series series3 = Series.find( series2 );
+     logger.debug( "Context is '" + series3.getContext() + "'" );
+   } catch (Exception e) {
+     e.printStackTrace();
+     fail(e.toString());
+   }
 
   }
 

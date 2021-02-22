@@ -14,7 +14,6 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -32,9 +31,10 @@ import org.xml.sax.helpers.XMLReaderFactory;
 import edu.sdsc.inca.Depot;
 import edu.sdsc.inca.depot.persistent.Arg;
 import edu.sdsc.inca.depot.persistent.ArgSignature;
-import edu.sdsc.inca.depot.persistent.ConnectionSource;
+import edu.sdsc.inca.depot.persistent.ConnectionManager;
 import edu.sdsc.inca.depot.persistent.DatabaseTools;
-import edu.sdsc.inca.depot.persistent.SeriesDAO;
+import edu.sdsc.inca.depot.persistent.PersistenceException;
+import edu.sdsc.inca.depot.persistent.Series;
 
 
 /**
@@ -75,6 +75,7 @@ public class SyncResponseParser extends DefaultHandler {
     * @return
     * @throws SQLException
     */
+    @Override
     public UpdateStatement createStatement(Connection dbConn, String table, String key, String columns) throws SQLException
     {
       return new SequenceKeyInsertStatement(dbConn, table, key, columns);
@@ -95,6 +96,7 @@ public class SyncResponseParser extends DefaultHandler {
     * @return
     * @throws SQLException
     */
+    @Override
     public UpdateStatement createStatement(Connection dbConn, String table, String key, String columns) throws SQLException
     {
       return new AutoGenKeyInsertStatement(dbConn, table, columns);
@@ -123,8 +125,9 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      * @throws IOException
+     * @throws PersistenceException
      */
-    void endElement(String uri, String localName, String qName) throws SAXException, SQLException, IOException;
+    void endElement(String uri, String localName, String qName) throws SAXException, SQLException, IOException, PersistenceException;
 
     /**
      *
@@ -155,6 +158,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param start
      * @param length
      */
+    @Override
     public void characters(char[] ch, int start, int length)
     {
       if (m_builder != null)
@@ -322,6 +326,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param start
      * @param length
      */
+    @Override
     public void characters(char[] ch, int start, int length)
     {
       // do nothing
@@ -357,6 +362,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("suiteRows")) {
@@ -380,6 +386,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("suite"))
@@ -450,6 +457,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -483,6 +491,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("name") || localName.equals("guid") ||
@@ -522,6 +531,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("argRows")) {
@@ -545,6 +555,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("arg"))
@@ -609,6 +620,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -638,6 +650,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("name") || localName.equals("value"))
@@ -680,6 +693,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("argSignatureRows")) {
@@ -707,6 +721,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("argSignature"))
@@ -809,8 +824,11 @@ public class SyncResponseParser extends DefaultHandler {
      * @param qName
      * @throws SAXException
      * @throws SQLException
+     * @throws PersistenceException
+     * @throws IOException
      */
-    public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
+    @Override
+    public void endElement(String uri, String localName, String qName) throws SAXException, SQLException, IOException, PersistenceException
     {
       if (localName.equals("id")) {
         Long oldArgId = getTextAsLong();
@@ -822,18 +840,10 @@ public class SyncResponseParser extends DefaultHandler {
           m_logger.warn("Couldn't find an Arg record with previous id " + oldArgId);
       }
       else if (localName.equals("args")) {
-        if (!m_ids.isEmpty()) {
-          StringBuilder clause = new StringBuilder();
-          Iterator<Long> ids = m_ids.iterator();
+        for (Long argId : m_ids) {
+          Arg newArg = new Arg(argId);
 
-          clause.append(ids.next());
-
-          while (ids.hasNext()) {
-            clause.append(", ");
-            clause.append(ids.next());
-          }
-
-          getArgs(clause.toString());
+          m_args.add(newArg);
         }
 
         assert m_states.getFirst() == this;
@@ -852,49 +862,13 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id"))
         startTextCapture();
       else
         throw new SAXException("Unexpected start tag for element " + localName);
-    }
-
-
-    // private methods
-
-
-    /**
-     *
-     * @param clause
-     * @throws SQLException
-     */
-    private void getArgs(String clause) throws SQLException
-    {
-      String query =
-        "SELECT incaname, incavalue, incaid " +
-        "FROM incaarg " +
-        "WHERE incaid IN ( " + clause + " )";
-      Statement selectStmt = m_dbConn.createStatement();
-      ResultSet rows = null;
-
-      try {
-        rows = selectStmt.executeQuery(query);
-
-        while (rows.next()) {
-          Arg newArg = new Arg(rows.getString(1), rows.getString(2));
-
-          newArg.setId(rows.getLong(3));
-
-          m_args.add(newArg);
-        }
-      }
-      finally {
-        if (rows != null)
-          rows.close();
-
-        selectStmt.close();
-      }
     }
   }
 
@@ -932,6 +906,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -963,6 +938,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id"))
@@ -1003,6 +979,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("seriesRows")) {
@@ -1029,6 +1006,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("series"))
@@ -1114,7 +1092,7 @@ public class SyncResponseParser extends DefaultHandler {
           String instanceTableName = rows.getString(1);
           String linkTableName = rows.getString(2);
 
-          SeriesDAO.createInstanceTables(m_dbConn, instanceTableName, linkTableName);
+          Series.createInstanceTables(m_dbConn, instanceTableName, linkTableName);
         }
       }
       finally {
@@ -1167,6 +1145,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -1217,6 +1196,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("reporter") || localName.equals("version") ||
@@ -1261,6 +1241,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("seriesConfigRows")) {
@@ -1292,6 +1273,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("seriesConfig"))
@@ -1449,6 +1431,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id")) {
@@ -1477,6 +1460,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id"))
@@ -1518,6 +1502,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("tag")) {
@@ -1542,6 +1527,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("tag"))
@@ -1607,6 +1593,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -1698,6 +1685,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("activated") || localName.equals("deactivated") ||
@@ -1747,6 +1735,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("runInfoRows")) {
@@ -1770,6 +1759,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("runInfo"))
@@ -1840,6 +1830,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -1882,6 +1873,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("hostname") || localName.equals("workingDir") ||
@@ -1921,6 +1913,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("reportRows")) {
@@ -1944,6 +1937,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("report"))
@@ -2026,6 +2020,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -2083,6 +2078,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("exitStatus") || localName.equals("exitMessage") ||
@@ -2133,6 +2129,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SQLException
      * @throws IOException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException, IOException
     {
       if (localName.equals("comparisonResultRows")) {
@@ -2159,6 +2156,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("comparisonResult"))
@@ -2239,6 +2237,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -2289,6 +2288,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("result") || localName.equals("reportId") ||
@@ -2342,6 +2342,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("instanceInfoRows")) {
@@ -2370,6 +2371,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("instanceInfo"))
@@ -2485,6 +2487,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id")) {
@@ -2513,6 +2516,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id"))
@@ -2563,6 +2567,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -2615,6 +2620,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("id") || localName.equals("collected") || localName.equals("commited") ||
@@ -2642,6 +2648,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param start
      * @param length
      */
+    @Override
     public void characters(char[] ch, int start, int length)
     {
       // do nothing
@@ -2654,6 +2661,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param qName
      * @throws SAXException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException
     {
       if (localName.equals("seriesInstanceRows")) {
@@ -2676,6 +2684,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException, SQLException
     {
       if (localName.equals("seriesInstances"))
@@ -2706,6 +2715,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("id")) {
@@ -2736,6 +2746,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException, SQLException
     {
       if (localName.equals("id"))
@@ -2832,6 +2843,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("kbArticleRows")) {
@@ -2855,6 +2867,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("kbArticle"))
@@ -2936,6 +2949,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @throws SAXException
      * @throws SQLException
      */
+    @Override
     public void endElement(String uri, String localName, String qName) throws SAXException, SQLException
     {
       if (localName.equals("entered"))
@@ -2973,6 +2987,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SAXException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException
     {
       if (localName.equals("entered") || localName.equals("errorMsg") || localName.equals("series") ||
@@ -2998,6 +3013,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param start
      * @param length
      */
+    @Override
     public void characters(char[] ch, int start, int length)
     {
       // do nothing
@@ -3009,6 +3025,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param localName
      * @param qName
      */
+    @Override
     public void endElement(String uri, String localName, String qName)
     {
       // do nothing
@@ -3022,6 +3039,7 @@ public class SyncResponseParser extends DefaultHandler {
      * @param atts
      * @throws SQLException
      */
+    @Override
     public void startElement(String uri, String localName, String qName, Attributes atts) throws SQLException
     {
       if (localName.equals("suiteRows")) {
@@ -3173,8 +3191,8 @@ public class SyncResponseParser extends DefaultHandler {
 
       throw new SAXException(sqlErr.getMessage());
     }
-    catch (IOException ioErr) {
-      throw new SAXException(ioErr);
+    catch (IOException | PersistenceException err) {
+      throw new SAXException(err);
     }
   }
 
@@ -3224,7 +3242,7 @@ public class SyncResponseParser extends DefaultHandler {
    */
   public static void parseResponse(Depot owner, InputStream inStream) throws SQLException, IOException, SAXException
   {
-    Connection dbConn = ConnectionSource.getConnection();
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
 
     try {
       parseResponse(dbConn, owner, inStream);

@@ -8,9 +8,10 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import java.util.Enumeration;
 
@@ -21,12 +22,11 @@ import org.apache.log4j.Logger;
 import edu.sdsc.inca.dataModel.util.Report;
 import edu.sdsc.inca.depot.persistent.AcceptedOutput;
 import edu.sdsc.inca.depot.persistent.ComparisonResult;
-import edu.sdsc.inca.depot.persistent.ComparisonResultDAO;
-import edu.sdsc.inca.depot.persistent.DAO;
+import edu.sdsc.inca.depot.persistent.HqlQuery;
 import edu.sdsc.inca.depot.persistent.InstanceInfo;
 import edu.sdsc.inca.depot.persistent.Notification;
-import edu.sdsc.inca.depot.persistent.PersistentObject;
-import edu.sdsc.inca.depot.persistent.ReportDAO;
+import edu.sdsc.inca.depot.persistent.PersistenceException;
+import edu.sdsc.inca.depot.persistent.Row;
 import edu.sdsc.inca.depot.persistent.RunInfo;
 import edu.sdsc.inca.depot.persistent.Schedule;
 import edu.sdsc.inca.depot.persistent.Series;
@@ -58,6 +58,7 @@ public class ScriptNotifier implements ReportNotifier {
    * @param instance
    * @throws Exception
    */
+  @Override
   public void notify(String command, Report report, Series series, InstanceInfo instance) throws Exception
   {
     for (SeriesConfig dbSc : series.getSeriesConfigs()) {
@@ -87,18 +88,22 @@ public class ScriptNotifier implements ReportNotifier {
 
       String notifier = dbN.getNotifier();
 
-      if (notifier == null || notifier.length() < 1 || notifier.equals(PersistentObject.DB_EMPTY_STRING))
+      if (notifier == null || notifier.length() < 1 || notifier.equals(Row.DB_EMPTY_STRING))
         continue;
 
       String comparitor = ao.getComparitor();
 
-      if (comparitor == null || comparitor.length() < 1 || comparitor.equals(PersistentObject.DB_EMPTY_STRING))
+      if (comparitor == null || comparitor.length() < 1 || comparitor.equals(Row.DB_EMPTY_STRING))
         continue;
 
-      edu.sdsc.inca.depot.persistent.Report dbReport = ReportDAO.load(instance.getReportId());
+      edu.sdsc.inca.depot.persistent.Report dbReport;
 
-      if (dbReport == null)
+      try {
+        dbReport = new edu.sdsc.inca.depot.persistent.Report(instance.getReportId());
+      }
+      catch (IOException | SQLException | PersistenceException err) {
         continue;
+      }
 
       String result = (new ExprComparitor()).compare(ao, dbReport);
       ComparisonResult newCr = new ComparisonResult();
@@ -106,14 +111,22 @@ public class ScriptNotifier implements ReportNotifier {
       newCr.setResult(result);
       newCr.setReportId(dbReport.getId());
       newCr.setSeriesConfigId(dbSc.getId());
+      newCr.save();
 
-      ComparisonResult dbCr = ComparisonResultDAO.loadOrSave(newCr);
+      ComparisonResult dbCr = newCr;
       Long priorComparisonId = dbSc.getLatestComparisonId();
 
       if (dbCr.getId() == priorComparisonId)
         continue;
 
-      ComparisonResult priorCr = ComparisonResultDAO.load(priorComparisonId);
+      ComparisonResult priorCr;
+
+      try {
+        priorCr = new ComparisonResult(priorComparisonId);
+      }
+      catch (IOException | SQLException | PersistenceException err) {
+        priorCr = null;
+      }
 
       if (priorCr == null && dbSc.getNickname() != null) {
         // Test for the latest comparison result from an equivalent series
@@ -123,15 +136,22 @@ public class ScriptNotifier implements ReportNotifier {
             "FROM SeriesConfig AS sc " +
             "WHERE sc.nickname = :p0 " +
               "AND sc.id != " + dbSc.getId();
-        Iterator<?> scs = DAO.selectMultiple(query, new Object[] {dbSc.getNickname()});
+        List<Object> scs = (new HqlQuery(query)).select(new Object[] {dbSc.getNickname()});
 
-        while (scs.hasNext()) {
-          SeriesConfig likeSc = (SeriesConfig)scs.next();
+        for (Object element : scs) {
+          SeriesConfig likeSc = (SeriesConfig)element;
 
           if (!dbResource.equals(likeSc.getSeries().getResource()))
             continue;
 
-          ComparisonResult likeCr = ComparisonResultDAO.load(likeSc.getLatestComparisonId());
+          ComparisonResult likeCr;
+
+          try {
+            likeCr = new ComparisonResult(likeSc.getLatestComparisonId());
+          }
+          catch (IOException | SQLException | PersistenceException err) {
+            likeCr = null;
+          }
 
           if (likeCr != null)
             priorCr = likeCr;
@@ -148,14 +168,14 @@ public class ScriptNotifier implements ReportNotifier {
 
       String field = dbReport.getExit_message();
 
-      if (field != null && field.length() > 0 && !field.equals(PersistentObject.DB_EMPTY_STRING))
+      if (field != null && field.length() > 0 && !field.equals(Row.DB_EMPTY_STRING))
         props.setProperty("errorMessage", field);
 
       props.setProperty("body", dbReport.getBody());
 
       field = dbReport.getStderr();
 
-      if (field != null && field.length() > 0 && !field.equals(PersistentObject.DB_EMPTY_STRING))
+      if (field != null && field.length() > 0 && !field.equals(Row.DB_EMPTY_STRING))
         props.setProperty("stderr", dbReport.getStderr());
 
       props.setProperty("instanceId", instance.getId() + "");
@@ -167,7 +187,7 @@ public class ScriptNotifier implements ReportNotifier {
 
       field = instance.getLog();
 
-      if (field != null && field.length() > 0 && !field.equals(PersistentObject.DB_EMPTY_STRING)) {
+      if (field != null && field.length() > 0 && !field.equals(Row.DB_EMPTY_STRING)) {
         // Transform log messages from XML format, e.g.,
         // <info><gmt>time</gmt><message>text</message></info>
         // to more readable (info time) text
@@ -201,7 +221,7 @@ public class ScriptNotifier implements ReportNotifier {
 
       field = dbSc.getNickname();
 
-      if (field != null && field.length() > 0 && !field.equals(PersistentObject.DB_EMPTY_STRING))
+      if (field != null && field.length() > 0 && !field.equals(Row.DB_EMPTY_STRING))
         props.setProperty("nickname", field);
 
       if (dbSc.getLimits() != null) {

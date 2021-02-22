@@ -1,5 +1,6 @@
 package edu.sdsc.inca.depot.persistent;
 
+
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -10,7 +11,7 @@ import java.util.Iterator;
  */
 public class ArgSignatureTest extends PersistentTest {
 
-  public void testConstructors() {
+  public void testConstructors() throws Exception {
 
     // create a few Arguments that can be used repeatedly
     Arg arg1 = new Arg("name","value1");
@@ -34,17 +35,17 @@ public class ArgSignatureTest extends PersistentTest {
 
     ArgSignature argSig2 = new ArgSignature();
     for(Iterator<Arg> i = args.iterator(); i.hasNext(); ) {
-      argSig2.addArg((Arg)i.next());
+      argSig2.getArgs().add(i.next());
     }
     assertTrue(argSig2.equals(argSig));
-    argSig.addArg(arg1);
+    argSig.getArgs().add(arg1);
     assertTrue(argSig2.equals(argSig));
-    argSig.addArg(arg5);
+    argSig.getArgs().add(arg5);
     assertFalse(argSig2.equals(argSig));
 
   }
 
-  public void testPersistence(){
+  public void testPersistence() throws Exception {
 
     // create a few Arguments that can be used repeatedly
     Arg arg1 = new Arg("name","value1");
@@ -66,8 +67,8 @@ public class ArgSignatureTest extends PersistentTest {
     // try to load before it exists
     ArgSignature argSig = new ArgSignature(args);
     try {
-      argSig = ArgSignatureDAO.load(argSig);
-    } catch(PersistenceException e) {
+      argSig = ArgSignature.find(argSig);
+    } catch(Exception e) {
       fail("exception on load");
     }
     assertNull(argSig);
@@ -75,18 +76,18 @@ public class ArgSignatureTest extends PersistentTest {
     // try to save
     argSig = new ArgSignature(args);
     try {
-      argSig = ArgSignatureDAO.loadOrSave(argSig);
-    } catch (PersistenceException e) {
+      argSig.save();
+    } catch (Exception e) {
       fail("save should have worked");
     }
     assertNotNull(argSig);
 
     ArgSignature argSig2 = new ArgSignature(args);
-    argSig2.addArg(arg5);
+    argSig2.getArgs().add(arg5);
     try {
-      argSig2 = ArgSignatureDAO.loadOrSave(argSig2);
+      argSig2.save();
       assertNotNull(argSig2);
-    } catch (PersistenceException e) {
+    } catch (Exception e) {
       fail("save should have worked: " + e);
 
     }
@@ -103,11 +104,10 @@ public class ArgSignatureTest extends PersistentTest {
     args1.add(arg6);
     args1.add(arg7);
     ArgSignature argSig4 = new ArgSignature(args1);
-    ArgSignature dbArgSig = null;
     try {
-      dbArgSig = ArgSignatureDAO.loadOrSave(argSig4);
-      assertNotNull(dbArgSig);
-    } catch (PersistenceException e) {
+      argSig4.save();
+      assertNotNull(argSig4);
+    } catch (Exception e) {
       fail("save should have worked: " + e);
     }
 
@@ -116,9 +116,9 @@ public class ArgSignatureTest extends PersistentTest {
     args2.add(arg8);
     argSig4 = new ArgSignature(args2);
     try {
-      dbArgSig = ArgSignatureDAO.loadOrSave(argSig4);
-      assertNotNull(dbArgSig);
-    } catch (PersistenceException e) {
+      argSig4.save();
+      assertNotNull(argSig4);
+    } catch (Exception e) {
       fail("save should have worked: " + e);
     }
 

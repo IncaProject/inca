@@ -1,8 +1,5 @@
 package edu.sdsc.inca.depot.persistent;
 
-import java.util.HashSet;
-import java.util.Set;
-
 
 /**
  * Perform Basic tests on the Inputs Class.
@@ -29,8 +26,8 @@ public class ArgTest extends PersistentTest {
     // this object should not be found
     Arg arg = new Arg("testkey", "testvalue");
     try {
-      arg = ArgDAO.load(arg);
-    } catch (PersistenceException e) {
+      arg = Arg.find(arg);
+    } catch (Exception e) {
       fail(e.toString());
     }
     assertNull(arg);
@@ -38,8 +35,8 @@ public class ArgTest extends PersistentTest {
     // save the arg to the db
     arg = new Arg("testkey", "testvalue");
     try {
-      arg = ArgDAO.loadOrSave(arg);
-    } catch (PersistenceException e) {
+      arg.save();
+    } catch (Exception e) {
       fail(e.toString());
     }
     assertNotNull(arg);
@@ -48,8 +45,8 @@ public class ArgTest extends PersistentTest {
     Arg arg2 = new Arg("testkey", "testvalue");
 
     try {
-      arg2 = ArgDAO.load(arg2);
-    } catch (PersistenceException e) {
+      arg2 = Arg.find(arg2);
+    } catch (Exception e) {
       fail(e.toString());
     }
     assertNotNull(arg2);
@@ -64,13 +61,12 @@ public class ArgTest extends PersistentTest {
   public void testQuote() {
     Arg arg = new Arg("quote", "I said 'Who's on third?'");
     try {
-      arg = ArgDAO.loadOrSave(arg);
-      assertNotNull(arg);
+      arg.save();
     } catch(Exception e) {
       fail("Save failed:" + e);
     }
     try {
-      arg = ArgDAO.load(arg);
+      arg = Arg.find(arg);
       assertNotNull(arg);
     } catch(Exception e) {
       fail("Load failed:" + e);

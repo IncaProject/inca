@@ -1,9 +1,10 @@
 /*
- * Operation.java
+ * RowOperation.java
  */
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -13,14 +14,14 @@ import java.sql.SQLException;
  * @author Paul Hoover
  *
  */
-interface DatabaseOperation {
+interface RowOperation {
 
   /**
    *
    * @param dbConn
-   * @return
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
-  boolean execute(Connection dbConn) throws SQLException, PersistenceException;
+  void execute(Connection dbConn) throws IOException, SQLException, PersistenceException;
 }

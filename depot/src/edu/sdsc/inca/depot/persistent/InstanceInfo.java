@@ -4,6 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,12 +12,15 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlObject;
 
 
@@ -26,7 +30,7 @@ import org.apache.xmlbeans.XmlObject;
  * @author Jim Hayes
  * @author Paul Hoover
  */
-public class InstanceInfo extends GeneratedKeyObject implements Comparable<InstanceInfo> {
+public class InstanceInfo extends GeneratedKeyRow implements Comparable<InstanceInfo> {
 
   // nested classes
 
@@ -34,47 +38,36 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   /**
    *
    */
-  private class AddLinkOp implements DatabaseOperation {
+  private class AddLinkOp implements RowOperation {
 
-    private final long m_seriesConfigId;
+    private final SeriesConfig m_seriesConfig;
 
 
     // constructors
 
 
-    /**
-     *
-     * @param seriesConfigId
-     */
-    public AddLinkOp(long seriesConfigId)
+    public AddLinkOp(SeriesConfig config)
     {
-      m_seriesConfigId = seriesConfigId;
+      m_seriesConfig = config;
     }
 
 
     // public methods
 
 
-    /**
-     *
-     * @param dbConn
-     * @return
-     * @throws SQLException
-     * @throws PersistenceException
-     */
     @Override
-    public boolean execute(Connection dbConn) throws SQLException, PersistenceException
+    public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
     {
       PreparedStatement insertStmt = dbConn.prepareStatement(
-          "INSERT INTO " + m_linkTableName + " (incaseriesconfig_id, incainstance_id) " +
-          "VALUES (?, ?)"
+        "INSERT INTO " + m_linkTableName + " (incaseriesconfig_id, incainstance_id) " +
+        "VALUES (?, ?)"
       );
 
       try {
-        insertStmt.setLong(1, m_seriesConfigId);
+        insertStmt.setLong(1, m_seriesConfig.getId());
         m_key.setParameter(insertStmt, 2);
 
-        return insertStmt.executeUpdate() > 0;
+        insertStmt.executeUpdate();
       }
       finally {
         insertStmt.close();
@@ -85,79 +78,37 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   /**
    *
    */
-  private class RemoveLinkOp implements DatabaseOperation {
+  private class RemoveLinkOp implements RowOperation {
 
-    private final long m_seriesConfigId;
+    private final SeriesConfig m_seriesConfig;
 
 
     // constructors
 
 
-    /**
-     *
-     * @param seriesConfigId
-     */
-    public RemoveLinkOp(long seriesConfigId)
+    public RemoveLinkOp(SeriesConfig config)
     {
-      m_seriesConfigId = seriesConfigId;
+      m_seriesConfig = config;
     }
 
 
     // public methods
 
 
-    /**
-     *
-     * @param dbConn
-     * @return
-     * @throws SQLException
-     * @throws PersistenceException
-     */
     @Override
-    public boolean execute(Connection dbConn) throws SQLException, PersistenceException
+    public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
     {
       PreparedStatement deleteStmt = dbConn.prepareStatement(
-          "DELETE FROM " + m_linkTableName +
-          " WHERE incaseriesconfig_id = ? " +
-            "AND incainstance_id = ?"
+        "DELETE FROM " + m_linkTableName +
+        " WHERE incaseriesconfig_id = ? " +
+          "AND incainstance_id = ?"
       );
 
       try {
-        deleteStmt.setLong(1, m_seriesConfigId);
+        deleteStmt.setLong(1, m_seriesConfig.getId());
         m_key.setParameter(deleteStmt, 2);
 
-        return deleteStmt.executeUpdate() > 0;
-      }
-      finally {
-        deleteStmt.close();
-      }
-    }
-  }
-
-  /**
-   *
-   */
-  private class RemoveAllLinksOp implements DatabaseOperation {
-
-    /**
-     *
-     * @param dbConn
-     * @return
-     * @throws SQLException
-     * @throws PersistenceException
-     */
-    @Override
-    public boolean execute(Connection dbConn) throws SQLException, PersistenceException
-    {
-      PreparedStatement deleteStmt = dbConn.prepareStatement(
-          "DELETE FROM " + m_linkTableName +
-          " WHERE incainstance_id = ?"
-      );
-
-      try {
-        m_key.setParameter(deleteStmt, 1);
-
-        return deleteStmt.executeUpdate() > 0;
+        deleteStmt.executeUpdate();
       }
       finally {
         deleteStmt.close();
@@ -173,10 +124,6 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
     // constructors
 
 
-    /**
-     *
-     * @param seriesConfigs
-     */
     public LinkSet(Set<SeriesConfig> seriesConfigs)
     {
       super(seriesConfigs);
@@ -186,39 +133,23 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
     // protected methods
 
 
-    /**
-     *
-     * @param element
-     */
     @Override
     protected void addSetAddOp(SeriesConfig element)
     {
-      Long seriesConfigId = element.getId();
-
-      if (seriesConfigId != null)
-        m_opQueue.add(new AddLinkOp(seriesConfigId));
+      m_opQueue.add(new AddLinkOp(element));
     }
 
-    /**
-     *
-     * @param element
-     */
     @Override
     protected void addSetRemoveOp(SeriesConfig element)
     {
-      Long seriesConfigId = element.getId();
-
-      if (seriesConfigId != null)
-        m_opQueue.add(new RemoveLinkOp(seriesConfigId));
+      m_opQueue.add(new RemoveLinkOp(element));
     }
 
-    /**
-     *
-     */
     @Override
-    protected void addSetClearOp()
+    protected void addSetClearOp(List<SeriesConfig> elements)
     {
-      m_opQueue.add(new RemoveAllLinksOp());
+      for (SeriesConfig element : elements)
+        m_opQueue.add(new RemoveLinkOp(element));
     }
   }
 
@@ -226,12 +157,9 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   // data fields
 
 
-  /**
-   * Pattern matcher for splitting sysusage string.
-   */
   private static final Pattern SYSUSAGE_PATTERN = Pattern.compile("(cpu_secs|wall_secs|memory_mb)\\s*=\\s*(\\d+(\\.\\d+)?)");
   private static final String KEY_NAME = "incaid";
-
+  private static final Logger m_logger = Logger.getLogger(DriverConnectionSource.class);
   private final Column<Date> m_collected = new DateColumn("incacollected", false);
   private final Column<Date> m_commited = new DateColumn("incacommited", false);
   private final Column<Float> m_memoryUsageMB = new FloatColumn("incamemoryusagemb", false);
@@ -239,8 +167,9 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   private final Column<Float> m_wallClockTimeSec = new FloatColumn("incawallclocktimesec", false);
   private final Column<String> m_log = new StringColumn("incalog", true, MAX_DB_LONG_STRING_LENGTH);
   private final Column<Long> m_reportId = new LongColumn("incareportid", false);
-  private Set<SeriesConfig> m_seriesConfigs;
-  private String m_linkTableName;
+  private final Deque<RowOperation> m_opQueue = new LinkedList<RowOperation>();
+  private final String m_linkTableName;
+  private LinkSet m_seriesConfigs;
 
 
   // constructors
@@ -262,17 +191,19 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    */
   public InstanceInfo(String instanceTableName, String linkTableName)
   {
-    super(KEY_NAME);
+    super(instanceTableName, KEY_NAME);
 
-    construct(instanceTableName, linkTableName);
+    m_linkTableName = linkTableName;
 
     setCollected(new Date());
     setCommited(new Date());
-    setMemoryUsageMB(new Float(-1));
-    setCpuUsageSec(new Float(-1));
-    setWallClockTimeSec(new Float(-1));
+    setMemoryUsageMB(-1F);
+    setCpuUsageSec(-1F);
+    setWallClockTimeSec(-1F);
     setLog("");
-    setReportId(new Long(-1));
+    setReportId(-1L);
+
+    construct(m_collected, m_commited, m_memoryUsageMB, m_cpuUsageSec, m_wallClockTimeSec, m_log, m_reportId);
   }
 
   /**
@@ -287,9 +218,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    */
   public InstanceInfo(Series owner, Date collected, Date commited, Float memoryUsageMB, Float cpuUsageSec, Float wallClockTimeSec)
   {
-    super(KEY_NAME);
-
-    construct(owner);
+    this(owner);
 
     setCollected(collected);
     setCommited(commited);
@@ -297,7 +226,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
     setCpuUsageSec(cpuUsageSec);
     setWallClockTimeSec(wallClockTimeSec);
     setLog("");
-    setReportId(new Long(-1));
+    setReportId(-1L);
   }
 
   /**
@@ -317,7 +246,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
 
     for (int start = 0 ; m.find(start) ; start = m.start() + 1) {
       String metric = m.group(1);
-      Float value = new Float(m.group(2));
+      Float value = Float.valueOf(m.group(2));
 
       if (metric.equals("cpu_secs"))
         setCpuUsageSec(value);
@@ -330,112 +259,61 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
 
   /**
    *
-   * @param nickname
-   * @param resource
-   * @param target
-   * @param collected
-   * @throws SQLException
-   * @throws PersistenceException
-   */
-  public InstanceInfo(String nickname, String resource, String target, Date collected) throws SQLException, PersistenceException
-  {
-    super(KEY_NAME);
-
-    Connection dbConn = ConnectionSource.getConnection();
-    PreparedStatement selectStmt = null;
-    ResultSet rows = null;
-
-    try {
-      selectStmt = dbConn.prepareStatement(
-          "SELECT incaseriesconfig.incaid, incainstancetablename, incalinktablename " +
-          "FROM incaseries " +
-            "INNER JOIN incaseriesconfig ON incaseries.incaid = incaseriesconfig.incaseries_id " +
-          "WHERE incanickname = ? " +
-            "AND incaresource = ? " +
-            "AND incatargethostname = ?"
-      );
-
-      selectStmt.setString(1, nickname);
-      selectStmt.setString(2, resource);
-
-      if (target == null || target.length() < 1)
-        selectStmt.setString(3, DB_EMPTY_STRING);
-      else
-        selectStmt.setString(3, target);
-
-      rows = selectStmt.executeQuery();
-
-      while (rows.next()) {
-        long seriesConfigId = rows.getLong(1);
-        String instanceTableName = rows.getString(2);
-        String linkTableName = rows.getString(3);
-        List<Long> instanceIds = findInstanceIds(dbConn, instanceTableName, linkTableName, collected, seriesConfigId);
-
-        if (!instanceIds.isEmpty()) {
-          load(instanceTableName, linkTableName, instanceIds.get(0));
-
-          return;
-        }
-      }
-
-      throw new PersistenceException("No InstanceInfo record found for nickname " + nickname + ", resource " + resource + ", target " + target + ", collected " + collected);
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      if (selectStmt != null)
-        selectStmt.close();
-
-      dbConn.close();
-    }
-  }
-
-  /**
-   *
    * @param owner
    * @param instanceId
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
-  public InstanceInfo(Series owner, long instanceId) throws SQLException, PersistenceException
+  public InstanceInfo(Series owner, long instanceId) throws IOException, SQLException, PersistenceException
   {
-    super(KEY_NAME);
+    this(owner);
 
-    load(owner, instanceId);
+    m_key.assignValue(instanceId);
+
+    load();
   }
 
   /**
    *
-   * @param seriesId
+   * @param dbConn
+   * @param owner
    * @param instanceId
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
-  public InstanceInfo(long seriesId, long instanceId) throws SQLException, PersistenceException
+  InstanceInfo(Connection dbConn, Series owner, long instanceId) throws IOException, SQLException, PersistenceException
   {
-    super(KEY_NAME);
+    this(owner);
 
-    Series owner = SeriesDAO.load(seriesId);
+    m_key.assignValue(instanceId);
 
-    if (owner == null)
-      throw new PersistenceException("No Series record found for primary key " + seriesId);
+    load(dbConn);
+  }
 
-    load(owner, instanceId);
+  /**
+   *
+   * @param dbConn
+   * @param instanceId
+   * @param instanceTableName
+   * @param linkTableName
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  private InstanceInfo(Connection dbConn, long instanceId, String instanceTableName, String linkTableName) throws IOException, SQLException, PersistenceException
+  {
+    this(instanceTableName, linkTableName);
+
+    m_key.assignValue(instanceId);
+
+    load(dbConn);
   }
 
 
   // public methods
 
-
-  /**
-   *
-   * @return
-   */
-  public Long getId()
-  {
-    return m_key.getValue();
-  }
 
   /**
    *
@@ -584,24 +462,25 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   /**
    *
    * @return
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
-  public Set<SeriesConfig> getSeriesConfigs() throws SQLException, PersistenceException
+  public Set<SeriesConfig> getSeriesConfigs() throws IOException, SQLException, PersistenceException
   {
     if (m_seriesConfigs == null) {
       Set<SeriesConfig> seriesConfigs = new HashSet<SeriesConfig>();
 
       if (!isNew()) {
-        Connection dbConn = ConnectionSource.getConnection();
+        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
         PreparedStatement selectStmt = null;
         ResultSet rows = null;
 
         try {
           selectStmt = dbConn.prepareStatement(
-              "SELECT incaseriesconfig_id " +
-              "FROM " + m_linkTableName +
-              " WHERE incainstance_id = ?"
+            "SELECT incaseriesconfig_id " +
+            "FROM " + m_linkTableName +
+            " WHERE incainstance_id = ?"
           );
 
           m_key.setParameter(selectStmt, 1);
@@ -611,7 +490,7 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
           while (rows.next()) {
             long seriesConfigId = rows.getLong(1);
 
-            seriesConfigs.add(SeriesConfigDAO.load(seriesConfigId));
+            seriesConfigs.add(new SeriesConfig(seriesConfigId));
           }
         }
         finally {
@@ -632,23 +511,16 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   }
 
   /**
-   * Copies information from an Inca schema XmlBean object so that this object
-   * contains equivalent information.
-   *
-   * @param o the XmlBean object to copy
-   * @return this, for convenience
+   * {@inheritDoc}
    */
   @Override
-  public PersistentObject fromBean(XmlObject o)
+  public XmlBeanObject fromBean(XmlObject o)
   {
     return this; // No XmlBean equivalent to InstanceInfo
   }
 
   /**
-   * Returns a Inca schema XmlBean Limits object that contains information
-   * equivalent to this object.
-   *
-   * @return an XmlBean Limits object that contains equivalent information
+   * {@inheritDoc}
    */
   @Override
   public XmlObject toBean()
@@ -663,33 +535,31 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   }
 
   /**
-   * Compares another object to this InstanceInfo for logical equality.
-   *
-   * @param o the object to compare
-   * @return true iff the comparison object represents the same InstanceInfo
+   * {@inheritDoc}
    */
   @Override
-  public boolean equals(Object o)
+  public boolean equals(Object other)
   {
-    if (this == o)
-      return true;
-    else if (!(o instanceof InstanceInfo))
+    if (other == null)
       return false;
 
-    InstanceInfo ii = (InstanceInfo)o;
+    if (this == other)
+      return true;
 
-    return
-      this.getCollected().equals(ii.getCollected()) &&
-      this.getCommited().equals(ii.getCommited()) &&
-      this.getCpuUsageSec().equals(ii.getCpuUsageSec()) &&
-      this.getMemoryUsageMB().equals(ii.getMemoryUsageMB()) &&
-      this.getWallClockTimeSec().equals(ii.getWallClockTimeSec());
+    if (other instanceof InstanceInfo == false)
+      return false;
+
+    InstanceInfo otherInfo = (InstanceInfo) other;
+
+    return getCollected().equals(otherInfo.getCollected()) &&
+           getCommited().equals(otherInfo.getCommited()) &&
+           getCpuUsageSec().equals(otherInfo.getCpuUsageSec()) &&
+           getMemoryUsageMB().equals(otherInfo.getMemoryUsageMB()) &&
+           getWallClockTimeSec().equals(otherInfo.getWallClockTimeSec());
   }
 
   /**
-   * Returns XML that represents the information in this object.
-   *
-   * @return
+   * {@inheritDoc}
    */
   @Override
   public String toXml()
@@ -714,24 +584,20 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
   }
 
   /**
-   * Calculate a hash code using the same fields that where used in equals.
-   *
-   * @return a hash code for this object
+   * {@inheritDoc}
    */
   @Override
   public int hashCode()
   {
-    return 29 * getCollected().hashCode() +
-                getCommited().hashCode() +
-                getCpuUsageSec().hashCode() +
-                getMemoryUsageMB().hashCode() +
-                getWallClockTimeSec().hashCode();
+    return 29 * (getCollected().hashCode() +
+                 getCommited().hashCode() +
+                 getCpuUsageSec().hashCode() +
+                 getMemoryUsageMB().hashCode() +
+                 getWallClockTimeSec().hashCode());
   }
 
   /**
-   *
-   * @param other
-   * @return
+   * {@inheritDoc}
    */
   @Override
   public int compareTo(InstanceInfo other)
@@ -742,68 +608,144 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
     if (this == other)
       return 0;
 
-    if (isNew())
-      return -1;
-
-    if (other.isNew())
-      return 1;
-
     return hashCode() - other.hashCode();
+  }
+
+  /**
+   *
+   * @param nickname
+   * @param resource
+   * @param target
+   * @param collected
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public static InstanceInfo find(String nickname, String resource, String target, Date collected) throws IOException, SQLException, PersistenceException
+  {
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+    PreparedStatement selectStmt = null;
+    ResultSet rows = null;
+
+    try {
+      selectStmt = dbConn.prepareStatement(
+        "SELECT incaseriesconfig.incaid, incainstancetablename, incalinktablename " +
+        "FROM incaseries " +
+          "INNER JOIN incaseriesconfig ON incaseries.incaid = incaseriesconfig.incaseries_id " +
+        "WHERE incanickname = ? " +
+          "AND incaresource = ? " +
+          "AND incatargethostname = ?"
+      );
+
+      selectStmt.setString(1, nickname);
+      selectStmt.setString(2, resource);
+
+      if (target == null || target.length() < 1)
+        selectStmt.setString(3, DB_EMPTY_STRING);
+      else
+        selectStmt.setString(3, target);
+
+      rows = selectStmt.executeQuery();
+
+      while (rows.next()) {
+        long seriesConfigId = rows.getLong(1);
+        String instanceTableName = rows.getString(2);
+        String linkTableName = rows.getString(3);
+        List<Long> instanceIds = findInstanceIds(dbConn, instanceTableName, linkTableName, collected, seriesConfigId);
+
+        if (!instanceIds.isEmpty())
+          return new InstanceInfo(dbConn, instanceIds.get(0), instanceTableName, linkTableName);
+      }
+
+      return null;
+    }
+    finally {
+      if (rows != null)
+        rows.close();
+
+      if (selectStmt != null)
+        selectStmt.close();
+
+      dbConn.close();
+    }
+  }
+
+
+  // package methods
+
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  void save(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    super.save(dbConn);
+
+    while (!m_opQueue.isEmpty()) {
+      RowOperation op = m_opQueue.remove();
+
+      op.execute(dbConn);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  void load(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    super.load(dbConn);
+
+    m_opQueue.clear();
+
+    m_seriesConfigs = null;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  boolean delete(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM " + m_linkTableName +
+      " WHERE incainstance_id = ?"
+    );
+
+    try {
+      m_key.setParameter(deleteStmt, 1);
+
+      deleteStmt.executeUpdate();
+    }
+    finally {
+      deleteStmt.close();
+    }
+
+    m_opQueue.clear();
+
+    m_seriesConfigs = null;
+
+    return super.delete(dbConn);
+  }
+
+
+  // protected methods
+
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected Long findDuplicate(Connection dbConn)
+  {
+    return null;
   }
 
 
   // private methods
 
-
-  /**
-   *
-   * @param owner
-   * @param instanceId
-   * @throws SQLException
-   * @throws PersistenceException
-   */
-  private void load(Series owner, long instanceId) throws SQLException, PersistenceException
-  {
-    load(owner.getInstanceTableName(), owner.getLinkTableName(), instanceId);
-  }
-
-  /**
-   *
-   * @param instanceTableName
-   * @param linkTableName
-   * @param instanceId
-   * @throws SQLException
-   * @throws PersistenceException
-   */
-  private void load(String instanceTableName, String linkTableName, long instanceId) throws SQLException, PersistenceException
-  {
-    construct(instanceTableName, linkTableName);
-
-    m_key.assignValue(instanceId);
-
-    load();
-  }
-
-  /**
-   *
-   * @param owner
-   */
-  private void construct(Series owner)
-  {
-    construct(owner.getInstanceTableName(), owner.getLinkTableName());
-  }
-
-  /**
-   *
-   * @param instanceTableName
-   * @param linkTableName
-   */
-  private void construct(String instanceTableName, String linkTableName)
-  {
-    m_linkTableName = linkTableName;
-
-    construct(instanceTableName, m_collected, m_commited, m_memoryUsageMB, m_cpuUsageSec, m_wallClockTimeSec, m_log, m_reportId);
-  }
 
   /**
    *
@@ -815,17 +757,17 @@ public class InstanceInfo extends GeneratedKeyObject implements Comparable<Insta
    * @return
    * @throws SQLException
    */
-  private List<Long> findInstanceIds(Connection dbConn, String instanceTableName, String linkTableName, Date collected, long seriesConfigId) throws SQLException
+  private static List<Long> findInstanceIds(Connection dbConn, String instanceTableName, String linkTableName, Date collected, long seriesConfigId) throws SQLException
   {
     PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT instanceid " +
-        "FROM " + linkTableName +
-          " INNER JOIN (" +
-            "SELECT incaid AS instanceid " +
-            "FROM " + instanceTableName +
-            " WHERE incacollected = ?" +
-          ") AS instances ON " + linkTableName + ".incainstance_id = instances.instanceid " +
-        "WHERE " + linkTableName + ".incaseriesconfig_id = ?"
+      "SELECT instanceid " +
+      "FROM " + linkTableName +
+        " INNER JOIN (" +
+          "SELECT incaid AS instanceid " +
+          "FROM " + instanceTableName +
+          " WHERE incacollected = ?" +
+        ") AS instances ON " + linkTableName + ".incainstance_id = instances.instanceid " +
+      "WHERE " + linkTableName + ".incaseriesconfig_id = ?"
     );
     ResultSet rows = null;
 

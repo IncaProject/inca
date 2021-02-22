@@ -50,7 +50,7 @@ class SequenceKeyInsertStatement extends BatchUpdateStatement {
 
     m_updateStmt = dbConn.prepareStatement(stmtBuilder.toString());
     m_keyIndex = numColumns + 1;
-    m_nextSeqValQuery = DatabaseTools.getNextValuePhrase("hibernate_sequence");
+    m_nextSeqValQuery = DatabaseTools.getNextValuePhrase(table + "_" + key + "_seq");
   }
 
 
@@ -62,6 +62,7 @@ class SequenceKeyInsertStatement extends BatchUpdateStatement {
    * @return
    * @throws SQLException
    */
+  @Override
   public long update() throws SQLException
   {
     long newId = getNextSequenceValue();

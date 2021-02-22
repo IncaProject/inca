@@ -4,6 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -115,9 +116,10 @@ abstract class Column<T> {
    *
    * @param value the <code>ResultSet</code> object that contains the row
    * @param index the offset in the row that indicates the column whose value will be assigned to this object
+   * @throws IOException
    * @throws SQLException
    */
-  public void assignValue(ResultSet value, int index) throws SQLException
+  public void assignValue(ResultSet value, int index) throws IOException, SQLException
   {
     m_value.setValue(value, index);
 
@@ -177,10 +179,11 @@ abstract class Column<T> {
    *
    * @param statement the <code>PreparedStatement</code> object for which a parameter will be set
    * @param index the offset that indicates the parameter to set
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
-  public void setParameter(PreparedStatement statement, int index) throws SQLException, PersistenceException
+  public void setParameter(PreparedStatement statement, int index) throws IOException, SQLException, PersistenceException
   {
     if (!isNull())
       m_value.setParamValue(statement, index);

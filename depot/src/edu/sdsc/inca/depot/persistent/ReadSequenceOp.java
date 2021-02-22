@@ -15,7 +15,10 @@ import java.sql.Statement;
  * @author Paul Hoover
  *
  */
-class ReadSequenceOp implements DatabaseOperation {
+class ReadSequenceOp implements RowOperation {
+
+  // data fields
+
 
   private final String m_sequenceName;
   private final Column<Long> m_column;
@@ -42,10 +45,11 @@ class ReadSequenceOp implements DatabaseOperation {
   /**
    *
    * @param dbConn
-   * @return
    * @throws SQLException
+   * @throws PersistenceException
    */
-  public boolean execute(Connection dbConn) throws SQLException
+  @Override
+  public void execute(Connection dbConn) throws SQLException, PersistenceException
   {
     String query = DatabaseTools.getNextValuePhrase(m_sequenceName);
     Statement selectStmt = dbConn.createStatement();
@@ -55,11 +59,9 @@ class ReadSequenceOp implements DatabaseOperation {
       row = selectStmt.executeQuery(query);
 
       if (!row.next())
-        return false;
+        throw new PersistenceException("Query failed: " + query);
 
       m_column.setValue(row.getLong(1));
-
-      return true;
     }
     finally {
       if (row != null)

@@ -1,204 +1,464 @@
+/*
+ * SeriesConfig.java
+ */
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 
-import edu.sdsc.inca.dataModel.util.Tags;
 import org.apache.xmlbeans.XmlObject;
+
+import edu.sdsc.inca.dataModel.util.Tags;
 
 
 /**
  * A SeriesConfig Represents the configuration of a Series as part of a Suite.
  */
-public class SeriesConfig extends PersistentObject implements Comparable {
+public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesConfig> {
 
-  /** id set iff this object is stored in the DB. */
-  private Long id;
+  // nested classes
 
-  /** Persistent fields. */
-  private Date activated;
-  private Date deactivated;
-  private String nickname;
-  private Limits limits;
-  private AcceptedOutput acceptedOutput;
-  private Schedule schedule;
-
-  /** Relations. */
-  private Set<Suite> suites;
-  private Set<String> tags;
-  private Series series;
-  private Long latestInstanceId;
-  private Long latestComparisonId;
-
-  /** Non-persistent fields. */
-  private String action;
 
   /**
-   * Default constructor.
-   */
-  public SeriesConfig() {
-    this(null, null);
-  }
-
-  /**
-   * Full constructor.
-   */
-  public SeriesConfig(Suite suite, Series series) {
-    this.setActivated(Calendar.getInstance().getTime());
-    this.setDeactivated(null);
-    this.setNickname("");
-    this.setLimits(null);
-    this.setAcceptedOutput(null);
-    this.setSchedule(null);
-    this.setSuites(new HashSet<Suite>());
-    this.setTags(new HashSet<String>());
-    this.addSuite(suite);
-    this.setSeries(series);
-    this.setLatestInstanceId(new Long(-1));
-    this.setLatestComparisonId(new Long(-1));
-    this.setAction("add");
-  }
-
-  /**
-   * Overrides default comparison to order SeriesConfigs by their activated
-   * timestamp
    *
-   * @param o  The SeriesConfig to compare this SeriesConfig to
-   * @return -1 if o is younger, 0 if equal, and 1 if older
    */
-  public int compareTo( Object o ) {
-    SeriesConfig that = (SeriesConfig)o;
-    return this.getActivated().compareTo(that.getActivated() );
-  }
+  private class AddSuiteOp implements RowOperation {
 
-  /**
-   * Copies information from an Inca schema XmlBean SeriesConfig object so that
-   * this object contains equivalent information.
-   *
-   * @param o the XmlBean SeriesConfig object to copy
-   * @return this, for convenience
-   */
-  public PersistentObject fromBean(XmlObject o) {
-    return this.fromBean((edu.sdsc.inca.dataModel.util.SeriesConfig)o);
-  }
+    // data fields
 
-  /**
-   * Copies information from an Inca schema XmlBean SeriesConfig object so that
-   * this object contains equivalent information.
-   *
-   * @param sc the XmlBean SeriesConfig object to copy
-   * @return this, for convenience
-   */
-  public SeriesConfig fromBean(edu.sdsc.inca.dataModel.util.SeriesConfig sc) {
-    if(sc.getSeries().getLimits() != null) {
-      this.setLimits(new Limits().fromBean(sc.getSeries().getLimits()));
+
+    private final Suite m_element;
+
+
+    // constructors
+
+
+    protected AddSuiteOp(Suite element)
+    {
+      m_element = element;
     }
-    if(sc.getAcceptedOutput() != null) {
-      this.setAcceptedOutput
-        (new AcceptedOutput().fromBean(sc.getAcceptedOutput()));
+
+
+    // public methods
+
+
+    @Override
+    public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
+    {
+      assert !m_element.isNew();
+
+      Column<Long> suiteId = new LongColumn("incasuite_id", false, m_element.getId());
+      Column<Long> seriesConfigId = new LongColumn("incaseriesconfig_id", false, getId());
+      List<Column<?>> cols = new ArrayList<Column<?>>();
+
+      cols.add(suiteId);
+      cols.add(seriesConfigId);
+
+      (new InsertOp("INCASUITESSERIESCONFIGS", cols)).execute(dbConn);
     }
-    this.setNickname(sc.getNickname());
-    this.setSchedule(new Schedule().fromBean(sc.getSchedule()));
-    this.setSeries(new Series().fromBean(sc.getSeries()));
-    if(sc.isSetResourceHostname()) {
-      this.getSeries().setResource(sc.getResourceHostname());
-    } else if(sc.isSetResourceSetName()) {
-      this.getSeries().setResource(sc.getResourceSetName());
-    } else if(sc.isSetResourceXpath()) {
-      this.getSeries().setResource(sc.getResourceXpath());
+  }
+
+  /**
+   *
+   */
+  private class RemoveSuiteOp implements RowOperation {
+
+    // data fields
+
+
+    private final Suite m_element;
+
+
+    // constructors
+
+
+    protected RemoveSuiteOp(Suite element)
+    {
+      m_element = element;
     }
-    if(sc.isSetTargetHostname()) {
-      this.getSeries().setTargetHostname(sc.getTargetHostname());
+
+
+    // public methods
+
+
+    @Override
+    public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
+    {
+      assert !m_element.isNew();
+
+      Column<Long> suiteId = new LongColumn("incasuite_id", false, m_element.getId());
+      Column<Long> seriesConfigId = new LongColumn("incaseriesconfig_id", false, getId());
+      CompositeKey key = new CompositeKey(suiteId, seriesConfigId);
+
+      (new DeleteOp("INCASUITESSERIESCONFIGS", key)).execute(dbConn);
     }
-    if (sc.getTags() != null) {
-      for (String tag : sc.getTags().getTagArray())
-        this.getTags().add(tag);
+  }
+
+  /**
+   *
+   */
+  private class SuiteSet extends MonitoredSet<Suite> {
+
+    // constructors
+
+
+    protected SuiteSet(Set<Suite> suites)
+    {
+      super(suites);
     }
-    this.setAction(sc.getAction());
-    return this;
-  }
 
-  /**
-   * Retrieve the id -- null if not yet connected to database.
-   *
-   * @return The Long representation of the DB ID
-   */
-  public Long getId() {
-    return this.id;
-  }
 
-  /**
-   * Set the id.  Hibernate use only.
-   *
-   * @param id The DB ID.
-   */
-  protected void setId(Long id) {
-    this.id = id;
-  }
+    // protected methods
 
-  /**
-   * Returns the version number of the Suite under which this SeriesConfig was
-   * most recently activated (i.e., its Series was running); -1 if none.
-   *
-   * @return the date that the SeriesConfig was activated
-   */
-  public Date getActivated() {
-    return this.activated;
-  }
 
-  /**
-   * Sets the version number of the Suite under which this SeriesConfig was
-   * most recently activated (i.e., its Series was running); -1 if none.
-   *
-   * @param datetime date that the SeriesConfig was activated
-   */
-  public void setActivated(Date datetime) {
-    this.activated = datetime;
-  }
-
-  /**
-   * Returns the version number of the Suite under which this SeriesConfig was
-   * most recently deactivated (i.e., its Series was suspended); -1 if none.
-   *
-   * @return the date that the SeriesConfig was deactivated
-   */
-  public Date getDeactivated() {
-    return this.deactivated;
-  }
-
-  /**
-   * Sets the version number of the Suite under which this SeriesConfig was
-   * most recently deactivated (i.e., its Series was suspended); -1 if none.
-   *
-   * @param datetime date that the SeriesConfig was deactivated
-   */
-  public void setDeactivated(Date datetime) {
-    this.deactivated = datetime;
-  }
-
-  /**
-   * Get the user-supplied SeriesConfig nickname.
-   *
-   * @return the SeriesConfig nickname
-   */
-  public String getNickname() {
-    return this.nickname;
-  }
-
-  /**
-   * Set the user-supplied SeriesConfig nickname.
-   *
-   * @param nickname the SeriesConfig nickname
-   */
-  public void setNickname(String nickname) {
-    if(nickname == null || nickname.equals("")) {
-      nickname = DB_EMPTY_STRING;
+    @Override
+    protected void addSetAddOp(Suite element)
+    {
+      m_opQueue.add(new AddSuiteOp(element));
     }
-    this.nickname = truncate(nickname, MAX_DB_STRING_LENGTH, "nickname");
+
+    @Override
+    protected void addSetRemoveOp(Suite element)
+    {
+      m_opQueue.add(new RemoveSuiteOp(element));
+    }
+
+    @Override
+    protected void addSetClearOp(List<Suite> elements)
+    {
+      for (Suite element : elements)
+        addSetRemoveOp(element);
+    }
+  }
+
+  /**
+   *
+   */
+   private class AddTagOp implements RowOperation {
+
+     // data fields
+
+
+     private final String m_element;
+
+
+     // constructors
+
+
+     protected AddTagOp(String element)
+     {
+       m_element = element;
+     }
+
+
+     // public methods
+
+
+     @Override
+     public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
+     {
+       Column<Long> configId = new LongColumn("incaseriesconfig_id", false, getId());
+       Column<String> tag = new StringColumn("tag", false, MAX_DB_STRING_LENGTH, m_element);
+       List<Column<?>> cols = new ArrayList<Column<?>>();
+
+       cols.add(configId);
+       cols.add(tag);
+
+       (new InsertOp("INCASERIESCONFIGTAGS", cols)).execute(dbConn);
+     }
+   }
+
+   /**
+    *
+    */
+   private class RemoveTagOp implements RowOperation {
+
+     // data fields
+
+
+     private final String m_element;
+
+
+     // constructors
+
+
+     protected RemoveTagOp(String element)
+     {
+       m_element = element;
+     }
+
+
+     // public methods
+
+
+     @Override
+     public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
+     {
+       Column<Long> configId = new LongColumn("incaseriesconfig_id", false, getId());
+       Column<String> tag = new StringColumn("tag", false, MAX_DB_STRING_LENGTH, m_element);
+       CompositeKey tagKey = new CompositeKey(configId, tag);
+
+       (new DeleteOp("INCASERIESCONFIGTAGS", tagKey)).execute(dbConn);
+     }
+   }
+
+  /**
+   *
+   */
+  private class TagSet extends MonitoredSet<String> {
+
+    // constructors
+
+
+    protected TagSet(Set<String> tags)
+    {
+      super(tags);
+    }
+
+
+    // protected methods
+
+
+    @Override
+    protected void addSetAddOp(String element)
+    {
+      m_opQueue.add(new AddTagOp(element));
+    }
+
+    @Override
+    protected void addSetRemoveOp(String element)
+    {
+      m_opQueue.add(new RemoveTagOp(element));
+    }
+
+    @Override
+    protected void addSetClearOp(List<String> elements)
+    {
+      for (String element : elements)
+        addSetRemoveOp(element);
+    }
+  }
+
+
+  // data fields
+
+
+  private static final String TABLE_NAME = "INCASERIESCONFIG";
+  private static final String KEY_NAME = "incaid";
+  private final Column<Date> m_activated = new DateColumn("incaactivated", true);
+  private final Column<Date> m_deactivated = new DateColumn("incadeactivated", true);
+  private final Column<String> m_nickname = new StringColumn("incanickname", true, MAX_DB_STRING_LENGTH);
+  private final Column<Float> m_wallClockTime = new FloatColumn("incawallClockTime", true);
+  private final Column<Float> m_cpuTime = new FloatColumn("incacpuTime", true);
+  private final Column<Float> m_memory = new FloatColumn("incamemory", true);
+  private final Column<String> m_comparitor = new StringColumn("incacomparitor", true, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_comparison = new StringColumn("incacomparison", true, MAX_DB_LONG_STRING_LENGTH);
+  private final Column<String> m_notifier = new StringColumn("incanotifier", true, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_target = new StringColumn("incatarget", true, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_type = new StringColumn("incatype", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_minute = new StringColumn("incaminute", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_hour = new StringColumn("incahour", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_month = new StringColumn("incamonth", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_mday = new StringColumn("incamday", false, MAX_DB_STRING_LENGTH);
+  private final Column<String> m_wday = new StringColumn("incawday", false, MAX_DB_STRING_LENGTH);
+  private final Column<Integer> m_numOccurs = new IntegerColumn("incanumOccurs", true);
+  private final Column<Boolean> m_suspended = new BooleanColumn("incasuspended", true);
+  private final Column<Long> m_seriesId = new LongColumn("incaseries_id", true);
+  private final Column<Long> m_latestInstanceId = new LongColumn("incalatestInstanceId", false);
+  private final Column<Long> m_latestComparisonId = new LongColumn("incalatestComparisonId", false);
+  private final Deque<RowOperation> m_opQueue = new LinkedList<RowOperation>();
+  private String m_action;
+  private Series m_series;
+  //private Limits m_limits;
+  //private AcceptedOutput m_acceptedOutput;
+  //private Schedule m_schedule;
+  private SuiteSet m_suites;
+  private TagSet m_tags;
+
+
+  // constructors
+
+
+  /**
+   *
+   */
+  public SeriesConfig()
+  {
+    super(TABLE_NAME, KEY_NAME);
+
+    construct(
+      m_activated, m_deactivated, m_nickname, m_wallClockTime, m_cpuTime, m_memory, m_comparitor,
+      m_comparison, m_notifier, m_target, m_type, m_minute, m_hour, m_month, m_mday, m_wday,
+      m_numOccurs, m_suspended, m_seriesId, m_latestInstanceId, m_latestComparisonId
+    );
+
+    setActivated(Calendar.getInstance().getTime());
+    setNickname("");
+    setLatestInstanceId(-1L);
+    setLatestComparisonId(-1L);
+    setAction("add");
+  }
+
+  /**
+   *
+   * @param suite
+   * @param series
+   */
+  public SeriesConfig(Suite suite, Series series)
+  {
+    this();
+
+    setSeries(series);
+
+    m_suites = new SuiteSet(new HashSet<Suite>());
+
+    m_suites.add(suite);
+  }
+
+  /**
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public SeriesConfig(long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load();
+  }
+
+  /**
+   * @param dbConn
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  SeriesConfig(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load(dbConn);
+  }
+
+
+  // public methods
+
+
+  /**
+   *
+   * @return
+   */
+  public Date getActivated()
+  {
+    return m_activated.getValue();
+  }
+
+  /**
+   *
+   * @param activated
+   */
+  public void setActivated(Date activated)
+  {
+    m_activated.setValue(activated);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public Date getDeactivated()
+  {
+    return m_deactivated.getValue();
+  }
+
+  /**
+   *
+   * @param deactivated
+   */
+  public void setDeactivated(Date deactivated)
+  {
+    m_deactivated.setValue(deactivated);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public String getNickname()
+  {
+    return m_nickname.getValue();
+  }
+
+  /**
+   *
+   * @param nickname
+   */
+  public void setNickname(String nickname)
+  {
+    nickname = normalize(nickname, MAX_DB_STRING_LENGTH, "nickname");
+
+    m_nickname.setValue(nickname);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public Long getLatestInstanceId()
+  {
+    if (m_latestInstanceId.isNull())
+      return null;
+
+    return m_latestInstanceId.getValue();
+  }
+
+  /**
+   *
+   * @param id
+   */
+  public void setLatestInstanceId(Long id)
+  {
+    m_latestInstanceId.setValue(id);
+  }
+
+  /**
+   *
+   * @return
+   */
+  public Long getLatestComparisonId()
+  {
+    if (m_latestComparisonId.isNull())
+      return null;
+
+    return m_latestComparisonId.getValue();
+  }
+
+  /**
+   *
+   * @param id
+   */
+  public void setLatestComparisonId(Long id)
+  {
+    m_latestComparisonId.setValue(id);
   }
 
   /**
@@ -206,8 +466,10 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @return the resource limits
    */
-  public Limits getLimits() {
-    return this.limits;
+  public Limits getLimits()
+  {
+    //return m_limits;
+    return new Limits(m_memory.getValue(), m_cpuTime.getValue(), m_wallClockTime.getValue());
   }
 
   /**
@@ -215,8 +477,19 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @param l the resource limits
    */
-  public void setLimits(Limits l) {
-    this.limits = l;
+  public void setLimits(Limits l)
+  {
+    //m_limits = l;
+    if (l != null) {
+      m_memory.setValue(l.getMemory());
+      m_cpuTime.setValue(l.getCpuTime());
+      m_wallClockTime.setValue(l.getWallClockTime());
+    }
+    else {
+      m_memory.setValue(null);
+      m_cpuTime.setValue(null);
+      m_wallClockTime.setValue(null);
+    }
   }
 
   /**
@@ -224,8 +497,14 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @return the comparison and action information
    */
-  public AcceptedOutput getAcceptedOutput() {
-    return this.acceptedOutput;
+  public AcceptedOutput getAcceptedOutput()
+  {
+    //return m_acceptedOutput;
+    AcceptedOutput result = new AcceptedOutput(m_comparitor.getValue(), m_comparison.getValue());
+
+    result.setNotification(new Notification(m_notifier.getValue(), m_target.getValue()));
+
+    return result;
   }
 
   /**
@@ -233,8 +512,30 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @param ao the comparison and action information
    */
-  public void setAcceptedOutput(AcceptedOutput ao) {
-    this.acceptedOutput = ao;
+  public void setAcceptedOutput(AcceptedOutput ao)
+  {
+    //m_acceptedOutput = ao;
+    if (ao != null) {
+      m_comparitor.setValue(ao.getComparitor());
+      m_comparison.setValue(ao.getComparison());
+
+      Notification notification = ao.getNotification();
+
+      if (notification != null) {
+        m_notifier.setValue(notification.getNotifier());
+        m_target.setValue(notification.getTarget());
+      }
+      else {
+        m_notifier.setValue(null);
+        m_target.setValue(null);
+      }
+    }
+    else {
+      m_comparitor.setValue(null);
+      m_comparison.setValue(null);
+      m_notifier.setValue(null);
+      m_target.setValue(null);
+    }
   }
 
   /**
@@ -242,8 +543,14 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @return the execution schedule
    */
-  public Schedule getSchedule() {
-    return this.schedule;
+  public Schedule getSchedule()
+  {
+    //return m_schedule;
+    Schedule result = new Schedule(m_minute.getValue(), m_hour.getValue(), m_mday.getValue(), m_month.getValue(), m_wday.getValue(), m_type.getValue(), m_numOccurs.getValue());
+
+    result.setSuspended(m_suspended.getValue());
+
+    return result;
   }
 
   /**
@@ -251,8 +558,29 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @param s the execution schedule
    */
-  public void setSchedule(Schedule s) {
-    this.schedule = s;
+  public void setSchedule(Schedule s)
+  {
+    //m_schedule = s;
+    if (s != null) {
+      m_minute.setValue(s.getMinute());
+      m_hour.setValue(s.getHour());
+      m_mday.setValue(s.getMday());
+      m_month.setValue(s.getMonth());
+      m_wday.setValue(s.getWday());
+      m_type.setValue(s.getType());
+      m_numOccurs.setValue(s.getNumOccurs());
+      m_suspended.setValue(s.getSuspended());
+    }
+    else {
+      m_minute.setValue(null);
+      m_hour.setValue(null);
+      m_mday.setValue(null);
+      m_month.setValue(null);
+      m_wday.setValue(null);
+      m_type.setValue(null);
+      m_numOccurs.setValue(null);
+      m_suspended.setValue(null);
+    }
   }
 
   /**
@@ -261,11 +589,12 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    * @param i the offset of the desired Suite
    * @return the associated Suite
    */
-  public Suite getSuite(int i) {
-    if (i >= suites.size())
+  public Suite getSuite(int i)
+  {
+    if (i >= m_suites.size())
       return null;
 
-    Iterator<Suite> it = suites.iterator();
+    Iterator<Suite> it = m_suites.iterator();
 
     while (i > 0) {
       it.next();
@@ -280,28 +609,52 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    * Returns the set of Suites associated with this SeriesConfig
    *
    * @return the set of associated Suites
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public Set<Suite> getSuites() {
-    return this.suites;
-  }
+  public Set<Suite> getSuites() throws IOException, SQLException, PersistenceException
+  {
+    if (m_suites == null) {
+      Set<Suite> suites = new HashSet<Suite>();
 
-  /**
-   * Sets the set of Suites associated with this SeriesConfig
-   *
-   * @param s the associated Suite
-   */
-  public void setSuites(Set<Suite> s) {
-    this.suites = s;
-  }
+      if (!isNew()) {
+        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+        PreparedStatement selectStmt = null;
+        ResultSet rows = null;
 
-  /**
-   * Adds a Suite to the set of Suites associated with this SeriesConfig.
-   * Used by Suite.addSeriesConfig
-   *
-   * @param s the Suite to be added
-   */
-  public void addSuite(Suite s) {
-    this.suites.add(s);
+        try {
+          selectStmt = dbConn.prepareStatement(
+            "SELECT incasuite_id " +
+            "FROM INCASUITESSERIESCONFIGS " +
+            "WHERE incaseriesconfig_id = ?"
+          );
+
+          m_key.setParameter(selectStmt, 1);
+
+          rows = selectStmt.executeQuery();
+
+          while (rows.next()) {
+            long suiteId = rows.getLong(1);
+
+            suites.add(new Suite(suiteId));
+          }
+        }
+        finally {
+          if (rows != null)
+            rows.close();
+
+          if (selectStmt != null)
+            selectStmt.close();
+
+          dbConn.close();
+        }
+      }
+
+      m_suites = new SuiteSet(suites);
+    }
+
+    return m_suites;
   }
 
   /**
@@ -310,11 +663,12 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    * @param i the offset of the desired tag
    * @return the associated tag
    */
-  public String getTag(int i) {
-    if (i >= tags.size())
+  public String getTag(int i)
+  {
+    if (i >= m_tags.size())
       return null;
 
-    Iterator<String> it = tags.iterator();
+    Iterator<String> it = m_tags.iterator();
 
     while (i > 0) {
       it.next();
@@ -329,18 +683,65 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    * Returns the set of tags associated with this SeriesConfig
    *
    * @return the set of associated tags
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public Set<String> getTags() {
-    return this.tags;
+  public Set<String> getTags() throws IOException, SQLException, PersistenceException
+  {
+    if (m_tags == null) {
+      Set<String> tags = new HashSet<String>();
+
+      if (!isNew()) {
+        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+        PreparedStatement selectStmt = null;
+        ResultSet rows = null;
+
+        try {
+          selectStmt = dbConn.prepareStatement(
+            "SELECT tag " +
+            "FROM INCASERIESCONFIGTAGS " +
+            "WHERE incaseriesconfig_id = ?"
+          );
+
+          m_key.setParameter(selectStmt, 1);
+
+          rows = selectStmt.executeQuery();
+
+          while (rows.next())
+            tags.add(rows.getString(1));
+        }
+        finally {
+          if (rows != null)
+            rows.close();
+
+          if (selectStmt != null)
+            selectStmt.close();
+
+          dbConn.close();
+        }
+      }
+
+      m_tags = new TagSet(tags);
+    }
+
+    return m_tags;
   }
 
   /**
    * Sets the set of tags associated with this SeriesConfig
    *
    * @param t the associated tags
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public void setTags(Set<String> t) {
-    this.tags = t;
+  public void setTags(Set<String> t) throws IOException, SQLException, PersistenceException
+  {
+    getTags().clear();
+
+    if (t != null)
+      getTags().addAll(t);
   }
 
   /**
@@ -348,8 +749,9 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @return the associated Series
    */
-  public Series getSeries() {
-    return this.series;
+  public Series getSeries()
+  {
+    return m_series;
   }
 
   /**
@@ -357,48 +759,9 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @param s the associated Series
    */
-  public void setSeries(Series s) {
-    this.series = s;
-  }
-
-  /**
-   * Returns the DB id of the latest InstanceInfo associated with this
-   * SeriesConfig; -1 if none.
-   *
-   * @return the latest instance DB id
-   */
-  public Long getLatestInstanceId() {
-    return this.latestInstanceId;
-  }
-
-  /**
-   * Sets the DB id of the latest InstanceInfo associated with this
-   * SeriesConfig; -1 if none.
-   *
-   * @param id the latest instance DB id
-   */
-  public void setLatestInstanceId(Long id) {
-    this.latestInstanceId = id;
-  }
-
-  /**
-   * Returns the DB id of the latest ComprisonResult associated with this
-   * SeriesConfig; -1 if none.
-   *
-   * @return the latest comparison DB id
-   */
-  public Long getLatestComparisonId() {
-    return this.latestComparisonId;
-  }
-
-  /**
-   * Sets the DB id of the latest ComparisonResult associated with this
-   * SeriesConfig; -1 if none.
-   *
-   * @param id the latest comparison DB id
-   */
-  public void setLatestComparisonId(Long id) {
-    this.latestComparisonId = id;
+  public void setSeries(Series s)
+  {
+    m_series = s;
   }
 
   /**
@@ -407,8 +770,9 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @return the associated editing action
    */
-  public String getAction() {
-    return this.action;
+  public String getAction()
+  {
+    return m_action;
   }
 
   /**
@@ -417,11 +781,70 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @param action the associated editing action
    */
-  public void setAction(String action) {
-    if(action == null) {
+  public void setAction(String action)
+  {
+    if (action == null)
       action = "";
+
+    m_action = action;
+  }
+
+  /**
+   * Copies information from an Inca schema XmlBean SeriesConfig object so that
+   * this object contains equivalent information.
+   *
+   * @param o the XmlBean SeriesConfig object to copy
+   * @return this, for convenience
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  @Override
+  public XmlBeanObject fromBean(XmlObject o) throws IOException, SQLException, PersistenceException
+  {
+    return fromBean((edu.sdsc.inca.dataModel.util.SeriesConfig)o);
+  }
+
+  /**
+   * Copies information from an Inca schema XmlBean SeriesConfig object so that
+   * this object contains equivalent information.
+   *
+   * @param sc the XmlBean SeriesConfig object to copy
+   * @return this, for convenience
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public SeriesConfig fromBean(edu.sdsc.inca.dataModel.util.SeriesConfig sc) throws IOException, SQLException, PersistenceException
+  {
+    if (sc.getSeries().getLimits() != null)
+      setLimits(new Limits().fromBean(sc.getSeries().getLimits()));
+
+    if (sc.getAcceptedOutput() != null)
+      setAcceptedOutput(new AcceptedOutput().fromBean(sc.getAcceptedOutput()));
+
+    setNickname(sc.getNickname());
+    setSchedule(new Schedule().fromBean(sc.getSchedule()));
+    setSeries(new Series().fromBean(sc.getSeries()));
+
+    if (sc.isSetResourceHostname())
+      getSeries().setResource(sc.getResourceHostname());
+    else if (sc.isSetResourceSetName())
+      getSeries().setResource(sc.getResourceSetName());
+    else if (sc.isSetResourceXpath())
+      getSeries().setResource(sc.getResourceXpath());
+
+    if (sc.isSetTargetHostname())
+      getSeries().setTargetHostname(sc.getTargetHostname());
+
+    if (sc.getTags() != null) {
+      for (String tag : sc.getTags().getTagArray())
+        getTags().add(tag);
     }
-    this.action = action;
+
+    setAction(sc.getAction());
+
+    return this;
   }
 
   /**
@@ -429,30 +852,84 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    * information equivalent to this object.
    *
    * @return an XmlBean SeriesConfig object that contains equivalent information
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public XmlObject toBean() {
-    edu.sdsc.inca.dataModel.util.SeriesConfig result =
-      edu.sdsc.inca.dataModel.util.SeriesConfig.Factory.newInstance();
-    if(this.getAcceptedOutput() != null) {
-      result.setAcceptedOutput((edu.sdsc.inca.dataModel.util.AcceptedOutput)this.getAcceptedOutput().toBean());
-    }
-    result.setNickname(this.getNickname());
-    result.setSchedule
-      ((edu.sdsc.inca.dataModel.util.Schedule)this.getSchedule().toBean());
-    result.setSeries
-      ((edu.sdsc.inca.dataModel.util.Series)this.getSeries().toBean());
-    if(this.getLimits() != null) {
-      result.getSeries().setLimits
-        ((edu.sdsc.inca.dataModel.util.Limits)this.getLimits().toBean());
-    }
-    if (!this.getTags().isEmpty()) {
+  @Override
+  public XmlObject toBean() throws IOException, SQLException, PersistenceException
+  {
+    edu.sdsc.inca.dataModel.util.SeriesConfig result = edu.sdsc.inca.dataModel.util.SeriesConfig.Factory.newInstance();
+
+    if (getAcceptedOutput() != null)
+      result.setAcceptedOutput((edu.sdsc.inca.dataModel.util.AcceptedOutput) getAcceptedOutput().toBean());
+
+    result.setNickname(getNickname());
+    result.setSchedule((edu.sdsc.inca.dataModel.util.Schedule) getSchedule().toBean());
+    result.setSeries((edu.sdsc.inca.dataModel.util.Series) getSeries().toBean());
+
+    if (getLimits() != null)
+      result.getSeries().setLimits((edu.sdsc.inca.dataModel.util.Limits) getLimits().toBean());
+
+    if (!getTags().isEmpty()) {
       Tags newTags = result.addNewTags();
-      newTags.setTagArray(this.getTags().toArray(new String[this.getTags().size()]));
+
+      newTags.setTagArray(getTags().toArray(new String[getTags().size()]));
     }
-    result.setResourceHostname(this.getSeries().getResource());
-    result.setTargetHostname(this.getSeries().getTargetHostname());
-    result.setAction(this.getAction());
+
+    result.setResourceHostname(getSeries().getResource());
+    result.setTargetHostname(getSeries().getTargetHostname());
+    result.setAction(getAction());
+
     return result;
+  }
+
+  /**
+   * @param other
+   * @return
+   */
+  @Override
+  public boolean equals(Object other)
+  {
+    if (other == null)
+      return false;
+
+    if (this == other)
+      return true;
+
+    if (other instanceof SeriesConfig == false)
+      return false;
+
+    SeriesConfig otherConfig = (SeriesConfig) other;
+
+    return toString().equals(otherConfig.toString());
+  }
+
+  /**
+   *
+   * @return
+   */
+  @Override
+  public int hashCode()
+  {
+    return 29 * toString().hashCode();
+  }
+
+  /**
+   *
+   * @param other
+   * @return
+   */
+  @Override
+  public int compareTo(SeriesConfig other)
+  {
+    if (other == null)
+      throw new NullPointerException("other");
+
+    if (this == other)
+      return 0;
+
+    return hashCode() - other.hashCode();
   }
 
   /**
@@ -460,28 +937,20 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    *
    * @return a string representation
    */
-  public String toString() {
-    String result = this.acceptedOutput == null ? "" : this.acceptedOutput.toString();
+  @Override
+  public String toString()
+  {
+    String result;
 
-    result += "," + (this.nickname == null ? "" : this.nickname);
-    result += "," + (this.series == null ? "" : this.series.toString());
+    if (!m_comparitor.isNull() && !m_comparison.isNull())
+      result = getAcceptedOutput().toString();
+    else
+      result = "";
+
+    result += "," + (m_nickname.isNull() ? "" : m_nickname.getValue());
+    result += "," + (m_series == null ? "" : m_series.toString());
 
     return result;
-  }
-
-  /**
-   * Compares another object to this SeriesConfig for logical equality.
-   *
-   * @param o the object to compare
-   * @return true iff the comparison object represents the same SeriesConfig
-   */
-  public boolean equals(Object o) {
-    if(o == this) {
-      return true;
-    } else if(!(o instanceof SeriesConfig)) {
-      return false;
-    }
-    return this.toString().equals(o.toString());
   }
 
   /**
@@ -492,14 +961,212 @@ public class SeriesConfig extends PersistentObject implements Comparable {
    * @param context the series context
    * @param args the number of phony arguments to generate
    * @return a new Series
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
    */
-  public static SeriesConfig
-    generate(String resource, String context, int args) {
+  public static SeriesConfig generate(String resource, String context, int args) throws IOException, SQLException, PersistenceException
+  {
     SeriesConfig result = new SeriesConfig();
+
     result.setNickname("sc nickname");
     result.setSchedule(new Schedule());
     result.setSeries(Series.generate(resource, context, args));
+
     return result;
   }
 
+
+  // package methods
+
+
+  /**
+   *
+   * @param dbConn
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  @Override
+  void save(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    m_series.save(dbConn);
+
+    m_seriesId.setValue(m_series.getId());
+
+    super.save(dbConn);
+
+    while (!m_opQueue.isEmpty()) {
+      RowOperation op = m_opQueue.remove();
+
+      op.execute(dbConn);
+    }
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  @Override
+  void load(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    super.load(dbConn);
+
+    m_series = new Series(m_seriesId.getValue());
+    m_suites = null;
+    m_tags = null;
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  @Override
+  boolean delete(Connection dbConn) throws IOException, SQLException, PersistenceException
+  {
+    deleteDependencies(dbConn, m_key.getValue());
+
+    m_opQueue.clear();
+
+    m_series = null;
+    m_suites = null;
+    m_tags = null;
+
+    return super.delete(dbConn);
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @param id
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  static boolean delete(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    deleteDependencies(dbConn, id);
+
+    Criterion key = new LongCriterion(KEY_NAME, id);
+
+    return Row.delete(dbConn, TABLE_NAME, key);
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @param key
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  static boolean delete(Connection dbConn, Criterion key) throws IOException, SQLException, PersistenceException
+  {
+    StringBuilder stmtBuilder = new StringBuilder();
+
+    stmtBuilder.append("SELECT ");
+    stmtBuilder.append(KEY_NAME);
+    stmtBuilder.append(" FROM ");
+    stmtBuilder.append(TABLE_NAME);
+    stmtBuilder.append(" WHERE ");
+    stmtBuilder.append(key.getPhrase());
+
+    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
+    ResultSet rows = null;
+
+    try {
+      key.setParameter(selectStmt, 1);
+
+      rows = selectStmt.executeQuery();
+
+      boolean result = true;
+
+      while (rows.next()) {
+        long configId = rows.getLong(1);
+
+        if (!delete(dbConn, configId))
+          result = false;
+      }
+
+      return result;
+    }
+    finally {
+      if (rows != null)
+        rows.close();
+
+      selectStmt.close();
+    }
+  }
+
+
+  // protected methods
+
+
+  /**
+   *
+   * @param s
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  protected void setSuites(Set<Suite> s) throws IOException, SQLException, PersistenceException
+  {
+    getSuites().clear();
+
+    if (s != null)
+      getSuites().addAll(s);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected Long findDuplicate(Connection dbConn)
+  {
+    return null;
+  }
+
+
+  // private methods
+
+
+  /**
+   *
+   */
+  private static void deleteDependencies(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    PreparedStatement deleteLinksStmt = dbConn.prepareStatement(
+      "DELETE FROM INCASUITESSERIESCONFIGS " +
+      "WHERE incaseriesconfig_id = ?"
+    );
+    PreparedStatement deleteTagsStmt = dbConn.prepareStatement(
+      "DELETE FROM INCASERIESCONFIGTAGS " +
+      "WHERE incaseriesconfig_id = ?"
+    );
+
+    try {
+      deleteLinksStmt.setLong(1, id);
+      deleteLinksStmt.executeUpdate();
+
+      deleteTagsStmt.setLong(1, id);
+      deleteTagsStmt.executeUpdate();
+    }
+    finally {
+      deleteLinksStmt.close();
+      deleteTagsStmt.close();
+    }
+
+    Criterion key = new LongCriterion("incaseriesConfigId", id);
+
+    ComparisonResult.delete(dbConn, key);
+  }
 }

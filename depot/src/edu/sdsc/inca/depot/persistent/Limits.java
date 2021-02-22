@@ -5,7 +5,7 @@ import org.apache.xmlbeans.XmlObject;
 /**
  * Basic Limits class; matches the idea of Limits in the xsd for inca.
  */
-public class Limits extends PersistentObject {
+public class Limits extends XmlBeanObject {
 
   private Float memory;
   private Float cpuTime;
@@ -23,9 +23,19 @@ public class Limits extends PersistentObject {
    * @param wallClockTime the limit on wall time, in seconds
    */
   public Limits(int memory, int cpuTime, int wallClockTime) {
-    this.memory = new Float(memory);
-    this.cpuTime = new Float(cpuTime);
-    this.wallClockTime = new Float(wallClockTime);
+    this(Float.valueOf(memory), Float.valueOf(cpuTime), Float.valueOf(wallClockTime));
+  }
+
+  /**
+   *
+   * @param memory
+   * @param cpuTime
+   * @param wallClockTime
+   */
+  public Limits(Float memory, Float cpuTime, Float wallClockTime) {
+    this.memory = memory;
+    this.cpuTime = cpuTime;
+    this.wallClockTime = wallClockTime;
   }
 
   /**
@@ -35,7 +45,8 @@ public class Limits extends PersistentObject {
    * @param o the XmlBean Limits object to copy
    * @return this, for convenience
    */
-  public PersistentObject fromBean(XmlObject o) {
+  @Override
+  public XmlBeanObject fromBean(XmlObject o) {
     return this.fromBean((edu.sdsc.inca.dataModel.util.Limits)o);
   }
 
@@ -47,10 +58,10 @@ public class Limits extends PersistentObject {
    * @return this, for convenience
    */
   public Limits fromBean(edu.sdsc.inca.dataModel.util.Limits l) {
-    this.setMemory(new Float(l.getMemory() == null ? "-1.0" : l.getMemory()));
-    this.setCpuTime(new Float(l.getCpuTime()==null ? "-1.0" : l.getCpuTime()));
+    this.setMemory(Float.valueOf(l.getMemory() == null ? "-1.0" : l.getMemory()));
+    this.setCpuTime(Float.valueOf(l.getCpuTime()==null ? "-1.0" : l.getCpuTime()));
     this.setWallClockTime
-      (new Float(l.getWallClockTime() == null ? "-1.0" : l.getWallClockTime()));
+      (Float.valueOf(l.getWallClockTime() == null ? "-1.0" : l.getWallClockTime()));
     return this;
   }
 
@@ -84,6 +95,7 @@ public class Limits extends PersistentObject {
    *
    * @return an XmlBean Limits object that contains equivalent information
    */
+  @Override
   public XmlObject toBean() {
     edu.sdsc.inca.dataModel.util.Limits result =
       edu.sdsc.inca.dataModel.util.Limits.Factory.newInstance();

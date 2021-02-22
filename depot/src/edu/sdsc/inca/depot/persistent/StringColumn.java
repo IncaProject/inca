@@ -59,7 +59,7 @@ class StringColumn extends Column<String> {
       // if we know that we're going to violate a constraint, don't incur
       // the overhead of establishing a connection to the database server
       if (m_memValue.length() > m_maxLength)
-        throw new PersistenceException(getName() + " exceeds maximum length of " + String.valueOf(m_maxLength));
+        throw new PersistenceException(getName() + " exceeds maximum length of " + m_maxLength);
 
       statement.setString(index, m_memValue);
     }

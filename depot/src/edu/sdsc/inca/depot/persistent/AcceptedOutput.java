@@ -9,7 +9,7 @@ import org.apache.xmlbeans.XmlObject;
  *
  * @author cmills
  */
-public class AcceptedOutput extends PersistentObject {
+public class AcceptedOutput extends XmlBeanObject {
 
   private String comparitor;
   private String comparison;
@@ -41,7 +41,8 @@ public class AcceptedOutput extends PersistentObject {
    * @param o the XmlBean AcceptedOutput object to copy
    * @return this, for convenience
    */
-  public PersistentObject fromBean(XmlObject o) {
+  @Override
+  public XmlBeanObject fromBean(XmlObject o) {
     return this.fromBean((edu.sdsc.inca.dataModel.util.AcceptedOutput)o);
   }
 
@@ -79,11 +80,8 @@ public class AcceptedOutput extends PersistentObject {
    * @param comparison the AcceptedOutput comparison string
    */
   public void setComparison(String comparison) {
-    if(comparison == null || comparison.equals("")) {
-      comparison = DB_EMPTY_STRING;
-    }
     this.comparison =
-      truncate(comparison, MAX_DB_LONG_STRING_LENGTH, "comparison");
+      normalize(comparison, Row.MAX_DB_LONG_STRING_LENGTH, "comparison");
   }
 
   /**
@@ -99,10 +97,7 @@ public class AcceptedOutput extends PersistentObject {
    * @param comparitor the AcceptedObject comparitor class name
    */
   public void setComparitor(String comparitor) {
-    if(comparitor == null || comparitor.equals("")) {
-      comparitor = DB_EMPTY_STRING;
-    }
-    this.comparitor = truncate(comparitor, MAX_DB_STRING_LENGTH, "comparitor");
+    this.comparitor = normalize(comparitor, Row.MAX_DB_STRING_LENGTH, "comparitor");
   }
 
   /**
@@ -128,6 +123,7 @@ public class AcceptedOutput extends PersistentObject {
    * @return an XmlBean AcceptedOutput object that contains equivalent
    * information
    */
+  @Override
   public XmlObject toBean() {
     edu.sdsc.inca.dataModel.util.AcceptedOutput result =
       edu.sdsc.inca.dataModel.util.AcceptedOutput.Factory.newInstance();
@@ -141,6 +137,7 @@ public class AcceptedOutput extends PersistentObject {
     return result;
   }
 
+  @Override
   public String toString() {
     return this.getComparitor() + "," + this.getComparison();
   }
@@ -148,6 +145,7 @@ public class AcceptedOutput extends PersistentObject {
   /**
    * Override of the default equals method.
    */
+  @Override
   public boolean equals(Object o) {
     return this.toString().equals(o.toString());
   }

@@ -1,137 +1,348 @@
+/*
+ * ComparisonResult.java
+ */
 package edu.sdsc.inca.depot.persistent;
 
+
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import org.apache.xmlbeans.XmlObject;
+
 
 /**
  * Represents results of a comparison between accepted values and report output.
  */
-public class ComparisonResult extends PersistentObject {
+public class ComparisonResult extends GeneratedKeyRow implements Comparable<ComparisonResult> {
 
-  /** id set iff this object is stored in the DB. */
-  private Long id;
+  // data fields
 
-  /** Persistent fields. */
-  private String result;
-  private Long reportId;
-  private Long seriesConfigId;
 
-  /**
-   * Default constructor.
-   */
-  public ComparisonResult() {
-    this.setResult("");
-    this.setReportId(new Long(-1));
-    this.setSeriesConfigId(new Long(-1));
-  }
+  private static final String TABLE_NAME = "INCACOMPARISONRESULT";
+  private static final String KEY_NAME = "incaid";
+  private final Column<String> m_result = new StringColumn("incaresult", false, MAX_DB_STRING_LENGTH);
+  private final Column<Long> m_reportId = new LongColumn("incareportId", false);
+  private final Column<Long> m_seriesConfigId = new LongColumn("incaseriesConfigId", false);
+
+
+  // constructors
+
 
   /**
-   * Copies information from an Inca schema XmlBean object so that this object
-   * contains equivalent information.
    *
-   * @param o the XmlBean object to copy
-   * @return this, for convenience
    */
-  public PersistentObject fromBean(XmlObject o) {
-    return this; // No XmlBean equivalent to ComparisonResult
+  public ComparisonResult()
+  {
+    super(TABLE_NAME, KEY_NAME);
+
+    construct(m_result, m_reportId, m_seriesConfigId);
   }
 
   /**
-   * Retrieve the id -- null if not yet connected to database.
    *
-   * @return The Long representation of the DB ID
+   * @param result
+   * @param reportId
+   * @param seriesConfigId
    */
-  public Long getId() {
-    return this.id;
+  public ComparisonResult(String result, long reportId, long seriesConfigId)
+  {
+    this();
+
+    setResult(result);
+    setReportId(reportId);
+    setSeriesConfigId(seriesConfigId);
   }
 
   /**
-   * Set the id.  Hibernate use only.
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  public ComparisonResult(long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load();
+  }
+
+  /**
+   * @param dbConn
+   * @param id
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  ComparisonResult(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    this();
+
+    m_key.assignValue(id);
+
+    load(dbConn);
+  }
+
+
+  // public methods
+
+
+  /**
    *
-   * @param id The DB ID.
+   * @return
    */
-  public void setId(Long id) {
-    this.id = id;
+  public String getResult()
+  {
+    return m_result.getValue();
   }
 
   /**
-   * Return the result of the comparison in the DB.
    *
-   * @return the result of this comparison
+   * @param result
    */
-  public String getResult() {
-    return this.result;
+  public void setResult(String result)
+  {
+    m_result.setValue(result);
   }
 
   /**
-   * Set the result of the comparison.
    *
-   * @param result the result of the comparison
+   * @return
    */
-  public void setResult(String result) {
-    if(result == null || result.equals("")) {
-      result = DB_EMPTY_STRING;
-    }
-    this.result = truncate(result, MAX_DB_STRING_LENGTH, "comparison result");
+  public Long getReportId()
+  {
+    if (m_reportId.isNull())
+      return null;
+
+    return m_reportId.getValue();
   }
 
   /**
-   * Get the id of the Report that was used in this comparison.
    *
-   * @return the id of the report that was used in this comparison
+   * @param reportId
    */
-  public Long getReportId() {
-    return this.reportId;
+  public void setReportId(Long reportId)
+  {
+    m_reportId.setValue(reportId);
   }
 
   /**
-   * Set the id of the report that was used in this comparison.
    *
-   * @param id the id of the report that was used in this comparison
+   * @return
    */
-  public void setReportId(Long id) {
-    this.reportId = id;
+  public Long getSeriesConfigId()
+  {
+    if (m_seriesConfigId.isNull())
+      return null;
+
+    return m_seriesConfigId.getValue();
   }
 
   /**
-   * Get the id of the SeriesConfig that was used in this comparison.
    *
-   * @return the id of the SeriesConfig that was used in this comparison
+   * @param seriesConfigId
    */
-  public Long getSeriesConfigId() {
-    return this.seriesConfigId;
+  public void setSeriesConfigId(Long seriesConfigId)
+  {
+    m_seriesConfigId.setValue(seriesConfigId);
   }
 
   /**
-   * Set the id of the SeriesConfig that was used in this comparison.
-   *
-   * @param id the id of the SeriesConfig that was used in this comparison
+   * {@inheritDoc}
    */
-  public void setSeriesConfigId(Long id) {
-    this.seriesConfigId = id;
+  @Override
+  public Row fromBean(XmlObject o)
+  {
+    return this;
   }
 
   /**
-   * Returns a Inca schema XmlBean object that contains information equivalent
-   * to this object.
-   *
-   * @return an XmlBean object that contains equivalent information
+   * {@inheritDoc}
    */
-  public XmlObject toBean() {
-    return null; // No XmlBean equivalent to ComparisonResult
+  @Override
+  public XmlObject toBean()
+  {
+    return null;
   }
 
   /**
-   * Returns XML that represents the information in this object.
+   * {@inheritDoc}
    */
-  public String toXml() {
+  @Override
+  public String toXml()
+  {
     // ComparisonResult has no corresponding XML bean.  This implementation is
     // for debugging purposes.
-    return
-      "<comparison>\n" +
-      "  <result>" + this.getResult() + "</result>\n" +
-      "  <reportId>" + this.getReportId() + "</reportId>\n" +
-      "  <seriesConfigId>" + this.getSeriesConfigId() + "</seriesConfigId>\n" +
+    return "<comparison>\n" +
+      "  <result>" + getResult() + "</result>\n" +
+      "  <reportId>" + getReportId() + "</reportId>\n" +
+      "  <seriesConfigId>" + getSeriesConfigId() + "</seriesConfigId>\n" +
       "</comparison>\n";
   }
 
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public boolean equals(Object other)
+  {
+    if (other == null)
+      return false;
+
+    if (this == other)
+      return true;
+
+    if (other instanceof ComparisonResult == false)
+      return false;
+
+    ComparisonResult otherArg = (ComparisonResult) other;
+
+    return getResult().equals(otherArg.getResult()) && getReportId() == otherArg.getReportId() && getSeriesConfigId() == otherArg.getSeriesConfigId();
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int hashCode()
+  {
+    return 29 * (getResult().hashCode() + Long.valueOf(getReportId()).hashCode() + Long.valueOf(getSeriesConfigId()).hashCode());
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public int compareTo(ComparisonResult other)
+  {
+    if (other == null)
+      throw new NullPointerException("other");
+
+    if (this == other)
+      return 0;
+
+    return hashCode() - other.hashCode();
+  }
+
+
+  // package methods
+
+
+  /**
+   *
+   * @param dbConn
+   * @param id
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  static boolean delete(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  {
+    Criterion key = new LongCriterion(KEY_NAME, id);
+
+    return Row.delete(dbConn, TABLE_NAME, key);
+  }
+
+  /**
+   *
+   * @param dbConn
+   * @param key
+   * @return
+   * @throws IOException
+   * @throws SQLException
+   * @throws PersistenceException
+   */
+  static boolean delete(Connection dbConn, Criterion key) throws IOException, SQLException, PersistenceException
+  {
+    StringBuilder stmtBuilder = new StringBuilder();
+
+    stmtBuilder.append("SELECT ");
+    stmtBuilder.append(KEY_NAME);
+    stmtBuilder.append(" FROM ");
+    stmtBuilder.append(TABLE_NAME);
+    stmtBuilder.append(" WHERE ");
+    stmtBuilder.append(key.getPhrase());
+
+    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
+    ResultSet rows = null;
+
+    try {
+      key.setParameter(selectStmt, 1);
+
+      rows = selectStmt.executeQuery();
+
+      boolean result = true;
+
+      while (rows.next()) {
+        long comparisonId = rows.getLong(1);
+
+        if (!delete(dbConn, comparisonId))
+          result = false;
+      }
+
+      return result;
+    }
+    finally {
+      if (rows != null)
+        rows.close();
+
+      selectStmt.close();
+    }
+  }
+
+
+  // protected methods
+
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  protected Long findDuplicate(Connection dbConn) throws SQLException
+  {
+    return find(dbConn, getResult(), getReportId(), getSeriesConfigId());
+  }
+
+
+  // private methods
+
+
+  /*
+   *
+   */
+  private static Long find(Connection dbConn, String result, long reportId, long seriesConfigId) throws SQLException
+  {
+    PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid " +
+      "FROM INCACOMPARISONRESULT " +
+      "WHERE incaresult = ? " +
+        "AND incareportId = ? " +
+        "AND incaseriesConfigId = ?"
+    );
+    ResultSet row = null;
+
+    try {
+      selectStmt.setString(1, result);
+      selectStmt.setLong(2, reportId);
+      selectStmt.setLong(3, seriesConfigId);
+
+      row = selectStmt.executeQuery();
+
+      if (!row.next())
+        return null;
+
+      return row.getLong(1);
+    }
+    finally {
+      if (row != null)
+        row.close();
+
+      selectStmt.close();
+    }
+  }
 }

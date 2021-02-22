@@ -2,9 +2,13 @@ package edu.sdsc.inca.depot.util;
 
 import edu.sdsc.inca.depot.persistent.AcceptedOutput;
 import edu.sdsc.inca.depot.persistent.Arg;
+import edu.sdsc.inca.depot.persistent.PersistenceException;
 import edu.sdsc.inca.depot.persistent.Report;
 import edu.sdsc.inca.depot.persistent.Series;
 import junit.framework.TestCase;
+
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Iterator;
 import org.apache.log4j.Logger;
 
@@ -62,22 +66,26 @@ public class ExprComparitorTest extends TestCase {
     "    </package>";
 
   public String tryIt(String expr, Report r, boolean expectSuccess) {
-    AcceptedOutput ao = new AcceptedOutput("ExprComparitor", expr);
-    ExprComparitor comp = new ExprComparitor();
-    String result = comp.compare(ao, r);
-    if(expectSuccess && !result.startsWith(ExprComparitor.SUCCESS_RESULT)) {
-      return result;
-    } else if(!expectSuccess &&
-              !result.startsWith(ExprComparitor.FAILURE_RESULT)) {
-      return "Succeeded on false test " + expr;
-    } else {
-      return null;
+    try {
+      AcceptedOutput ao = new AcceptedOutput("ExprComparitor", expr);
+      ExprComparitor comp = new ExprComparitor();
+      String result = comp.compare(ao, r);
+      if(expectSuccess && !result.startsWith(ExprComparitor.SUCCESS_RESULT)) {
+        return result;
+      } else if(!expectSuccess &&
+          !result.startsWith(ExprComparitor.FAILURE_RESULT)) {
+        return "Succeeded on false test " + expr;
+      } else {
+        return null;
+      }
+    } catch (IOException | SQLException | PersistenceException err) {
+      return err.getMessage();
     }
   }
 
   public String tryIt(String expr, String body, boolean expectSuccess) {
     return tryIt
-      (expr, new Report(new Boolean(true), null, body, null), expectSuccess);
+      (expr, new Report(Boolean.valueOf(true), null, body, null), expectSuccess);
   }
 
   public void testSimpleConstants() {
@@ -240,29 +248,29 @@ public class ExprComparitorTest extends TestCase {
   }
 
   public void testPredefinedIds() {
-    Report r = new Report(new Boolean(false), "Host lskjdf.com not found",
+    Report r = new Report(Boolean.valueOf(false), "Host lskjdf.com not found",
                           "", null);
     String result = tryIt("errorMessage =~ /lskjdf/", r, true);
     if(result != null) {
       fail("errorMessage id failed");
     }
-    r = new Report(new Boolean(true), null, GCC_BODY, null);
+    r = new Report(Boolean.valueOf(true), null, GCC_BODY, null);
     result = tryIt("body =~ /<package>/", r, true);
     if(result != null) {
       fail("body id failed");
     }
   }
 
-  public void testArgs() {
+  public void testArgs() throws IOException, SQLException, PersistenceException {
     Series s = Series.generate("localhost", "no context", 3);
     String body = s.generateReport();
     body = body.substring(body.indexOf("<body>") + 6);
     body = body.substring(0, body.indexOf("</body>"));
-    Report r = new Report(new Boolean(true), null, body, s);
+    Report r = new Report(Boolean.valueOf(true), null, body, s);
     String expr = "1==1";
-    Iterator it = s.getArgs().iterator();
+    Iterator<Arg> it = s.getArgSignature().getArgs().iterator();
     while(it.hasNext()) {
-      Arg a = (Arg)it.next();
+      Arg a = it.next();
       expr += "&&" + a.getName() + "==" + a.getValue();
     }
     String result = tryIt(expr, r, true);
@@ -272,9 +280,9 @@ public class ExprComparitorTest extends TestCase {
     // See if a setting in the body overrides args
     int value = 54;
     expr = "1==1";
-    it = s.getArgs().iterator();
+    it = s.getArgSignature().getArgs().iterator();
     while(it.hasNext()) {
-      Arg a = (Arg)it.next();
+      Arg a = it.next();
       body += "<override><ID>" + a.getName() + "</ID><value>" + value + "</value></override>";
       expr += "&&" + a.getName() + "==" + value;
       value *= 7;

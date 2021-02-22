@@ -24,9 +24,9 @@ import org.apache.commons.codec.binary.Base64OutputStream;
 import org.apache.log4j.Logger;
 
 import edu.sdsc.inca.Depot;
-import edu.sdsc.inca.depot.persistent.ConnectionSource;
+import edu.sdsc.inca.depot.persistent.ConnectionManager;
 import edu.sdsc.inca.depot.persistent.DatabaseTools;
-import edu.sdsc.inca.depot.persistent.PersistentObject;
+import edu.sdsc.inca.depot.persistent.Row;
 import edu.sdsc.inca.protocol.MessageHandler;
 import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.protocol.ProtocolException;
@@ -152,6 +152,7 @@ public class SyncResponse extends MessageHandler {
    * @param dn the DN of the client, null if no authentication
    * @throws Exception
    */
+  @Override
   public void execute(ProtocolReader reader, OutputStream output, String dn) throws Exception
   {
     if (Depot.getRunningDepot().syncInProgress())
@@ -277,7 +278,7 @@ public class SyncResponse extends MessageHandler {
       if (value.length() > 0)
         output.print(value);
       else
-        output.print(PersistentObject.DB_EMPTY_STRING);
+        output.print(Row.DB_EMPTY_STRING);
     }
   }
 
@@ -313,7 +314,7 @@ public class SyncResponse extends MessageHandler {
       if (value.length() > 0)
         output.print(value.replaceAll("]]>", "]]]]><![CDATA[>"));
       else
-        output.print(PersistentObject.DB_EMPTY_STRING);
+        output.print(Row.DB_EMPTY_STRING);
     }
 
     output.print("]]>");
@@ -1385,7 +1386,7 @@ public class SyncResponse extends MessageHandler {
   private void writeResponse(OutputStream outStream) throws IOException, SQLException
   {
     PrintStream output = new PrintStream(new BufferedOutputStream(new GZIPOutputStream(new Base64OutputStream(new ClonedOutputStream(outStream), true, 0, CRLF))));
-    Connection dbConn = ConnectionSource.getConnection();
+    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
 
     try {
       output.print("<syncResponse>");

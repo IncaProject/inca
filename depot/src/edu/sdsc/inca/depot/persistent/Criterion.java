@@ -4,6 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
@@ -29,8 +30,9 @@ interface Criterion {
    * @param statement the <code>PreparedStatement</code> object for which a parameter will be set
    * @param index the offset that indicates the parameter to set
    * @return the next offset to use when setting parameters
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
-  int setParameter(PreparedStatement statement, int index) throws SQLException, PersistenceException;
+  int setParameter(PreparedStatement statement, int index) throws IOException, SQLException, PersistenceException;
 }

@@ -4,6 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -18,7 +19,7 @@ import java.util.List;
  * @author Paul Hoover
  *
  */
-class AutoGenKeyInsertOp implements DatabaseOperation {
+class AutoGenKeyInsertOp implements RowOperation {
 
   // data fields
 
@@ -51,11 +52,12 @@ class AutoGenKeyInsertOp implements DatabaseOperation {
   /**
    *
    * @param dbConn
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
   @Override
-  public boolean execute(Connection dbConn) throws SQLException, PersistenceException
+  public void execute(Connection dbConn) throws IOException, SQLException, PersistenceException
   {
     StringBuilder stmtBuilder = new StringBuilder();
     Iterator<Column<?>> columns = m_columns.iterator();
@@ -89,15 +91,12 @@ class AutoGenKeyInsertOp implements DatabaseOperation {
       for (columns = m_columns.iterator() ; columns.hasNext() ; index += 1)
         columns.next().setParameter(insertStmt, index);
 
-      if (insertStmt.executeUpdate() < 1)
-        return false;
+      insertStmt.executeUpdate();
 
       newKey = insertStmt.getGeneratedKeys();
 
       if (newKey.next())
         m_key.assignValue(newKey, 1);
-
-      return true;
     }
     finally {
       if (newKey != null)

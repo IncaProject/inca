@@ -2,12 +2,17 @@ package edu.sdsc.inca.depot.commands;
 
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.StringReader;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Set;
 
-import edu.sdsc.inca.depot.commands.SuiteUpdate;
-import edu.sdsc.inca.depot.persistent.*;
+import edu.sdsc.inca.depot.persistent.PersistenceException;
+import edu.sdsc.inca.depot.persistent.PersistentTest;
+import edu.sdsc.inca.depot.persistent.Schedule;
+import edu.sdsc.inca.depot.persistent.SeriesConfig;
+import edu.sdsc.inca.depot.persistent.Suite;
 import edu.sdsc.inca.protocol.ProtocolReader;
 
 
@@ -43,7 +48,7 @@ public class SuiteUpdateTest extends PersistentTest {
       } catch(Exception e) {
         fail("protocol exception:" + e);
       }
-      assertNotNull(SuiteDAO.load(suites[i]));
+      assertNotNull(Suite.find(suites[i]));
     }
   }
 
@@ -53,16 +58,16 @@ public class SuiteUpdateTest extends PersistentTest {
     Schedule sched = new Schedule();
     sched.setType("immediate");
     sc.setSchedule(sched);
-    immediate.addSeriesConfig(sc);
+    immediate.getSeriesConfigs().add(sc);
     try {
       updateSuite(immediate);
     } catch(Exception e) {
       fail("protocol exception:" + e);
     }
-    assertNotNull(SuiteDAO.load(immediate));
+    assertNotNull(Suite.find(immediate));
   }
 
-  public void testAddSeries() {
+  public void testAddSeries() throws IOException, SQLException, PersistenceException {
     int ADD_SERIES_COUNT = 5;
     Suite testSuite = Suite.generate("addTester", 0);
     try {
@@ -74,7 +79,7 @@ public class SuiteUpdateTest extends PersistentTest {
     Suite dbSuite = null;
     try {
       updateSuite(testSuite);
-      dbSuite = SuiteDAO.load(testSuite);
+      dbSuite = Suite.find(testSuite);
     } catch(Exception e) {
       fail("protocol exception:" + e);
     }
@@ -82,7 +87,7 @@ public class SuiteUpdateTest extends PersistentTest {
     assertEquals(ADD_SERIES_COUNT, dbSuite.getSeriesConfigs().size());
   }
 
-  public void testDeactivateSeries() {
+  public void testDeactivateSeries() throws IOException, SQLException, PersistenceException {
     int ADD_SERIES_COUNT = 5;
     int DELETE_SERIES_COUNT = 2;
     Suite testSuite = Suite.generate("activeSuite", ADD_SERIES_COUNT);
@@ -95,12 +100,12 @@ public class SuiteUpdateTest extends PersistentTest {
     for(int i = 0; i < DELETE_SERIES_COUNT; i++) {
       SeriesConfig sc = testSuite.getSeriesConfig(ADD_SERIES_COUNT - i - 1);
       sc.setAction("delete");
-      deleteSuite.addSeriesConfig(sc);
+      deleteSuite.getSeriesConfigs().add(sc);
     }
     Suite dbSuite = null;
     try {
       updateSuite(deleteSuite);
-      dbSuite = SuiteDAO.load(testSuite);
+      dbSuite = Suite.find(testSuite);
     } catch(Exception e) {
       fail("protocol exception:" + e);
     }
@@ -117,7 +122,7 @@ public class SuiteUpdateTest extends PersistentTest {
     assertEquals(DELETE_SERIES_COUNT, deactivated);
   }
 
-  public void testReactivateSeries() {
+  public void testReactivateSeries() throws IOException, SQLException, PersistenceException {
     int ADD_SERIES_COUNT = 5;
     int DELETE_SERIES_COUNT = 4;
     int REACTIVATE_SERIES_COUNT = 2;
@@ -131,7 +136,7 @@ public class SuiteUpdateTest extends PersistentTest {
     for(int i = 0; i < DELETE_SERIES_COUNT; i++) {
       SeriesConfig sc = testSuite.getSeriesConfig(ADD_SERIES_COUNT - i - 1);
       sc.setAction("delete");
-      deleteSuite.addSeriesConfig(sc);
+      deleteSuite.getSeriesConfigs().add(sc);
     }
     try {
       updateSuite(deleteSuite);
@@ -142,12 +147,12 @@ public class SuiteUpdateTest extends PersistentTest {
     for(int i = 0; i < REACTIVATE_SERIES_COUNT; i++) {
       SeriesConfig sc = testSuite.getSeriesConfig(ADD_SERIES_COUNT - i - 1);
       sc.setAction("add");
-      reactivateSuite.addSeriesConfig(sc);
+      reactivateSuite.getSeriesConfigs().add(sc);
     }
     Suite dbSuite = null;
     try {
       updateSuite(reactivateSuite);
-      dbSuite = SuiteDAO.load(testSuite);
+      dbSuite = Suite.find(testSuite);
     } catch(Exception e) {
       fail("protocol exception:" + e);
     }

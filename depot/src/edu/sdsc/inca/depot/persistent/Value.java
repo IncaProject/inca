@@ -4,6 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -35,19 +36,21 @@ interface Value<T> {
    *
    * @param value the <code>ResultSet</code> object that contains the row
    * @param index the offset in the row that indicates the column whose value will be assigned to this object
+   * @throws IOException
    * @throws SQLException
    */
-  void setValue(ResultSet value, int index) throws SQLException;
+  void setValue(ResultSet value, int index) throws IOException, SQLException;
 
   /**
    * Sets the value of a parameter in a <code>PreparedStatement</code> object using the current value of the object.
    *
    * @param statement the <code>PreparedStatement</code> object for which a parameter will be set
    * @param index the offset that indicates the parameter to set
+   * @throws IOException
    * @throws SQLException
    * @throws PersistenceException
    */
-  void setParamValue(PreparedStatement statement, int index) throws SQLException, PersistenceException;
+  void setParamValue(PreparedStatement statement, int index) throws IOException, SQLException, PersistenceException;
 
   /**
    *
