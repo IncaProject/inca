@@ -4,8 +4,8 @@ batik-dom-1.6.jar
 batik-svggen-1.6.jar
 batik-util-1.6.jar
 batik-xml-1.6.jar
-bcpkix-jdk15on-161.jar
-bcprov-jdk15on-161.jar
+bcpkix-jdk15on-168.jar
+bcprov-jdk15on-168.jar
 cewolf-1.0.jar
 commons-logging-1.0.4.jar
 inca-common.jar

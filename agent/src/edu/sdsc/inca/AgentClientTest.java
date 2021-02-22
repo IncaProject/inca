@@ -5,8 +5,8 @@ import junit.framework.TestCase;
 import java.io.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.security.KeyPair;
 import java.security.KeyStoreException;
+import java.security.PrivateKey;
 import java.util.Enumeration;
 import java.util.Properties;
 import java.util.Arrays;
@@ -40,6 +40,7 @@ import edu.sdsc.inca.repository.Repository;
 
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.openssl.PEMDecryptorProvider;
@@ -47,7 +48,12 @@ import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.operator.InputDecryptorProvider;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
+import org.bouncycastle.pkcs.PKCSException;
 
 /**
  * A unit test driver for the Agent and AgentClient classes.
@@ -226,6 +232,7 @@ public class AgentClientTest extends TestCase {
    *
    * @throws Exception
    */
+  @Override
   public void setUp() throws Exception {
     StringMethods.deleteDirectory(new File("var"));
     StringMethods.deleteDirectory(new File("/tmp/inca2install2"));
@@ -246,6 +253,7 @@ public class AgentClientTest extends TestCase {
    *
    * @throws Exception
    */
+  @Override
   public void tearDown() throws Exception {
     client.close();
     AgentTest.stopAgent();
@@ -1003,6 +1011,7 @@ public class AgentClientTest extends TestCase {
     throws ConfigurationException, IOException {
 
     AgentClient result = new AgentClient() {
+      @Override
       public void readCredentials() throws ConfigurationException, IOException {
         try {
           this.cert = readCertData(certTxt);
@@ -1216,14 +1225,16 @@ public class AgentClientTest extends TestCase {
    * @return
    * @throws IOException
    * @throws KeyStoreException
+   * @throws OperatorCreationException
+   * @throws PKCSException
    */
-  private static KeyPair readKeyData(String data, final String password) throws IOException, KeyStoreException
+  private static PrivateKey readKeyData(String data, final String password) throws IOException, KeyStoreException, OperatorCreationException, PKCSException
   {
     Object pemObject = readPEMData(data);
-    PEMKeyPair pemKey;
+    PrivateKeyInfo keyInfo;
 
     if (pemObject instanceof PEMKeyPair)
-      pemKey = (PEMKeyPair)pemObject;
+      keyInfo = ((PEMKeyPair)pemObject).getPrivateKeyInfo();
     else if (pemObject instanceof PEMEncryptedKeyPair) {
       PEMEncryptedKeyPair encryptedKey = (PEMEncryptedKeyPair)pemObject;
       JcePEMDecryptorProviderBuilder decryptBuilder = new JcePEMDecryptorProviderBuilder();
@@ -1231,8 +1242,19 @@ public class AgentClientTest extends TestCase {
       decryptBuilder.setProvider("BC");
 
       PEMDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+      PEMKeyPair pemKey = encryptedKey.decryptKeyPair(decryptor);
 
-      pemKey = encryptedKey.decryptKeyPair(decryptor);
+      keyInfo = pemKey.getPrivateKeyInfo();
+    }
+    else if (pemObject instanceof PKCS8EncryptedPrivateKeyInfo) {
+      PKCS8EncryptedPrivateKeyInfo encryptedInfo = (PKCS8EncryptedPrivateKeyInfo)pemObject;
+      JceOpenSSLPKCS8DecryptorProviderBuilder decryptBuilder = new JceOpenSSLPKCS8DecryptorProviderBuilder();
+
+      decryptBuilder.setProvider("BC");
+
+      InputDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+
+      keyInfo = encryptedInfo.decryptPrivateKeyInfo(decryptor);
     }
     else
       throw new KeyStoreException(data + " does not contain a key pair");
@@ -1241,6 +1263,6 @@ public class AgentClientTest extends TestCase {
 
     keyConverter.setProvider("BC");
 
-    return keyConverter.getKeyPair(pemKey);
+    return keyConverter.getPrivateKey(keyInfo);
   }
 }

@@ -13,7 +13,6 @@ import java.io.StringReader;
 import java.security.KeyStoreException;
 import java.security.Security;
 import java.security.PrivateKey;
-import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -47,6 +46,7 @@ import edu.sdsc.inca.dataModel.util.Macros;
 import edu.sdsc.inca.dataModel.util.Cron;
 import edu.sdsc.inca.dataModel.inca.IncaDocument;
 
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -55,7 +55,12 @@ import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.operator.InputDecryptorProvider;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
+import org.bouncycastle.pkcs.PKCSException;
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
 
@@ -112,6 +117,7 @@ public class ReporterManagerControllerTest extends TestCase {
     /**
      * Allows this mock agent to be run as a thread
      */
+    @Override
     public void run() {
       try {
         if ( auth ) {
@@ -252,7 +258,7 @@ public class ReporterManagerControllerTest extends TestCase {
   static public ServerSocket createSSLSocket( int port ) throws Exception {
 
       X509Certificate cert = readCertData(AgentTest.AGENT_CERT);
-      PrivateKey key = readKeyData(AgentTest.AGENT_KEY, AgentTest.PASSWORD).getPrivate();
+      PrivateKey key = readKeyData(AgentTest.AGENT_KEY, AgentTest.PASSWORD);
     /*  Certificate cert = readCertData(AgentTest.CA_CERT); */
 
 
@@ -430,6 +436,7 @@ public class ReporterManagerControllerTest extends TestCase {
 
     if ( resource == null ) resource = this.resource;
     Agent agent = new Agent() {
+      @Override
       public void readCredentials() throws ConfigurationException, IOException {
         try {
           this.cert = readCertData(AgentTest.AGENT_CERT);
@@ -568,7 +575,8 @@ public class ReporterManagerControllerTest extends TestCase {
     *
     * @throws Exception
     */
-   public void setUp() throws Exception {
+   @Override
+  public void setUp() throws Exception {
      config = new ConfigProperties();
      config.putAllTrimmed(System.getProperties(), "inca.agent.");
      config.loadFromResource("inca.properties", "inca.agent.");
@@ -619,6 +627,7 @@ public class ReporterManagerControllerTest extends TestCase {
    *
    * @throws Exception
    */
+  @Override
   public void tearDown() throws Exception {
     if ( rmc != null && rmc.isRunning() ) rmc.shutdown();
     if ( mockAgent != null ) mockAgent.join();
@@ -1699,14 +1708,16 @@ public class ReporterManagerControllerTest extends TestCase {
    * @return
    * @throws IOException
    * @throws KeyStoreException
+   * @throws OperatorCreationException
+   * @throws PKCSException
    */
-  private static KeyPair readKeyData(String data, final String password) throws IOException, KeyStoreException
+  private static PrivateKey readKeyData(String data, final String password) throws IOException, KeyStoreException, OperatorCreationException, PKCSException
   {
     Object pemObject = readPEMData(data);
-    PEMKeyPair pemKey;
+    PrivateKeyInfo keyInfo;
 
     if (pemObject instanceof PEMKeyPair)
-      pemKey = (PEMKeyPair)pemObject;
+      keyInfo = ((PEMKeyPair)pemObject).getPrivateKeyInfo();
     else if (pemObject instanceof PEMEncryptedKeyPair) {
       PEMEncryptedKeyPair encryptedKey = (PEMEncryptedKeyPair)pemObject;
       JcePEMDecryptorProviderBuilder decryptBuilder = new JcePEMDecryptorProviderBuilder();
@@ -1714,8 +1725,19 @@ public class ReporterManagerControllerTest extends TestCase {
       decryptBuilder.setProvider("BC");
 
       PEMDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+      PEMKeyPair pemKey = encryptedKey.decryptKeyPair(decryptor);
 
-      pemKey = encryptedKey.decryptKeyPair(decryptor);
+      keyInfo = pemKey.getPrivateKeyInfo();
+    }
+    else if (pemObject instanceof PKCS8EncryptedPrivateKeyInfo) {
+      PKCS8EncryptedPrivateKeyInfo encryptedInfo = (PKCS8EncryptedPrivateKeyInfo)pemObject;
+      JceOpenSSLPKCS8DecryptorProviderBuilder decryptBuilder = new JceOpenSSLPKCS8DecryptorProviderBuilder();
+
+      decryptBuilder.setProvider("BC");
+
+      InputDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+
+      keyInfo = encryptedInfo.decryptPrivateKeyInfo(decryptor);
     }
     else
       throw new KeyStoreException(data + " does not contain a key pair");
@@ -1724,6 +1746,6 @@ public class ReporterManagerControllerTest extends TestCase {
 
     keyConverter.setProvider("BC");
 
-    return keyConverter.getKeyPair(pemKey);
+    return keyConverter.getPrivateKey(keyInfo);
   }
 }

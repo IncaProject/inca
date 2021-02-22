@@ -7,6 +7,7 @@ package edu.sdsc.inca.agent.util;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.File;
@@ -81,6 +82,7 @@ public class MyProxy {
   private static final String LIFETIME = "LIFETIME=";
   private static final String RESPONSE = "RESPONSE=";
   private static final String ERROR = "ERROR=";
+  private static final byte[] RESPONSE_PATTERN = (VERSION + "\n" + RESPONSE).getBytes();
   private static final Logger m_logger = Logger.getLogger(MyProxy.class);
   private final int m_port;
   private final String m_server;
@@ -91,6 +93,13 @@ public class MyProxy {
   // constructors
 
 
+  /**
+   *
+   * @param server
+   * @param port
+   * @param username
+   * @param passphrase
+   */
   public MyProxy(String server, int port, String username, String passphrase)
   {
     m_server = server;
@@ -103,6 +112,13 @@ public class MyProxy {
   // public methods
 
 
+  /**
+   *
+   * @param lifetime
+   * @throws IOException
+   * @throws GeneralSecurityException
+   * @throws OperatorCreationException
+   */
   public void writeCredential(int lifetime) throws IOException, GeneralSecurityException, OperatorCreationException
   {
     String fileName = getProxyFileName();
@@ -110,6 +126,14 @@ public class MyProxy {
     writeCredential(fileName, lifetime);
   }
 
+  /**
+   *
+   * @param fileName
+   * @param lifetime
+   * @throws IOException
+   * @throws GeneralSecurityException
+   * @throws OperatorCreationException
+   */
   public void writeCredential(String fileName, int lifetime) throws IOException, GeneralSecurityException, OperatorCreationException
   {
     String credential = getCredential(lifetime);
@@ -130,6 +154,14 @@ public class MyProxy {
     }
   }
 
+  /**
+   *
+   * @param lifetime
+   * @return
+   * @throws IOException
+   * @throws GeneralSecurityException
+   * @throws OperatorCreationException
+   */
   public String getCredential(int lifetime) throws IOException, GeneralSecurityException, OperatorCreationException
   {
     KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -154,35 +186,10 @@ public class MyProxy {
       socketOut.write(myProxyRequest);
       socketOut.flush();
 
-      String line = readLine(socketIn, false);
+      byte[] response = parseResponse(socketIn);
 
-      if (!line.equals(VERSION))
-        throw new ProtocolException("unexpected response: " + line);
-
-      line = readLine(socketIn, false);
-
-      if (!line.startsWith(RESPONSE) || line.length() != RESPONSE.length() + 1)
-        throw new ProtocolException("unexpected response: " + line);
-
-      char responseType = line.charAt(RESPONSE.length());
-
-      if (responseType == '1') {
-        StringBuilder message = new StringBuilder("logon failed: ");
-
-        while ((line = readLine(socketIn, true)) != null) {
-          if (line.startsWith(ERROR)) {
-            message.append(line.substring(ERROR.length()));
-            message.append('\n');
-          }
-        }
-
-        throw new GeneralSecurityException(message.toString());
-      }
-      else if (responseType != '0')
-        throw new ProtocolException("unexpected response type: " + responseType);
-
-      while ((line = readLine(socketIn, true)) != null)
-        m_logger.debug("extra response line: " + line);
+      if (response.length > 0)
+        m_logger.debug("unexpected data before response: " + new String(response));
 
       socketOut.write(certRequest);
       socketOut.flush();
@@ -192,8 +199,10 @@ public class MyProxy {
       if (numCerts < 0)
         throw new EOFException();
 
+      response = parseResponse(socketIn);
+
       CertificateFactory certFactory = CertificateFactory.getInstance("X.509", BouncyCastleProvider.PROVIDER_NAME);
-      Collection<? extends Certificate> generated = certFactory.generateCertificates(socketIn);
+      Collection<? extends Certificate> generated = certFactory.generateCertificates(new ByteArrayInputStream(response));
       StringWriter result = new StringWriter();
       JcaPEMWriter writer = new JcaPEMWriter(result);
 
@@ -220,6 +229,11 @@ public class MyProxy {
     }
   }
 
+  /**
+   *
+   * @return
+   * @throws IOException
+   */
   public static boolean checkCredential() throws IOException
   {
     String fileName = getProxyFileName();
@@ -244,6 +258,9 @@ public class MyProxy {
   // private methods
 
 
+  /**
+   *
+   */
   private SSLSocket connect() throws IOException, GeneralSecurityException
   {
     List<X509Certificate> certFiles = readCertFiles();
@@ -275,6 +292,9 @@ public class MyProxy {
     return socket;
   }
 
+  /**
+   *
+   */
   private List<X509Certificate> readCertFiles() throws IOException, CertificateException
   {
     Set<Path> certPaths = getCertPaths();
@@ -305,6 +325,9 @@ public class MyProxy {
     return result;
   }
 
+  /**
+   *
+   */
   private Set<Path> getCertPaths() throws IOException
   {
     Set<Path> result = new TreeSet<Path>();
@@ -342,6 +365,9 @@ public class MyProxy {
     return result;
   }
 
+  /**
+   *
+   */
   private byte[] createMyProxyRequest(int type, int lifetime) throws IOException
   {
     ByteArrayOutputStream message = new ByteArrayOutputStream();
@@ -364,6 +390,9 @@ public class MyProxy {
     return message.toByteArray();
   }
 
+  /**
+   *
+   */
   private byte[] createCertificateRequest(KeyPair pair) throws IOException, NoSuchAlgorithmException, OperatorCreationException
   {
     X500NameBuilder nameBuilder = new X500NameBuilder();
@@ -380,6 +409,73 @@ public class MyProxy {
     return request.getEncoded();
   }
 
+  /**
+   *
+   */
+  private byte[] parseResponse(InputStream inStream) throws IOException, GeneralSecurityException
+  {
+    ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+    byte[] matchBuffer = new byte[RESPONSE_PATTERN.length];
+    int matchLength = 0;
+
+    while (true) {
+      int next = inStream.read();
+
+      if (next < 0) {
+        StringBuilder message = new StringBuilder("unexpected EOF");
+
+        if (outBytes.size() > 0) {
+          message.append(": ");
+          message.append(outBytes.toString());
+        }
+
+        throw new ProtocolException(message.toString());
+      }
+
+      if ((byte)next == RESPONSE_PATTERN[matchLength]) {
+        matchBuffer[matchLength] = (byte)next;
+        matchLength += 1;
+
+        if (matchLength == RESPONSE_PATTERN.length)
+          break;
+      }
+      else {
+        for (int index = 0 ; index < matchLength ; index += 1)
+          outBytes.write(matchBuffer[index]);
+
+        outBytes.write((byte)next);
+
+        matchLength = 0;
+      }
+    }
+
+    String line = readLine(inStream, false);
+    char responseType = line.charAt(0);
+
+    if (responseType == '1') {
+      StringBuilder message = new StringBuilder("command failed: ");
+
+      while ((line = readLine(inStream, true)) != null) {
+        if (line.startsWith(ERROR)) {
+          message.append(line.substring(ERROR.length()));
+          message.append('\n');
+        }
+      }
+
+      throw new GeneralSecurityException(message.toString());
+    }
+    else if (responseType != '0')
+      throw new ProtocolException("unexpected response type: " + responseType);
+
+    while ((line = readLine(inStream, true)) != null)
+      m_logger.debug("extra response data: " + line);
+
+    return outBytes.toByteArray();
+  }
+
+  /**
+   *
+   */
   private String readLine(InputStream inStream, boolean acceptEof) throws IOException
   {
     StringBuilder builder = new StringBuilder();
@@ -406,6 +502,9 @@ public class MyProxy {
     return builder.toString();
   }
 
+  /**
+   *
+   */
   private static String getProxyFileName() throws IOException
   {
     ProcessBuilder procBuilder = new ProcessBuilder("id", "-u");

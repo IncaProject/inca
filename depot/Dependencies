@@ -1,8 +1,8 @@
 antlr-2.7.6.jar
 asm-attrs.jar
 asm.jar
-bcpkix-jdk15on-161.jar
-bcprov-jdk15on-161.jar
+bcpkix-jdk15on-168.jar
+bcprov-jdk15on-168.jar
 c3p0-0.9.1.2.jar
 cglib-2.2.jar
 commons-codec-1.6.jar
@@ -16,6 +16,9 @@ hsqldb-2.2.8.jar
 inca-common.jar
 incaXmlBeans.jar
 javassist-3.12.0.GA.jar
+jaxb-api-2.3.1.jar
+jaxb-core-2.3.0.1.jar
+jaxb-impl-2.3.3.jar
 jboss-common.jar
 json-org.jar
 jsr173_1.0_api.jar

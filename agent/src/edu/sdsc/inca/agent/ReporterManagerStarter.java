@@ -377,6 +377,7 @@ public class ReporterManagerStarter extends Thread {
    * successfully create a reporter manager on.  If unable to create a
    * reporter manager on any resource, will wait 10 minutes and then try again.
    */
+  @Override
   public void run() {
 
     logger.debug( "Start remote reporter manager thread for " + resource );
@@ -733,7 +734,7 @@ public class ReporterManagerStarter extends Thread {
 
     signerBuilder.setProvider(PROVIDER);
 
-    ContentSigner signer = signerBuilder.build(agent.getKey().getPrivate());
+    ContentSigner signer = signerBuilder.build(agent.getKey());
     X509CertificateHolder certHolder = certBuilder.build(signer);
     JcaX509CertificateConverter certConverter = new JcaX509CertificateConverter();
 

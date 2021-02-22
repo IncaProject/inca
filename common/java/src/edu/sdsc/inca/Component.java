@@ -15,8 +15,8 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
-import java.security.KeyPair;
 import java.security.KeyStore;
+import java.security.PrivateKey;
 import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -33,6 +33,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.log4j.*;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -41,7 +42,12 @@ import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.operator.InputDecryptorProvider;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
+import org.bouncycastle.pkcs.PKCSException;
 
 
 /**
@@ -88,7 +94,7 @@ public class Component {
 
   // Other instance variables
   protected Certificate cert = null;
-  protected KeyPair key = null;
+  protected PrivateKey key = null;
   protected Vector<Object> trusted = new Vector<Object>();
 
 
@@ -177,7 +183,7 @@ public class Component {
    *
    * @return the component key
    */
-  public KeyPair getKey() {
+  public PrivateKey getKey() {
     return this.key;
   }
 
@@ -224,8 +230,7 @@ public class Component {
    * @return the component trusted certificates
    */
   public Certificate[] getTrustedCertificates() {
-    return (Certificate [])
-      this.trusted.toArray(new Certificate[this.trusted.size()]);
+    return this.trusted.toArray(new Certificate[this.trusted.size()]);
   }
 
   /**
@@ -305,7 +310,7 @@ public class Component {
       this.setPassword(prop);
     }
     if((prop = config.getProperty("port")) != null) {
-      this.setPort(new Integer(prop));
+      this.setPort(Integer.valueOf(prop));
     }
     if((prop = config.getProperty("trusted")) != null) {
       this.setTrustedPath(prop);
@@ -455,13 +460,13 @@ public class Component {
     }
 
 
-    readCredentials();
-
     try {
+      readCredentials();
+
       KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
       ks.load(null, null);
       ks.setKeyEntry
-        (COMPONENT_KEY_KEY, this.key.getPrivate(), this.password.toCharArray(),
+        (COMPONENT_KEY_KEY, this.key, this.password.toCharArray(),
          new Certificate[]{this.cert});
       // Add the trusted certificates to the trust store
       for(int i = 0; i < this.trusted.size(); i++) {
@@ -508,8 +513,10 @@ public class Component {
    *
    * @throws ConfigurationException if problem finding credential properties
    * @throws IOException if problem reading credentials
+   * @throws PKCSException
+   * @throws OperatorCreationException
    */
-  public void readCredentials() throws ConfigurationException, IOException {
+  public void readCredentials() throws ConfigurationException, IOException, OperatorCreationException, PKCSException {
     if(this.password == null) {
       this.password = "";
     } else if(this.certPath == null) {
@@ -755,14 +762,16 @@ public class Component {
    * @return
    * @throws IOException
    * @throws ConfigurationException
+   * @throws OperatorCreationException
+   * @throws PKCSException
    */
-  private KeyPair readKeyFile(InputStream inStream, final String password) throws IOException, ConfigurationException
+  private PrivateKey readKeyFile(InputStream inStream, final String password) throws IOException, ConfigurationException, OperatorCreationException, PKCSException
   {
     Object pemObject = readPEMFile(inStream);
-    PEMKeyPair pemKey;
+    PrivateKeyInfo keyInfo;
 
     if (pemObject instanceof PEMKeyPair)
-      pemKey = (PEMKeyPair)pemObject;
+      keyInfo = ((PEMKeyPair)pemObject).getPrivateKeyInfo();
     else if (pemObject instanceof PEMEncryptedKeyPair) {
       PEMEncryptedKeyPair encryptedKey = (PEMEncryptedKeyPair)pemObject;
       JcePEMDecryptorProviderBuilder decryptBuilder = new JcePEMDecryptorProviderBuilder();
@@ -770,16 +779,27 @@ public class Component {
       decryptBuilder.setProvider(PROVIDER);
 
       PEMDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+      PEMKeyPair pemKey = encryptedKey.decryptKeyPair(decryptor);
 
-      pemKey = encryptedKey.decryptKeyPair(decryptor);
+      keyInfo = pemKey.getPrivateKeyInfo();
+    }
+    else if (pemObject instanceof PKCS8EncryptedPrivateKeyInfo) {
+      PKCS8EncryptedPrivateKeyInfo encryptedInfo = (PKCS8EncryptedPrivateKeyInfo)pemObject;
+      JceOpenSSLPKCS8DecryptorProviderBuilder decryptBuilder = new JceOpenSSLPKCS8DecryptorProviderBuilder();
+
+      decryptBuilder.setProvider(PROVIDER);
+
+      InputDecryptorProvider decryptor = decryptBuilder.build(password.toCharArray());
+
+      keyInfo = encryptedInfo.decryptPrivateKeyInfo(decryptor);
     }
     else
-      throw new ConfigurationException("File does not contain a key pair");
+      throw new ConfigurationException("File does not contain a private key");
 
     JcaPEMKeyConverter keyConverter = new JcaPEMKeyConverter();
 
     keyConverter.setProvider(PROVIDER);
 
-    return keyConverter.getKeyPair(pemKey);
+    return keyConverter.getPrivateKey(keyInfo);
   }
 }
