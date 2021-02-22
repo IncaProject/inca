@@ -88,6 +88,7 @@ emailAddress    = optional
 [req]
 prompt=no
 distinguished_name = servername
+string_mask = utf8only
 
 [servername]
 C=US
