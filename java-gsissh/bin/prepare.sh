@@ -21,7 +21,7 @@ fi
 if [ ! -f lib/bcprov-jdk15on-168.jar ]; then
     echo "downloading bcprov jar"
 
-    curl -s -S -L "https://www.bouncycastle.org/download/bcprov-jdk15on-168.jar" > lib/bcprov-jdk15on-168.jar
+    curl -s -S -L "https://downloads.bouncycastle.org/java/bcprov-jdk15on-168.jar" > lib/bcprov-jdk15on-168.jar
 fi
 
 if [ ! -f lib/jzlib-1.1.3.jar ]; then
