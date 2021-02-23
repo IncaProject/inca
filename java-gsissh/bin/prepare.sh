@@ -18,20 +18,20 @@ if [ ! -d lib/ ]; then
     mkdir lib/
 fi
 
-if [ ! -f lib/bcprov-jdk15on-161.jar ]; then
+if [ ! -f lib/bcprov-jdk15on-168.jar ]; then
     echo "downloading bcprov jar"
 
-    curl -s -S -L "https://www.bouncycastle.org/download/bcprov-jdk15on-161.jar" > lib/bcprov-jdk15on-161.jar
+    curl -s -S -L "https://www.bouncycastle.org/download/bcprov-jdk15on-168.jar" > lib/bcprov-jdk15on-168.jar
 fi
 
 if [ ! -f lib/jzlib-1.1.3.jar ]; then
     echo "downloading jzlib jar"
 
-    curl -s -S "http://central.maven.org/maven2/com/jcraft/jzlib/1.1.3/jzlib-1.1.3.jar" > lib/jzlib-1.1.3.jar
+    curl -s -S "https://repo1.maven.org/maven2/com/jcraft/jzlib/1.1.3/jzlib-1.1.3.jar" > lib/jzlib-1.1.3.jar
 fi
 
 if [ ! -f lib/oro-2.0.8.jar ]; then
     echo "downloading oro jar"
 
-    curl -s -S "http://central.maven.org/maven2/oro/oro/2.0.8/oro-2.0.8.jar" > lib/oro-2.0.8.jar
+    curl -s -S "https://repo1.maven.org/maven2/oro/oro/2.0.8/oro-2.0.8.jar" > lib/oro-2.0.8.jar
 fi
