@@ -188,6 +188,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
     suite.save();
 
     Suite dbSuite = suite;
+    dbSuite.save();
     dbSuite.incrementVersion();
     dbSuite.setDescription(suite.getDescription());
     // Perform the actions specified in the report series configs.  Note that

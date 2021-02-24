@@ -505,6 +505,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
       ComparisonResult dbCr = null;
       try {
         dbCr = new ComparisonResult(result, dbReport.getId(), dbSc.getId());
+        dbCr.save();
       } catch(Exception e) {
         logger.error("Error storing comparison result:" + e);
       }

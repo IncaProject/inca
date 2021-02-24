@@ -490,7 +490,7 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
           while (rows.next()) {
             long seriesConfigId = rows.getLong(1);
 
-            seriesConfigs.add(new SeriesConfig(seriesConfigId));
+            seriesConfigs.add(new SeriesConfig(dbConn, seriesConfigId));
           }
         }
         finally {
