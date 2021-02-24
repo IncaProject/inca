@@ -282,9 +282,9 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   private final Deque<RowOperation> m_opQueue = new LinkedList<RowOperation>();
   private String m_action;
   private Series m_series;
-  //private Limits m_limits;
-  //private AcceptedOutput m_acceptedOutput;
-  //private Schedule m_schedule;
+  private Limits m_limits;
+  private AcceptedOutput m_acceptedOutput;
+  private Schedule m_schedule;
   private SuiteSet m_suites;
   private TagSet m_tags;
 
@@ -307,6 +307,10 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
 
     setActivated(Calendar.getInstance().getTime());
     setNickname("");
+    setLimits(null);
+    setAcceptedOutput(null);
+    setSchedule(null);
+    setSeries(null);
     setLatestInstanceId(-1L);
     setLatestComparisonId(-1L);
     setAction("add");
@@ -468,8 +472,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
    */
   public Limits getLimits()
   {
-    //return m_limits;
-    return new Limits(m_memory.getValue(), m_cpuTime.getValue(), m_wallClockTime.getValue());
+    return m_limits;
   }
 
   /**
@@ -479,17 +482,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
    */
   public void setLimits(Limits l)
   {
-    //m_limits = l;
-    if (l != null) {
-      m_memory.setValue(l.getMemory());
-      m_cpuTime.setValue(l.getCpuTime());
-      m_wallClockTime.setValue(l.getWallClockTime());
-    }
-    else {
-      m_memory.setValue(null);
-      m_cpuTime.setValue(null);
-      m_wallClockTime.setValue(null);
-    }
+    m_limits = l;
   }
 
   /**
@@ -499,12 +492,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
    */
   public AcceptedOutput getAcceptedOutput()
   {
-    //return m_acceptedOutput;
-    AcceptedOutput result = new AcceptedOutput(m_comparitor.getValue(), m_comparison.getValue());
-
-    result.setNotification(new Notification(m_notifier.getValue(), m_target.getValue()));
-
-    return result;
+    return m_acceptedOutput;
   }
 
   /**
@@ -514,28 +502,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
    */
   public void setAcceptedOutput(AcceptedOutput ao)
   {
-    //m_acceptedOutput = ao;
-    if (ao != null) {
-      m_comparitor.setValue(ao.getComparitor());
-      m_comparison.setValue(ao.getComparison());
-
-      Notification notification = ao.getNotification();
-
-      if (notification != null) {
-        m_notifier.setValue(notification.getNotifier());
-        m_target.setValue(notification.getTarget());
-      }
-      else {
-        m_notifier.setValue(null);
-        m_target.setValue(null);
-      }
-    }
-    else {
-      m_comparitor.setValue(null);
-      m_comparison.setValue(null);
-      m_notifier.setValue(null);
-      m_target.setValue(null);
-    }
+    m_acceptedOutput = ao;
   }
 
   /**
@@ -545,12 +512,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
    */
   public Schedule getSchedule()
   {
-    //return m_schedule;
-    Schedule result = new Schedule(m_minute.getValue(), m_hour.getValue(), m_mday.getValue(), m_month.getValue(), m_wday.getValue(), m_type.getValue(), m_numOccurs.getValue());
-
-    result.setSuspended(m_suspended.getValue());
-
-    return result;
+    return m_schedule;
   }
 
   /**
@@ -560,27 +522,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
    */
   public void setSchedule(Schedule s)
   {
-    //m_schedule = s;
-    if (s != null) {
-      m_minute.setValue(s.getMinute());
-      m_hour.setValue(s.getHour());
-      m_mday.setValue(s.getMday());
-      m_month.setValue(s.getMonth());
-      m_wday.setValue(s.getWday());
-      m_type.setValue(s.getType());
-      m_numOccurs.setValue(s.getNumOccurs());
-      m_suspended.setValue(s.getSuspended());
-    }
-    else {
-      m_minute.setValue(null);
-      m_hour.setValue(null);
-      m_mday.setValue(null);
-      m_month.setValue(null);
-      m_wday.setValue(null);
-      m_type.setValue(null);
-      m_numOccurs.setValue(null);
-      m_suspended.setValue(null);
-    }
+    m_schedule = s;
   }
 
   /**
@@ -994,6 +936,60 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
 
     m_seriesId.setValue(m_series.getId());
 
+    if (m_limits != null) {
+      m_memory.setValue(m_limits.getMemory());
+      m_cpuTime.setValue(m_limits.getCpuTime());
+      m_wallClockTime.setValue(m_limits.getWallClockTime());
+    }
+    else {
+      m_memory.setValue(null);
+      m_cpuTime.setValue(null);
+      m_wallClockTime.setValue(null);
+    }
+
+    if (m_acceptedOutput != null) {
+      m_comparitor.setValue(m_acceptedOutput.getComparitor());
+      m_comparison.setValue(m_acceptedOutput.getComparison());
+
+      Notification notification = m_acceptedOutput.getNotification();
+
+      if (notification != null) {
+        m_notifier.setValue(notification.getNotifier());
+        m_target.setValue(notification.getTarget());
+      }
+      else {
+        m_notifier.setValue(null);
+        m_target.setValue(null);
+      }
+    }
+    else {
+      m_comparitor.setValue(null);
+      m_comparison.setValue(null);
+      m_notifier.setValue(null);
+      m_target.setValue(null);
+    }
+
+    if (m_schedule != null) {
+      m_minute.setValue(m_schedule.getMinute());
+      m_hour.setValue(m_schedule.getHour());
+      m_mday.setValue(m_schedule.getMday());
+      m_month.setValue(m_schedule.getMonth());
+      m_wday.setValue(m_schedule.getWday());
+      m_type.setValue(m_schedule.getType());
+      m_numOccurs.setValue(m_schedule.getNumOccurs());
+      m_suspended.setValue(m_schedule.getSuspended());
+    }
+    else {
+      m_minute.setValue(null);
+      m_hour.setValue(null);
+      m_mday.setValue(null);
+      m_month.setValue(null);
+      m_wday.setValue(null);
+      m_type.setValue(null);
+      m_numOccurs.setValue(null);
+      m_suspended.setValue(null);
+    }
+
     super.save(dbConn);
 
     while (!m_opQueue.isEmpty()) {
@@ -1015,6 +1011,15 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   {
     super.load(dbConn);
 
+    m_acceptedOutput = new AcceptedOutput(m_comparitor.getValue(), m_comparison.getValue());
+
+    m_acceptedOutput.setNotification(new Notification(m_notifier.getValue(), m_target.getValue()));
+
+    m_schedule = new Schedule(m_minute.getValue(), m_hour.getValue(), m_mday.getValue(), m_month.getValue(), m_wday.getValue(), m_type.getValue(), m_numOccurs.getValue());
+
+    m_schedule.setSuspended(m_suspended.getValue());
+
+    m_limits = new Limits(m_memory.getValue(), m_cpuTime.getValue(), m_wallClockTime.getValue());
     m_series = new Series(m_seriesId.getValue());
     m_suites = null;
     m_tags = null;
