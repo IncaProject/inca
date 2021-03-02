@@ -85,22 +85,13 @@ class SequenceKeyInsertStatement extends BatchUpdateStatement {
    */
   private long getNextSequenceValue() throws SQLException
   {
-    Statement selectStmt = m_dbConn.createStatement();
-    ResultSet row = null;
-
-    try {
-      row = selectStmt.executeQuery(m_nextSeqValQuery);
+    try (Statement selectStmt = m_dbConn.createStatement()) {
+      ResultSet row = selectStmt.executeQuery(m_nextSeqValQuery);
 
       if (!row.next())
         return -1;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

@@ -268,13 +268,10 @@ public class ComparisonResult extends GeneratedKeyRow implements Comparable<Comp
     stmtBuilder.append(" WHERE ");
     stmtBuilder.append(key.getPhrase());
 
-    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       key.setParameter(selectStmt, 1);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       boolean result = true;
 
@@ -286,12 +283,6 @@ public class ComparisonResult extends GeneratedKeyRow implements Comparable<Comp
       }
 
       return result;
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
     }
   }
 
@@ -317,32 +308,23 @@ public class ComparisonResult extends GeneratedKeyRow implements Comparable<Comp
    */
   private static Long find(Connection dbConn, String result, long reportId, long seriesConfigId) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incaid " +
       "FROM INCACOMPARISONRESULT " +
       "WHERE incaresult = ? " +
         "AND incareportId = ? " +
         "AND incaseriesConfigId = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    )) {
       selectStmt.setString(1, result);
       selectStmt.setLong(2, reportId);
       selectStmt.setLong(3, seriesConfigId);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return null;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

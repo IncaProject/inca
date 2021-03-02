@@ -308,26 +308,6 @@ public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
   }
 
   /**
-   * Retrieves a specified SeriesConfig from the associated set.
-   *
-   * @param i the index into the set of the desired SeriesConfig
-   * @return the specified SeriesConfig; null if none
-   */
-  /*
-  public SeriesConfig getSeriesConfig(int i)
-  {
-    for(Iterator<SeriesConfig> it = m_seriesConfigs.iterator(); it.hasNext(); i--) {
-      SeriesConfig sc = it.next();
-
-      if(i == 0)
-        return sc;
-    }
-
-    return null;
-  }
-  */
-
-  /**
    * Gets the collection of SeriesConfig objects associated with this Suite.
    *
    * @return the set of associated SeriesConfigs
@@ -341,35 +321,21 @@ public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
       Set<SeriesConfig> configs = new HashSet<SeriesConfig>();
 
       if (!isNew()) {
-        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-        PreparedStatement selectStmt = null;
-        ResultSet rows = null;
-
-        try {
-          selectStmt = dbConn.prepareStatement(
-            "SELECT incaseriesconfig_id " +
-            "FROM INCASUITESSERIESCONFIGS " +
-            "WHERE incasuite_id = ?"
-          );
-
+        try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+             PreparedStatement selectStmt = dbConn.prepareStatement(
+               "SELECT incaseriesconfig_id " +
+               "FROM INCASUITESSERIESCONFIGS " +
+               "WHERE incasuite_id = ?"
+        )) {
           m_key.setParameter(selectStmt, 1);
 
-          rows = selectStmt.executeQuery();
+          ResultSet rows = selectStmt.executeQuery();
 
           while (rows.next()) {
             long seriesConfigId = rows.getLong(1);
 
-            configs.add(new SeriesConfig(seriesConfigId));
+            configs.add(new SeriesConfig(dbConn, seriesConfigId));
           }
-        }
-        finally {
-          if (rows != null)
-            rows.close();
-
-          if (selectStmt != null)
-            selectStmt.close();
-
-          dbConn.close();
         }
       }
 
@@ -401,20 +367,6 @@ public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
 
     return null;
   }
-
-  /**
-   * Add a SeriesConfig to the set of those associated with the Suite.
-   *
-   * @param sc a SeriesConfig to associate
-   */
-  /*
-  public void addSeriesConfig(SeriesConfig sc)
-  {
-    m_seriesConfigs.add(sc);
-
-    sc.addSuite(this);
-  }
-  */
 
   /**
    * {@inheritDoc}
@@ -583,18 +535,13 @@ public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
    */
   public static Suite find(String guid) throws IOException, SQLException, PersistenceException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Long id = find(dbConn, guid);
 
       if (id == null)
         return null;
 
-      return new Suite(id);
-    }
-    finally {
-      dbConn.close();
+      return new Suite(dbConn, id);
     }
   }
 
@@ -700,28 +647,19 @@ public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
    */
   private static Long find(Connection dbConn, String guid) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incaid " +
       "FROM INCASUITE " +
       "WHERE incaguid = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    )) {
       selectStmt.setString(1, guid);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return null;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 
@@ -730,17 +668,12 @@ public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
    */
   private static void deleteDependencies(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
       "DELETE FROM INCASUITESSERIESCONFIGS " +
       "WHERE incasuite_id = ?"
-    );
-
-    try {
+    )) {
       deleteStmt.setLong(1, id);
       deleteStmt.executeUpdate();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 }

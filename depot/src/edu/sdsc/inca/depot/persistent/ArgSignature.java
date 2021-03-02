@@ -236,16 +236,11 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
       Set<Arg> args = new HashSet<Arg>();
 
       if (!isNew()) {
-        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-        try {
+        try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
           List<Long> argIds = getArgIds(dbConn, m_key.getValue());
 
           for (Long id : argIds)
-            args.add(new Arg(id));
-        }
-        finally {
-          dbConn.close();
+            args.add(new Arg(dbConn, id));
         }
       }
 
@@ -418,18 +413,13 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
    */
   public static ArgSignature find(String signature) throws IOException, SQLException, PersistenceException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Long id = find(dbConn, signature);
 
       if (id == null)
         return null;
 
-      return new ArgSignature(id);
-    }
-    finally {
-      dbConn.close();
+      return new ArgSignature(dbConn, id);
     }
   }
 
@@ -549,18 +539,15 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
    */
   private static List<Long> getArgIds(Connection dbConn, long id) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT INCAARG.incaid " +
       "FROM INCAARG " +
-        "INNER JOIN INCAARGS ON INCAARG.incaid = INCAARGS.incainput_id " +
+      "INNER JOIN INCAARGS ON INCAARG.incaid = INCAARGS.incainput_id " +
       "WHERE INCAARGS.incaargs_id = ?"
-    );
-    ResultSet rows = null;
-
-    try {
+    )) {
       selectStmt.setLong(1, id);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       List<Long> result = new ArrayList<Long>();
 
@@ -569,12 +556,6 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /*
@@ -582,28 +563,19 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
    */
   private static Long find(Connection dbConn, String signature) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incaid " +
       "FROM INCAARGSIGNATURE " +
       "WHERE incasignature = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    )) {
       selectStmt.setString(1, signature);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return null;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 
@@ -612,17 +584,12 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
    */
   private static void deleteDependencies(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
   {
-    PreparedStatement deleteLinksStmt = dbConn.prepareStatement(
+    try (PreparedStatement deleteLinksStmt = dbConn.prepareStatement(
       "DELETE FROM INCAARGS " +
       "WHERE incaargs_id = ?"
-    );
-
-    try {
+    )) {
       deleteLinksStmt.setLong(1, id);
       deleteLinksStmt.executeUpdate();
-    }
-    finally {
-      deleteLinksStmt.close();
     }
 
     List<Long> argIds = getArgIds(dbConn, id);

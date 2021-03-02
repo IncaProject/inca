@@ -243,18 +243,13 @@ public class Arg extends GeneratedKeyRow implements Comparable<Arg> {
    */
   public static Arg find(String name, String value) throws IOException, SQLException, PersistenceException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Long id = find(dbConn, name, value);
 
       if (id == null)
         return null;
 
-      return new Arg(id);
-    }
-    finally {
-      dbConn.close();
+      return new Arg(dbConn, id);
     }
   }
 
@@ -300,30 +295,21 @@ public class Arg extends GeneratedKeyRow implements Comparable<Arg> {
    */
   private static Long find(Connection dbConn, String name, String value) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incaid " +
       "FROM INCAARG " +
       "WHERE incaname = ? " +
         "AND incavalue = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    )) {
       selectStmt.setString(1, name);
       selectStmt.setString(2, value);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return null;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

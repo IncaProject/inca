@@ -58,20 +58,16 @@ class AutoGenKeyInsertStatement extends UpdateStatement {
    * @return
    * @throws SQLException
    */
+  @Override
   public long update() throws SQLException
   {
     m_updateStmt.executeUpdate();
 
-    ResultSet newKey = m_updateStmt.getGeneratedKeys();
-
-    try {
+    try (ResultSet newKey = m_updateStmt.getGeneratedKeys()) {
       if (!newKey.next())
         return -1;
 
       return newKey.getLong(1);
-    }
-    finally {
-      newKey.close();
     }
   }
 }

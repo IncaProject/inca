@@ -94,9 +94,7 @@ class UpdateOp implements RowOperation {
     stmtBuilder.append(" WHERE ");
     stmtBuilder.append(m_key.getPhrase());
 
-    PreparedStatement updateStmt = dbConn.prepareStatement(stmtBuilder.toString());
-
-    try {
+    try (PreparedStatement updateStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       int index = 1;
 
       for (columns = m_columns.iterator() ; columns.hasNext() ; index += 1)
@@ -107,8 +105,6 @@ class UpdateOp implements RowOperation {
       updateStmt.executeUpdate();
     }
     finally {
-      updateStmt.close();
-
       for (Column<?> col : m_columns)
         col.finishUpdate();
     }

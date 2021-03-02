@@ -274,16 +274,11 @@ abstract class StreamColumn<T> extends Column<T> {
    */
   protected void assignDbValue() throws IOException, SQLException, PersistenceException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       (new SelectOp(m_owner.getTableName(), m_owner.getKey(), new AssignmentColumn())).execute(dbConn);
 
       m_isModified = false;
       m_populated = true;
-    }
-    finally {
-      dbConn.close();
     }
   }
 }

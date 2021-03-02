@@ -328,16 +328,13 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeSuites(Connection dbConn, PrintStream output) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incaname, incaguid, incadescription, incaversion " +
-        "FROM incasuite"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incaname, incaguid, incadescription, incaversion " +
+      "FROM incasuite"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -374,12 +371,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " Suite records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -390,16 +381,13 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeArgs(Connection dbConn, PrintStream output) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incaname, incavalue " +
-        "FROM incaarg"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incaname, incavalue " +
+      "FROM incaarg"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -428,12 +416,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " Arg records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -444,16 +426,13 @@ public class SyncResponse extends MessageHandler {
    */
   private Map<Long, List<Long>> getArgMappings(Connection dbConn) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaargs_id, incainput_id " +
-        "FROM incaargs"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaargs_id, incainput_id " +
+      "FROM incaargs"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, List<Long>> result = new TreeMap<Long, List<Long>>();
 
@@ -473,12 +452,6 @@ public class SyncResponse extends MessageHandler {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -490,16 +463,14 @@ public class SyncResponse extends MessageHandler {
   private void writeArgSignatures(Connection dbConn, PrintStream output) throws SQLException
   {
     Map<Long, List<Long>> mappings = getArgMappings(dbConn);
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid " +
-        "FROM incaargsignature"
-    );
-    ResultSet rows = null;
 
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid " +
+      "FROM incaargsignature"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -538,12 +509,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " ArgSignature records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -554,18 +519,15 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeSeries(Connection dbConn, PrintStream output) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incareporter, incaversion, incauri, " +
-          "incacontext, incanice, incaresource, incatargethostname, " +
-          "incaargSignature_id " +
-        "FROM incaseries"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incareporter, incaversion, incauri, " +
+        "incacontext, incanice, incaresource, incatargethostname, " +
+        "incaargSignature_id " +
+      "FROM incaseries"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -618,12 +580,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " Series records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -634,16 +590,13 @@ public class SyncResponse extends MessageHandler {
    */
   private Map<Long, List<Long>> getSuiteConfigMappings(Connection dbConn) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaseriesconfig_id, incasuite_id " +
-        "FROM incasuitesseriesconfigs"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaseriesconfig_id, incasuite_id " +
+      "FROM incasuitesseriesconfigs"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, List<Long>> result = new TreeMap<Long, List<Long>>();
 
@@ -663,12 +616,6 @@ public class SyncResponse extends MessageHandler {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -679,16 +626,13 @@ public class SyncResponse extends MessageHandler {
    */
   private Map<Long, List<String>> getConfigTags(Connection dbConn) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaseriesconfig_id, tag " +
-        "FROM incaseriesconfigtags"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaseriesconfig_id, tag " +
+      "FROM incaseriesconfigtags"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, List<String>> result = new TreeMap<Long, List<String>>();
 
@@ -708,12 +652,6 @@ public class SyncResponse extends MessageHandler {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -726,21 +664,19 @@ public class SyncResponse extends MessageHandler {
   {
     Map<Long, List<Long>> mappings = getSuiteConfigMappings(dbConn);
     Map<Long, List<String>> configTags = getConfigTags(dbConn);
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incaactivated, incadeactivated, incanickname, " +
-          "incawallClockTime, incacpuTime, incamemory, incacomparitor, " +
-          "incacomparison, incanotifier, incatarget, incatype, incaminute, " +
-          "incahour, incamonth, incamday, incawday, incanumOccurs, " +
-          "incasuspended, incaseries_id, incalatestInstanceId, " +
-          "incalatestComparisonId " +
-        "FROM incaseriesconfig"
-    );
-    ResultSet rows = null;
 
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incaactivated, incadeactivated, incanickname, " +
+        "incawallClockTime, incacpuTime, incamemory, incacomparitor, " +
+        "incacomparison, incanotifier, incatarget, incatype, incaminute, " +
+        "incahour, incamonth, incamday, incawday, incanumOccurs, " +
+        "incasuspended, incaseries_id, incalatestInstanceId, " +
+        "incalatestComparisonId " +
+      "FROM incaseriesconfig"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -879,12 +815,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " SeriesConfig records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -895,17 +825,14 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeRunInfo(Connection dbConn, PrintStream output) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incahostname, incaworkingDir, incareporterPath, " +
-          "incaargSignature_id " +
-        "FROM incaruninfo"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incahostname, incaworkingDir, incareporterPath, " +
+        "incaargSignature_id " +
+      "FROM incaruninfo"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -942,12 +869,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " RunInfo records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -958,18 +879,15 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeReports(Connection dbConn, PrintStream output) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incaexit_status, incaexit_message, incabodypart1, " +
-          "incabodypart2, incabodypart3, incastderr, incaseries_id, " +
-          "incarunInfo_id " +
-        "FROM incareport"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incaexit_status, incaexit_message, incabodypart1, " +
+        "incabodypart2, incabodypart3, incastderr, incaseries_id, " +
+        "incarunInfo_id " +
+      "FROM incareport"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -1022,12 +940,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " Report records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1038,16 +950,13 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeComparisonResults(Connection dbConn, PrintStream output) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incaresult, incareportId, incaseriesConfigId " +
-        "FROM incacomparisonresult"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incaresult, incareportId, incaseriesConfigId " +
+      "FROM incacomparisonresult"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -1080,12 +989,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " ComparisonResult records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1096,16 +999,13 @@ public class SyncResponse extends MessageHandler {
    */
   private List<SeriesTableNames> getTableNames(Connection dbConn) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incainstancetablename, incalinktablename " +
-        "FROM incaseries "
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incainstancetablename, incalinktablename " +
+      "FROM incaseries "
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       List<SeriesTableNames> result = new ArrayList<SeriesTableNames>();
 
@@ -1120,12 +1020,6 @@ public class SyncResponse extends MessageHandler {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1137,16 +1031,13 @@ public class SyncResponse extends MessageHandler {
    */
   private Map<Long, List<Long>> getConfigInstanceMappings(Connection dbConn, String tableName) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incainstance_id, incaseriesconfig_id " +
-        "FROM " + tableName
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incainstance_id, incaseriesconfig_id " +
+      "FROM " + tableName
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, List<Long>> result = new TreeMap<Long, List<Long>>();
 
@@ -1166,12 +1057,6 @@ public class SyncResponse extends MessageHandler {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1184,17 +1069,15 @@ public class SyncResponse extends MessageHandler {
   private void writeSeriesInstances(Connection dbConn, PrintStream output, SeriesTableNames names) throws SQLException
   {
     Map<Long, List<Long>> mappings = getConfigInstanceMappings(dbConn, names.linkTableName);
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incacollected, incacommited, incamemoryUsageMB, " +
-          "incacpuUsageSec, incawallClockTimeSec, incalog, incareportId " +
-        "FROM " + names.instanceTableName
-    );
-    ResultSet rows = null;
 
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incacollected, incacommited, incamemoryUsageMB, " +
+        "incacpuUsageSec, incawallClockTimeSec, incalog, incareportId " +
+      "FROM " + names.instanceTableName
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -1261,12 +1144,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " InstanceInfo records for Series " + names.seriesId);
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1310,17 +1187,14 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeKbArticles(Connection dbConn, PrintStream output) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaentered, incaerrormsg, incaseries, incareporter, " +
-          "incaauthorname, incaauthoremail, incaarticletitle, incaarticletext " +
-        "FROM incakbarticle"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaentered, incaerrormsg, incaseries, incareporter, " +
+        "incaauthorname, incaauthoremail, incaarticletitle, incaarticletext " +
+      "FROM incakbarticle"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       int totalWritten = 0;
 
@@ -1369,12 +1243,6 @@ public class SyncResponse extends MessageHandler {
 
       m_logger.debug("Wrote " + totalWritten + " KbArticle records");
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1385,10 +1253,9 @@ public class SyncResponse extends MessageHandler {
    */
   private void writeResponse(OutputStream outStream) throws IOException, SQLException
   {
-    PrintStream output = new PrintStream(new BufferedOutputStream(new GZIPOutputStream(new Base64OutputStream(new ClonedOutputStream(outStream), true, 0, CRLF))));
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (PrintStream output = new PrintStream(new BufferedOutputStream(new GZIPOutputStream(new Base64OutputStream(new ClonedOutputStream(outStream), true, 0, CRLF))));
+         Connection dbConn = ConnectionManager.getConnectionSource().getConnection()
+    ) {
       output.print("<syncResponse>");
 
       m_logger.debug("Writing Suite records...");
@@ -1432,10 +1299,6 @@ public class SyncResponse extends MessageHandler {
       writeKbArticles(dbConn, output);
 
       output.print("</syncResponse>");
-    }
-    finally {
-      output.close();
-      dbConn.close();
     }
   }
 }

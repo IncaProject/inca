@@ -298,18 +298,13 @@ public class RunInfo extends GeneratedKeyRow implements Comparable<RunInfo> {
    */
   public static RunInfo find(String hostname, String workingDir, String reporterPath, String signature) throws IOException, SQLException, PersistenceException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Long id = find(dbConn, hostname, workingDir, reporterPath, signature);
 
       if (id == null)
         return null;
 
-      return new RunInfo(id);
-    }
-    finally {
-      dbConn.close();
+      return new RunInfo(dbConn, id);
     }
   }
 
@@ -402,7 +397,7 @@ public class RunInfo extends GeneratedKeyRow implements Comparable<RunInfo> {
    */
   private static Long find(Connection dbConn, String hostname, String workingDir, String reporterPath, String signature) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT INCARUNINFO.incaid " +
       "FROM INCARUNINFO " +
         "INNER JOIN INCAARGSIGNATURE ON INCARUNINFO.incaargSignature_id = INCAARGSIGNATURE.incaid " +
@@ -410,10 +405,7 @@ public class RunInfo extends GeneratedKeyRow implements Comparable<RunInfo> {
         "AND incaworkingDir = ? " +
         "AND incareporterPath = ? " +
         "AND incasignature = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    )) {
       selectStmt.setString(1, hostname);
       selectStmt.setString(2, workingDir);
       selectStmt.setString(3, reporterPath);
@@ -423,18 +415,12 @@ public class RunInfo extends GeneratedKeyRow implements Comparable<RunInfo> {
       else
         selectStmt.setNull(4, Types.VARCHAR);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return null;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

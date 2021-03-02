@@ -52,22 +52,13 @@ class ReadSequenceOp implements RowOperation {
   public void execute(Connection dbConn) throws SQLException, PersistenceException
   {
     String query = DatabaseTools.getNextValuePhrase(m_sequenceName);
-    Statement selectStmt = dbConn.createStatement();
-    ResultSet row = null;
 
-    try {
-      row = selectStmt.executeQuery(query);
-
+    try (Statement selectStmt = dbConn.createStatement();
+         ResultSet row = selectStmt.executeQuery(query)) {
       if (!row.next())
         throw new PersistenceException("Query failed: " + query);
 
       m_column.setValue(row.getLong(1));
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

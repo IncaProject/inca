@@ -230,10 +230,9 @@ public class UpdateDBSchema {
    */
   public static boolean update() throws SQLException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
     boolean updated = false;
 
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       dbConn.setAutoCommit(false);
 
       if (!DatabaseTools.tableExists(dbConn, "incakbarticle")) {
@@ -324,9 +323,6 @@ public class UpdateDBSchema {
         updated = true;
       }
     }
-    finally {
-      dbConn.close();
-    }
 
     return updated;
   }
@@ -368,15 +364,10 @@ public class UpdateDBSchema {
     queryBuilder.append(textTypeName);
     queryBuilder.append(" NOT NULL, PRIMARY KEY (incaid) )");
 
-    Statement updateStmt = dbConn.createStatement();
-
-    try {
+    try (Statement updateStmt = dbConn.createStatement()) {
       updateStmt.executeUpdate(queryBuilder.toString());
 
       dbConn.commit();
-    }
-    finally {
-      updateStmt.close();
     }
   }
 
@@ -398,15 +389,10 @@ public class UpdateDBSchema {
         "FOREIGN KEY (incasuite_id) REFERENCES incasuite (incaid), " +
         "FOREIGN KEY (incaseriesconfig_id) REFERENCES incaseriesconfig (incaid) )");
 
-    Statement updateStmt = dbConn.createStatement();
-
-    try {
+    try (Statement updateStmt = dbConn.createStatement()) {
       updateStmt.executeUpdate(queryBuilder.toString());
 
       dbConn.commit();
-    }
-    finally {
-      updateStmt.close();
     }
   }
 
@@ -429,8 +415,8 @@ public class UpdateDBSchema {
     }
 
     BatchUpdateStatement insertStmt = new BatchUpdateStatement(dbConn,
-        "INSERT INTO incasuitesseriesconfigs ( incasuite_id, incaseriesconfig_id ) " +
-        "VALUES ( ?, ? )"
+      "INSERT INTO incasuitesseriesconfigs ( incasuite_id, incaseriesconfig_id ) " +
+      "VALUES ( ?, ? )"
     );
 
     try {
@@ -462,16 +448,13 @@ public class UpdateDBSchema {
    */
   private static Map<Long, List<Long>> getSuiteConfigLinkingIds(Connection dbConn) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incasuite_id " +
-        "FROM incaseriesconfig"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incasuite_id " +
+      "FROM incaseriesconfig"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, List<Long>> result = new TreeMap<Long, List<Long>>();
 
@@ -491,12 +474,6 @@ public class UpdateDBSchema {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -508,9 +485,8 @@ public class UpdateDBSchema {
   private static void dropSuiteIdColumn(Connection dbConn) throws SQLException
   {
     String keyName = getForeignKeyName(dbConn);
-    Statement updateStmt = dbConn.createStatement();
 
-    try {
+    try (Statement updateStmt = dbConn.createStatement()) {
       updateStmt.executeUpdate(
           "ALTER TABLE incaseriesconfig " +
           "DROP CONSTRAINT " + keyName
@@ -528,9 +504,6 @@ public class UpdateDBSchema {
 
       throw sqlErr;
     }
-    finally {
-      updateStmt.close();
-    }
   }
 
   /**
@@ -547,18 +520,14 @@ public class UpdateDBSchema {
     final String suiteIdColumnName = "incasuite_id";
     String tableName = upperCase ? configTableName.toUpperCase() : configTableName;
     String columnName = upperCase ? suiteIdColumnName.toUpperCase() : suiteIdColumnName;
-    ResultSet rows = dbData.getImportedKeys(null, null, tableName);
 
-    try {
+    try (ResultSet rows = dbData.getImportedKeys(null, null, tableName)) {
       while (rows.next()) {
         if (rows.getString(8).equals(columnName))
           return rows.getString(12);
       }
 
       return null;
-    }
-    finally {
-      rows.close();
     }
   }
 
@@ -570,18 +539,15 @@ public class UpdateDBSchema {
    */
   private static Map<Long, Set<ConfigRecord>> getConfigRecords(Connection dbConn) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaseries_id, incaseriesconfig.incaid, incaactivated, " +
-          "incadeactivated, incalatestinstanceid, incanickname " +
-        "FROM incaseriesconfig " +
-          "INNER JOIN incaseries ON incaseriesconfig.incaseries_id = incaseries.incaid"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaseries_id, incaseriesconfig.incaid, incaactivated, " +
+        "incadeactivated, incalatestinstanceid, incanickname " +
+      "FROM incaseriesconfig " +
+        "INNER JOIN incaseries ON incaseriesconfig.incaseries_id = incaseries.incaid"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, Set<ConfigRecord>> result = new TreeMap<Long, Set<ConfigRecord>>();
 
@@ -606,12 +572,6 @@ public class UpdateDBSchema {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -630,9 +590,7 @@ public class UpdateDBSchema {
     queryBuilder.append(", ADD COLUMN incadeactivated ");
     queryBuilder.append(dateTypeName);
 
-    Statement updateStmt = dbConn.createStatement();
-
-    try {
+    try (Statement updateStmt = dbConn.createStatement()) {
       updateStmt.executeUpdate(
           "ALTER TABLE incaseriesconfig " +
           "DROP COLUMN incaactivated, " +
@@ -647,9 +605,6 @@ public class UpdateDBSchema {
       dbConn.rollback();
 
       throw sqlErr;
-    }
-    finally {
-      updateStmt.close();
     }
   }
 
@@ -797,21 +752,16 @@ public class UpdateDBSchema {
    */
   private static Map<Long, Timestamp> getInstanceDates(long reportId) throws SQLException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-    PreparedStatement selectStmt = null;
-    ResultSet rows = null;
-
-    try {
-      selectStmt = dbConn.prepareStatement(
-          "SELECT incaid, incacollected " +
-          "FROM incainstanceinfo " +
-          "WHERE incareportid = ?"
-      );
-
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+         PreparedStatement selectStmt = dbConn.prepareStatement(
+           "SELECT incaid, incacollected " +
+           "FROM incainstanceinfo " +
+           "WHERE incareportid = ?"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
       selectStmt.setLong(1, reportId);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, Timestamp> result = new TreeMap<Long, Timestamp>();
 
@@ -824,15 +774,6 @@ public class UpdateDBSchema {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      if (selectStmt != null)
-        selectStmt.close();
-
-      dbConn.close();
-    }
   }
 
   /**
@@ -844,18 +785,15 @@ public class UpdateDBSchema {
    */
   private static Map<Long, Map<Long, Timestamp>> getReportDates(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid " +
-        "FROM incareport " +
-        "WHERE incaseries_id = ?"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid " +
+      "FROM incareport " +
+      "WHERE incaseries_id = ?"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
       selectStmt.setLong(1, seriesId);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, Map<Long, Timestamp>> result = new TreeMap<Long, Map<Long, Timestamp>>();
 
@@ -868,12 +806,6 @@ public class UpdateDBSchema {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -885,18 +817,15 @@ public class UpdateDBSchema {
    */
   private static List<Long> getReportIdsFromComparisons(Connection dbConn, long configId) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT DISTINCT incareportid " +
-        "FROM incacomparisonresult " +
-        "WHERE incaseriesconfigid = ?"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT DISTINCT incareportid " +
+      "FROM incacomparisonresult " +
+      "WHERE incaseriesconfigid = ?"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
       selectStmt.setLong(1, configId);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       if (!rows.next())
         return null;
@@ -909,12 +838,6 @@ public class UpdateDBSchema {
       while (rows.next());
 
       return result;
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
     }
   }
 
@@ -927,18 +850,15 @@ public class UpdateDBSchema {
    */
   private static List<Long> getReportIdsFromReports(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid " +
-        "FROM incareport " +
-        "WHERE incaseries_id = ?"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid " +
+      "FROM incareport " +
+      "WHERE incaseries_id = ?"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
       selectStmt.setLong(1, seriesId);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       if (!rows.next())
         return null;
@@ -951,12 +871,6 @@ public class UpdateDBSchema {
       while (rows.next());
 
       return result;
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
     }
   }
 
@@ -989,13 +903,11 @@ public class UpdateDBSchema {
    */
   private static void updateConfigColumns(Connection dbConn, List<ConfigRecord> records) throws SQLException
   {
-    PreparedStatement updateStmt = dbConn.prepareStatement(
-        "UPDATE incaseriesconfig " +
-        "SET incaactivated = ?, incadeactivated = ? " +
-        "WHERE incaid = ?"
-    );
-
-    try {
+    try (PreparedStatement updateStmt = dbConn.prepareStatement(
+      "UPDATE incaseriesconfig " +
+      "SET incaactivated = ?, incadeactivated = ? " +
+      "WHERE incaid = ?"
+    )) {
       for (ConfigRecord record : records) {
         updateStmt.setTimestamp(1, record.activatedDate);
         updateStmt.setTimestamp(2, record.deactivatedDate);
@@ -1011,9 +923,6 @@ public class UpdateDBSchema {
       dbConn.rollback();
 
       throw sqlErr;
-    }
-    finally {
-      updateStmt.close();
     }
   }
 
@@ -1034,15 +943,10 @@ public class UpdateDBSchema {
     queryBuilder.append(stringTypeName);
     queryBuilder.append("(255)");
 
-    Statement updateStmt = dbConn.createStatement();
-
-    try {
+    try (Statement updateStmt = dbConn.createStatement()) {
       updateStmt.executeUpdate(queryBuilder.toString());
 
       dbConn.commit();
-    }
-    finally {
-      updateStmt.close();
     }
   }
 
@@ -1053,9 +957,7 @@ public class UpdateDBSchema {
    */
   private static  void populateTableNameColumns(Connection dbConn) throws SQLException
   {
-    Statement updateStmt = dbConn.createStatement();
-
-    try {
+    try (Statement updateStmt = dbConn.createStatement()) {
       updateStmt.executeUpdate(
           "UPDATE incaseries " +
           "SET incainstancetablename = 'incainstanceinfo_' || incaid, " +
@@ -1063,9 +965,6 @@ public class UpdateDBSchema {
           );
 
       dbConn.commit();
-    }
-    finally {
-      updateStmt.close();
     }
   }
 
@@ -1077,17 +976,14 @@ public class UpdateDBSchema {
    */
   private static List<TableNameData> getTableNames(Connection dbConn) throws SQLException
   {
-    Statement selectStmt = dbConn.createStatement();
-    ResultSet rows = null;
-
-    try {
-      rows = selectStmt.executeQuery(
-          "SELECT incaseries.incaid, incaseriesconfig.incaid, incainstancetablename, " +
-            "incalinktablename " +
-          "FROM incaseriesconfig " +
-            "INNER JOIN incaseries ON incaseriesconfig.incaseries_id = incaseries.incaid"
-      );
-
+    try (Statement selectStmt = dbConn.createStatement();
+         ResultSet rows = selectStmt.executeQuery(
+           "SELECT incaseries.incaid, incaseriesconfig.incaid, incainstancetablename, " +
+             "incalinktablename " +
+           "FROM incaseriesconfig " +
+             "INNER JOIN incaseries ON incaseriesconfig.incaseries_id = incaseries.incaid"
+         )
+    ) {
       Map<Long, TableNameData> tableNames = new TreeMap<Long, TableNameData>();
 
       while (rows.next()) {
@@ -1108,12 +1004,6 @@ public class UpdateDBSchema {
       }
 
       return new ArrayList<TableNameData>(tableNames.values());
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
     }
   }
 
@@ -1167,9 +1057,7 @@ public class UpdateDBSchema {
    */
   private static int copyInstances(Connection dbConn, String idList, String tableName) throws SQLException
   {
-    Statement selectStmt = dbConn.createStatement();
-
-    try {
+    try (Statement selectStmt = dbConn.createStatement()) {
       int result = selectStmt.executeUpdate(
           "INSERT INTO " + tableName +
             " ( incaid, incacollected, incacommited, incamemoryusagemb, " +
@@ -1188,9 +1076,6 @@ public class UpdateDBSchema {
 
       return result;
     }
-    finally {
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1201,15 +1086,10 @@ public class UpdateDBSchema {
    */
   private static void dropTable(Connection dbConn, String tableName) throws SQLException
   {
-    Statement dropStmt = dbConn.createStatement();
-
-    try {
+    try (Statement dropStmt = dbConn.createStatement()) {
       dropStmt.executeUpdate("DROP TABLE " + tableName + " CASCADE");
 
       dbConn.commit();
-    }
-    finally {
-      dropStmt.close();
     }
   }
 
@@ -1226,19 +1106,14 @@ public class UpdateDBSchema {
     deleteConfigs(dbConn, seriesId);
     deleteReports(dbConn, seriesId);
 
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incaseries " +
-        "WHERE incaid = ? "
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incaseries " +
+      "WHERE incaid = ? "
+    )) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -1250,23 +1125,18 @@ public class UpdateDBSchema {
    */
   private static void deleteSuiteLinks(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incasuitesseriesconfigs " +
-        "WHERE incaseriesconfig_id IN ( " +
-          "SELECT incaid " +
-          "FROM incaseriesconfig " +
-          "WHERE incaseries_id = ? " +
-        ")"
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incasuitesseriesconfigs " +
+      "WHERE incaseriesconfig_id IN ( " +
+        "SELECT incaid " +
+        "FROM incaseriesconfig " +
+        "WHERE incaseries_id = ? " +
+      ")"
+    )) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -1278,23 +1148,18 @@ public class UpdateDBSchema {
    */
   private static void deleteComparisons(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incacomparisonresult " +
-        "WHERE incaseriesconfigid IN ( " +
-          "SELECT incaid " +
-          "FROM incaseriesconfig " +
-          "WHERE incaseries_id = ? " +
-        ")"
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incacomparisonresult " +
+      "WHERE incaseriesconfigid IN ( " +
+        "SELECT incaid " +
+        "FROM incaseriesconfig " +
+        "WHERE incaseries_id = ? " +
+      ")"
+    )) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -1306,19 +1171,14 @@ public class UpdateDBSchema {
    */
   private static void deleteConfigs(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incaseriesconfig " +
-        "WHERE incaseries_id = ? "
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incaseriesconfig " +
+      "WHERE incaseries_id = ? "
+    )) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -1330,19 +1190,14 @@ public class UpdateDBSchema {
    */
   private static void deleteReports(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incareport " +
-        "WHERE incaseries_id = ? "
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incareport " +
+      "WHERE incaseries_id = ? "
+    )) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -1355,9 +1210,7 @@ public class UpdateDBSchema {
    */
   private static int copyLinks(Connection dbConn, String idList, String tableName) throws SQLException
   {
-    Statement selectStmt = dbConn.createStatement();
-
-    try {
+    try (Statement selectStmt = dbConn.createStatement()) {
       int result = selectStmt.executeUpdate(
           "INSERT INTO " + tableName +
             " ( incainstance_id, incaseriesconfig_id ) " +
@@ -1371,9 +1224,6 @@ public class UpdateDBSchema {
 
       return result;
     }
-    finally {
-      selectStmt.close();
-    }
   }
 
   /**
@@ -1383,53 +1233,40 @@ public class UpdateDBSchema {
    */
   private static List<SeriesLinkingRecord> getSeriesLinkingRecords() throws SQLException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-    Statement selectStmt = null;
-    ResultSet rows = null;
-
-    try {
-      selectStmt = dbConn.createStatement();
-
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+        Statement selectStmt = dbConn.createStatement()
+    ) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery(
+      try (ResultSet rows = selectStmt.executeQuery(
           "SELECT incaseries.incaid, incaseriesconfig.incaid, incaactivated, incadeactivated, " +
             "incainstancetablename, incalinktablename " +
           "FROM incaseriesconfig " +
             "INNER JOIN incaseries ON incaseriesconfig.incaseries_id = incaseries.incaid"
-      );
+      )) {
+        Map<Long, SeriesLinkingRecord> records = new TreeMap<Long, SeriesLinkingRecord>();
 
-      Map<Long, SeriesLinkingRecord> records = new TreeMap<Long, SeriesLinkingRecord>();
+        while (rows.next()) {
+          long seriesId = rows.getLong(1);
+          long configId = rows.getLong(2);
+          Timestamp activated = rows.getTimestamp(3);
+          Timestamp deactivated = rows.getTimestamp(4);
+          String instanceTableName = rows.getString(5);
+          String linkTableName = rows.getString(6);
+          ConfigLinkingRecord configRecord = new ConfigLinkingRecord(configId, activated, deactivated);
+          SeriesLinkingRecord seriesRecord = records.get(seriesId);
 
-      while (rows.next()) {
-        long seriesId = rows.getLong(1);
-        long configId = rows.getLong(2);
-        Timestamp activated = rows.getTimestamp(3);
-        Timestamp deactivated = rows.getTimestamp(4);
-        String instanceTableName = rows.getString(5);
-        String linkTableName = rows.getString(6);
-        ConfigLinkingRecord configRecord = new ConfigLinkingRecord(configId, activated, deactivated);
-        SeriesLinkingRecord seriesRecord = records.get(seriesId);
+          if (seriesRecord == null) {
+            seriesRecord = new SeriesLinkingRecord(seriesId, instanceTableName, linkTableName);
 
-        if (seriesRecord == null) {
-          seriesRecord = new SeriesLinkingRecord(seriesId, instanceTableName, linkTableName);
+            records.put(seriesId, seriesRecord);
+          }
 
-          records.put(seriesId, seriesRecord);
+          seriesRecord.seriesConfigs.add(configRecord);
         }
 
-        seriesRecord.seriesConfigs.add(configRecord);
+        return new ArrayList<SeriesLinkingRecord>(records.values());
       }
-
-      return new ArrayList<SeriesLinkingRecord>(records.values());
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      if (selectStmt != null)
-        selectStmt.close();
-
-      dbConn.close();
     }
   }
 
@@ -1523,12 +1360,10 @@ public class UpdateDBSchema {
    */
   private static void insertLinkingRows(Connection dbConn, String tableName, List<ConfigInstanceLink> links) throws SQLException
   {
-    PreparedStatement insertStmt = dbConn.prepareStatement(
-        "INSERT INTO " + tableName + " ( incaseriesconfig_id, incainstance_id ) " +
-        "VALUES ( ?, ? )"
-    );
-
-    try {
+    try (PreparedStatement insertStmt = dbConn.prepareStatement(
+      "INSERT INTO " + tableName + " ( incaseriesconfig_id, incainstance_id ) " +
+      "VALUES ( ?, ? )"
+    )) {
       for (ConfigInstanceLink link : links) {
         insertStmt.setLong(1, link.configId);
         insertStmt.setLong(2, link.instanceId);
@@ -1544,9 +1379,6 @@ public class UpdateDBSchema {
 
       throw sqlErr;
     }
-    finally {
-      insertStmt.close();
-    }
   }
 
   /**
@@ -1559,9 +1391,7 @@ public class UpdateDBSchema {
    */
   private static int copySeriesInstances(Connection dbConn, String instanceTableName, String linkTableName) throws SQLException
   {
-    Statement selectStmt = dbConn.createStatement();
-
-    try {
+    try (Statement selectStmt = dbConn.createStatement()) {
       int result = selectStmt.executeUpdate(
           "INSERT INTO " + instanceTableName +
             " ( incaid, incacollected, incacommited, incamemoryusagemb, " +
@@ -1578,9 +1408,6 @@ public class UpdateDBSchema {
       dbConn.commit();
 
       return result;
-    }
-    finally {
-      selectStmt.close();
     }
   }
 
@@ -1599,15 +1426,10 @@ public class UpdateDBSchema {
     queryBuilder.append(stringTypeName);
     queryBuilder.append("(255)");
 
-    Statement updateStmt = dbConn.createStatement();
-
-    try {
+    try (Statement updateStmt = dbConn.createStatement()) {
       updateStmt.executeUpdate(queryBuilder.toString());
 
       dbConn.commit();
-    }
-    finally {
-      updateStmt.close();
     }
   }
 }

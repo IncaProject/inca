@@ -82,10 +82,7 @@ class AutoGenKeyInsertOp implements RowOperation {
       stmtBuilder.append(" )");
     }
 
-    PreparedStatement insertStmt = dbConn.prepareStatement(stmtBuilder.toString(), Statement.RETURN_GENERATED_KEYS);
-    ResultSet newKey = null;
-
-    try {
+    try (PreparedStatement insertStmt = dbConn.prepareStatement(stmtBuilder.toString(), Statement.RETURN_GENERATED_KEYS)) {
       int index = 1;
 
       for (columns = m_columns.iterator() ; columns.hasNext() ; index += 1)
@@ -93,17 +90,12 @@ class AutoGenKeyInsertOp implements RowOperation {
 
       insertStmt.executeUpdate();
 
-      newKey = insertStmt.getGeneratedKeys();
+      ResultSet newKey = insertStmt.getGeneratedKeys();
 
       if (newKey.next())
         m_key.assignValue(newKey, 1);
     }
     finally {
-      if (newKey != null)
-        newKey.close();
-
-      insertStmt.close();
-
       for (Column<?> col : m_columns)
         col.finishUpdate();
     }

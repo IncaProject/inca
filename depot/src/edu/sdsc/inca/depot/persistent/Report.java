@@ -404,18 +404,13 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
    */
   public static Report find(boolean status, String message, String bodypart1, String bodypart2, String bodypart3, String stderr, long seriesId, long runInfoId) throws IOException, SQLException, PersistenceException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Long id = find(dbConn, status, message, bodypart1, bodypart2, bodypart3, stderr, seriesId, runInfoId);
 
       if (id == null)
         return null;
 
-      return new Report(id);
-    }
-    finally {
-      dbConn.close();
+      return new Report(dbConn, id);
     }
   }
 
@@ -529,13 +524,10 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
     stmtBuilder.append(" WHERE ");
     stmtBuilder.append(key.getPhrase());
 
-    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       key.setParameter(selectStmt, 1);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       boolean result = true;
 
@@ -547,12 +539,6 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
       }
 
       return result;
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
     }
   }
 
@@ -629,7 +615,7 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
    */
   private static Long find(Connection dbConn, boolean status, String message, String bodypart1, String bodypart2, String bodypart3, String stderr, long seriesId, long runInfoId) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incaid " +
       "FROM INCAREPORT " +
       "WHERE incaexit_status = ? " +
@@ -640,10 +626,7 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
         "AND incastderr = ? " +
         "AND incaseries_id = ? " +
         "AND incarunInfo_id = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    )) {
       selectStmt.setBoolean(1, status);
       selectStmt.setString(2, message);
       selectStmt.setString(3, bodypart1);
@@ -653,18 +636,12 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
       selectStmt.setLong(7, seriesId);
       selectStmt.setLong(8, runInfoId);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return null;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 

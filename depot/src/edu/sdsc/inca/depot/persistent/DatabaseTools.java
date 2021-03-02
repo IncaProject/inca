@@ -4,6 +4,8 @@
 package edu.sdsc.inca.depot.persistent;
 
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -59,9 +61,7 @@ public class DatabaseTools {
 
   static {
     try {
-      Connection dbConn = (new DriverConnectionSource()).getConnection();
-
-      try {
+      try (Connection dbConn = (new DriverConnectionSource()).getConnection()) {
         DatabaseMetaData dbData = dbConn.getMetaData();
 
         PRODUCT_NAME = dbData.getDatabaseProductName();
@@ -80,7 +80,21 @@ public class DatabaseTools {
           BOOLEAN_FALSE = "false";
           USES_GENERATED_KEYS = true;
         }
-        else if (PRODUCT_NAME.equals(MYSQL_DB_NAME) || PRODUCT_NAME.equals(MARIA_DB_NAME)) {
+        else if (PRODUCT_NAME.equals(MARIA_DB_NAME)) {
+          BINARY_TYPE_NAME = "longblob";
+          BOOLEAN_TYPE_NAME = "tinyint(1)";
+          DATE_TYPE_NAME = "datetime";
+          FLOAT_TYPE_NAME = "float";
+          INTEGER_TYPE_NAME = "integer";
+          KEY_TYPE_NAME = "bigint auto_increment";
+          LONG_TYPE_NAME = "bigint";
+          STRING_TYPE_NAME = "varchar";
+          TEXT_TYPE_NAME = "longtext";
+          BOOLEAN_TRUE = "1";
+          BOOLEAN_FALSE = "0";
+          USES_GENERATED_KEYS = true;
+        }
+        else if (PRODUCT_NAME.equals(MYSQL_DB_NAME)) {
           BINARY_TYPE_NAME = "longblob";
           BOOLEAN_TYPE_NAME = "tinyint(1)";
           DATE_TYPE_NAME = "datetime";
@@ -132,12 +146,13 @@ public class DatabaseTools {
         else
           IDENTIFIER_CASE = IdentifierCase.MIXED_CASE;
       }
-      finally {
-        dbConn.close();
-      }
     }
     catch (Exception err) {
-      m_log.error(err);
+      ByteArrayOutputStream logMessage = new ByteArrayOutputStream();
+
+      err.printStackTrace(new PrintStream(logMessage));
+
+      m_log.error(logMessage.toString());
     }
   }
 
@@ -290,13 +305,9 @@ public class DatabaseTools {
   {
     DatabaseMetaData dbData = dbConn.getMetaData();
     String tableName = convertCase(table);
-    ResultSet row = dbData.getTables(null, null, tableName, null);
 
-    try {
+    try (ResultSet row = dbData.getTables(null, null, tableName, null)) {
       return row.next();
-    }
-    finally {
-      row.close();
     }
   }
 
@@ -313,13 +324,9 @@ public class DatabaseTools {
     DatabaseMetaData dbData = dbConn.getMetaData();
     String tableName = convertCase(table);
     String columnName = convertCase(column);
-    ResultSet row = dbData.getColumns(null, null, tableName, columnName);
 
-    try {
+    try (ResultSet row = dbData.getColumns(null, null, tableName, columnName)) {
       return row.next();
-    }
-    finally {
-      row.close();
     }
   }
 
@@ -337,18 +344,14 @@ public class DatabaseTools {
     DatabaseMetaData dbData = dbConn.getMetaData();
     String tableName = convertCase(table);
     String columnName = convertCase(column);
-    ResultSet row = dbData.getColumns(null, null, tableName, columnName);
 
-    try {
+    try (ResultSet row = dbData.getColumns(null, null, tableName, columnName)) {
       if (!row.next())
         return false;
 
       String typeName = row.getString(6);
 
       return typeName.equalsIgnoreCase(type);
-    }
-    finally {
-      row.close();
     }
   }
 
@@ -369,14 +372,10 @@ public class DatabaseTools {
     export.create(false, true);
 
     if (!DatabaseTools.usesGeneratedKeys()) {
-      Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-      try {
+      try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
         dbConn.setAutoCommit(false);
 
-        Statement createStmt = dbConn.createStatement();
-
-        try {
+        try (Statement createStmt = dbConn.createStatement()) {
           createStmt.execute("CREATE SEQUENCE INCAARG_incaid_seq START WITH 1");
           createStmt.execute("CREATE SEQUENCE INCAARGSIGNATURE_incaid_seq START WITH 1");
           createStmt.execute("CREATE SEQUENCE INCACOMPARISONRESULT_incaid_seq START WITH 1");
@@ -389,12 +388,6 @@ public class DatabaseTools {
 
           dbConn.commit();
         }
-        finally {
-          createStmt.close();
-        }
-      }
-      finally {
-        dbConn.close();
       }
     }
   }
@@ -407,9 +400,7 @@ public class DatabaseTools {
    */
   public static void removeDatabase() throws HibernateException, SQLException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       dbConn.setAutoCommit(false);
 
       List<String> tableNames = getTableNames(dbConn, "incaseriesconfigsinstances_");
@@ -433,9 +424,6 @@ public class DatabaseTools {
 
         dropSequences(dbConn, tableNames);
       }
-    }
-    finally {
-      dbConn.close();
     }
 
     Configuration cfg = new Configuration();
@@ -476,19 +464,16 @@ public class DatabaseTools {
   {
     DatabaseMetaData dbData = dbConn.getMetaData();
     String tablePrefix = convertCase(prefix);
-    ResultSet row = dbData.getTables(null, null, tablePrefix + "%", null);
-    List<String> result = new ArrayList<String>();
 
-    try {
+    try (ResultSet row = dbData.getTables(null, null, tablePrefix + "%", null)) {
+      List<String> result = new ArrayList<String>();
+
       while (row.next()) {
         if (row.getString(4).equalsIgnoreCase("TABLE"))
           result.add(row.getString(3));
       }
 
       return result;
-    }
-    finally {
-      row.close();
     }
   }
 
@@ -500,17 +485,12 @@ public class DatabaseTools {
    */
   private static void dropTables(Connection dbConn, List<String> names) throws SQLException
   {
-    Statement dropStmt = dbConn.createStatement();
-
-    try {
+    try (Statement dropStmt = dbConn.createStatement()) {
       for (String name : names) {
         dropStmt.executeUpdate("DROP TABLE " + name + " CASCADE");
 
         dbConn.commit();
       }
-    }
-    finally {
-      dropStmt.close();
     }
   }
 
@@ -522,17 +502,12 @@ public class DatabaseTools {
    */
   private static void dropSequences(Connection dbConn, List<String> names) throws SQLException
   {
-    Statement dropStmt = dbConn.createStatement();
-
-    try {
+    try (Statement dropStmt = dbConn.createStatement()) {
       for (String name : names) {
         dropStmt.executeUpdate("DROP SEQUENCE " + name + "_incaid_seq CASCADE");
 
         dbConn.commit();
       }
-    }
-    finally {
-      dropStmt.close();
     }
   }
 }

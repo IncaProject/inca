@@ -83,27 +83,18 @@ class CountOp implements RowOperation {
       stmtBuilder.append(keys.next().getPhrase());
     }
 
-    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
-    ResultSet row = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       int index = 1;
 
       for (Criterion key : m_keys)
         index = key.setParameter(selectStmt, index);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (row.next())
         m_result.assignValue(row, 1);
       else
         m_result.assignValue(null);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

@@ -529,35 +529,21 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
       Set<Report> reports = new HashSet<Report>();
 
       if (!isNew()) {
-        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-        PreparedStatement selectStmt = null;
-        ResultSet rows = null;
-
-        try {
-          selectStmt = dbConn.prepareStatement(
-            "SELECT incaid " +
-            "FROM INCAREPORT " +
-            "WHERE incaseries_id = ?"
-          );
-
+        try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+             PreparedStatement selectStmt = dbConn.prepareStatement(
+               "SELECT incaid " +
+               "FROM INCAREPORT " +
+               "WHERE incaseries_id = ?"
+        )) {
           m_key.setParameter(selectStmt, 1);
 
-          rows = selectStmt.executeQuery();
+          ResultSet rows = selectStmt.executeQuery();
 
           while (rows.next()) {
             long reportId = rows.getLong(1);
 
-            reports.add(new Report(reportId));
+            reports.add(new Report(dbConn, reportId));
           }
-        }
-        finally {
-          if (rows != null)
-            rows.close();
-
-          if (selectStmt != null)
-            selectStmt.close();
-
-          dbConn.close();
         }
       }
 
@@ -580,35 +566,21 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
       Set<SeriesConfig> configs = new HashSet<SeriesConfig>();
 
       if (!isNew()) {
-        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-        PreparedStatement selectStmt = null;
-        ResultSet rows = null;
-
-        try {
-          selectStmt = dbConn.prepareStatement(
-            "SELECT incaid " +
-            "FROM INCASERIESCONFIG " +
-            "WHERE incaseries_id = ?"
-          );
-
+        try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+             PreparedStatement selectStmt = dbConn.prepareStatement(
+               "SELECT incaid " +
+               "FROM INCASERIESCONFIG " +
+               "WHERE incaseries_id = ?"
+        )) {
           m_key.setParameter(selectStmt, 1);
 
-          rows = selectStmt.executeQuery();
+          ResultSet rows = selectStmt.executeQuery();
 
           while (rows.next()) {
             long configId = rows.getLong(1);
 
-            configs.add(new SeriesConfig(configId));
+            configs.add(new SeriesConfig(dbConn, configId));
           }
-        }
-        finally {
-          if (rows != null)
-            rows.close();
-
-          if (selectStmt != null)
-            selectStmt.close();
-
-          dbConn.close();
         }
       }
 
@@ -626,15 +598,10 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
    */
   public static void createInstanceTables(String instanceName, String linkName) throws SQLException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       dbConn.setAutoCommit(false);
 
       createInstanceTables(dbConn, instanceName, linkName);
-    }
-    finally {
-      dbConn.close();
     }
   }
 
@@ -688,9 +655,7 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
     linkQueryBuilder.append(instanceName);
     linkQueryBuilder.append(" )");
 
-    Statement createStmt = dbConn.createStatement();
-
-    try {
+    try (Statement createStmt = dbConn.createStatement()) {
       createStmt.executeUpdate(instanceQueryBuilder.toString());
       createStmt.executeUpdate(linkQueryBuilder.toString());
 
@@ -710,9 +675,6 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
       dbConn.rollback();
 
       throw sqlErr;
-    }
-    finally {
-      createStmt.close();
     }
   }
 
@@ -956,18 +918,13 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
    */
   public static Series find(String version, String context, String resource) throws IOException, SQLException, PersistenceException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Long id = find(dbConn, version, context, resource);
 
       if (id == null)
         return null;
 
-      return new Series(id);
-    }
-    finally {
-      dbConn.close();
+      return new Series(dbConn, id);
     }
   }
 
@@ -1121,17 +1078,12 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
    */
   private void deleteTables(Connection dbConn) throws SQLException
   {
-    Statement dropStmt = dbConn.createStatement();
-
-    try {
+    try (Statement dropStmt = dbConn.createStatement()) {
       dropStmt.executeUpdate("DROP TABLE " + m_linkTableName.getValue() + " CASCADE");
       dropStmt.executeUpdate("DROP TABLE " + m_instanceTableName.getValue() + " CASCADE");
 
       if (!DatabaseTools.usesGeneratedKeys())
         dropStmt.executeUpdate("DROP SEQUENCE " + m_instanceTableName.getValue() + "_incaid_seq CASCADE");
-    }
-    finally {
-      dropStmt.close();
     }
   }
 
@@ -1140,32 +1092,23 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
    */
   private static Long find(Connection dbConn, String version, String context, String resource) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incaid " +
       "FROM INCASERIES " +
       "WHERE incaversion = ? " +
         "AND incacontext = ? " +
         "AND incaresource = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    )) {
       selectStmt.setString(1, version);
       selectStmt.setString(2, context);
       selectStmt.setString(3, resource);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return null;
 
       return row.getLong(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

@@ -77,9 +77,7 @@ class InsertOp implements RowOperation {
       stmtBuilder.append(" )");
     }
 
-    PreparedStatement insertStmt = dbConn.prepareStatement(stmtBuilder.toString());
-
-    try {
+    try (PreparedStatement insertStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       int index = 1;
 
       for (columns = m_columns.iterator() ; columns.hasNext() ; index += 1)
@@ -88,8 +86,6 @@ class InsertOp implements RowOperation {
       insertStmt.executeUpdate();
     }
     finally {
-      insertStmt.close();
-
       for (Column<?> col : m_columns)
         col.finishUpdate();
     }

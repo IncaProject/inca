@@ -95,13 +95,10 @@ class SelectOp implements RowOperation {
     stmtBuilder.append(" WHERE ");
     stmtBuilder.append(m_key.getPhrase());
 
-    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
-    ResultSet row = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       m_key.setParameter(selectStmt, 1);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         throw new PersistenceException("No row in " + m_tableName +  " for key " + m_key.toString());
@@ -110,12 +107,6 @@ class SelectOp implements RowOperation {
 
       for (columns = m_columns.iterator() ; columns.hasNext() ; index += 1)
         columns.next().assignValue(row, index);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 }

@@ -561,35 +561,21 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
       Set<Suite> suites = new HashSet<Suite>();
 
       if (!isNew()) {
-        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-        PreparedStatement selectStmt = null;
-        ResultSet rows = null;
-
-        try {
-          selectStmt = dbConn.prepareStatement(
-            "SELECT incasuite_id " +
-            "FROM INCASUITESSERIESCONFIGS " +
-            "WHERE incaseriesconfig_id = ?"
-          );
-
+        try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+             PreparedStatement selectStmt = dbConn.prepareStatement(
+               "SELECT incasuite_id " +
+               "FROM INCASUITESSERIESCONFIGS " +
+               "WHERE incaseriesconfig_id = ?"
+        )) {
           m_key.setParameter(selectStmt, 1);
 
-          rows = selectStmt.executeQuery();
+          ResultSet rows = selectStmt.executeQuery();
 
           while (rows.next()) {
             long suiteId = rows.getLong(1);
 
-            suites.add(new Suite(suiteId));
+            suites.add(new Suite(dbConn, suiteId));
           }
-        }
-        finally {
-          if (rows != null)
-            rows.close();
-
-          if (selectStmt != null)
-            selectStmt.close();
-
-          dbConn.close();
         }
       }
 
@@ -635,32 +621,18 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
       Set<String> tags = new HashSet<String>();
 
       if (!isNew()) {
-        Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-        PreparedStatement selectStmt = null;
-        ResultSet rows = null;
-
-        try {
-          selectStmt = dbConn.prepareStatement(
-            "SELECT tag " +
-            "FROM INCASERIESCONFIGTAGS " +
-            "WHERE incaseriesconfig_id = ?"
-          );
-
+        try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+             PreparedStatement selectStmt = dbConn.prepareStatement(
+               "SELECT tag " +
+               "FROM INCASERIESCONFIGTAGS " +
+               "WHERE incaseriesconfig_id = ?"
+        )) {
           m_key.setParameter(selectStmt, 1);
 
-          rows = selectStmt.executeQuery();
+          ResultSet rows = selectStmt.executeQuery();
 
           while (rows.next())
             tags.add(rows.getString(1));
-        }
-        finally {
-          if (rows != null)
-            rows.close();
-
-          if (selectStmt != null)
-            selectStmt.close();
-
-          dbConn.close();
         }
       }
 
@@ -1085,13 +1057,10 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
     stmtBuilder.append(" WHERE ");
     stmtBuilder.append(key.getPhrase());
 
-    PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString());
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       key.setParameter(selectStmt, 1);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       boolean result = true;
 
@@ -1103,12 +1072,6 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
       }
 
       return result;
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
     }
   }
 
@@ -1149,25 +1112,19 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
    */
   private static void deleteDependencies(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
   {
-    PreparedStatement deleteLinksStmt = dbConn.prepareStatement(
-      "DELETE FROM INCASUITESSERIESCONFIGS " +
-      "WHERE incaseriesconfig_id = ?"
-    );
-    PreparedStatement deleteTagsStmt = dbConn.prepareStatement(
-      "DELETE FROM INCASERIESCONFIGTAGS " +
-      "WHERE incaseriesconfig_id = ?"
-    );
-
-    try {
+    try (PreparedStatement deleteLinksStmt = dbConn.prepareStatement(
+           "DELETE FROM INCASUITESSERIESCONFIGS " +
+           "WHERE incaseriesconfig_id = ?"
+         );
+         PreparedStatement deleteTagsStmt = dbConn.prepareStatement(
+           "DELETE FROM INCASERIESCONFIGTAGS " +
+           "WHERE incaseriesconfig_id = ?"
+    )) {
       deleteLinksStmt.setLong(1, id);
       deleteLinksStmt.executeUpdate();
 
       deleteTagsStmt.setLong(1, id);
       deleteTagsStmt.executeUpdate();
-    }
-    finally {
-      deleteLinksStmt.close();
-      deleteTagsStmt.close();
     }
 
     Criterion key = new LongCriterion("incaseriesConfigId", id);

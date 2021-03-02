@@ -104,9 +104,7 @@ public class HqlQuery {
    */
   public List<Object> select(Map<String, Object> params) throws SQLException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Iterator<Object> resultList = select(dbConn, params);
       List<Object> result = new ArrayList<Object>();
 
@@ -117,9 +115,6 @@ public class HqlQuery {
       }
 
       return result;
-    }
-    finally {
-      dbConn.close();
     }
   }
 
@@ -209,9 +204,7 @@ public class HqlQuery {
    */
   public Object selectUnique(Map<String, Object> params) throws SQLException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Iterator<Object> resultList = select(dbConn, params);
 
       if (!resultList.hasNext())
@@ -223,9 +216,6 @@ public class HqlQuery {
         m_log.warn("Unique query returned more than one object");
 
       return result;
-    }
-    finally {
-      dbConn.close();
     }
   }
 
@@ -260,7 +250,6 @@ public class HqlQuery {
     String query = translator.getSQLString();
     ParameterTranslations translations = translator.getParameterTranslations();
     PreparedStatement selectStmt = dbConn.prepareStatement(query);
-    ResultSet rows = null;
 
     try {
       selectStmt.setFetchSize(FETCH_SIZE);
@@ -287,14 +276,11 @@ public class HqlQuery {
           paramType.nullSafeSet(selectStmt, value, location + 1, session);
       }
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       return new HqlIterator(dbConn, selectStmt, rows, translator, session);
     }
     catch (SQLException sqlErr) {
-      if (rows != null)
-        rows.close();
-
       selectStmt.close();
 
       throw sqlErr;

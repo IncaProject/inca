@@ -59,15 +59,10 @@ class DeleteOp implements RowOperation {
     stmtBuilder.append(" WHERE ");
     stmtBuilder.append(m_key.getPhrase());
 
-    PreparedStatement deleteStmt = dbConn.prepareStatement(stmtBuilder.toString());
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
       m_key.setParameter(deleteStmt, 1);
 
       deleteStmt.executeUpdate();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 }

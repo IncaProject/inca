@@ -104,9 +104,7 @@ public class DeleteSeries {
       if (password != null && password.length() > 0)
         connProps.setProperty("password", password);
 
-      Connection dbConn = DriverManager.getConnection(url, connProps);
-
-      try {
+      try (Connection dbConn = DriverManager.getConnection(url, connProps)) {
         dbConn.setAutoCommit(false);
 
         List<SeriesRecord> series = findSeries(dbConn, nickname, resource, target, start, end);
@@ -134,9 +132,6 @@ public class DeleteSeries {
             dropInstanceTables(dbConn, record.instanceTableName, record.linkTableName);
           }
         }
-      }
-      finally {
-        dbConn.close();
       }
     }
     catch (Exception err) {
@@ -166,12 +161,12 @@ public class DeleteSeries {
     StringBuilder queryBuilder = new StringBuilder();
 
     queryBuilder.append(
-        "SELECT incaseries.incaid, incaseriesconfig.incaid, incainstancetablename, incalinktablename " +
-        "FROM incaseries " +
-          "INNER JOIN incaseriesconfig ON incaseries.incaid = incaseriesconfig.incaseries_id " +
-        "WHERE incanickname = ? " +
-          "AND incaresource = ? " +
-          "AND incatargethostname = ?"
+      "SELECT incaseries.incaid, incaseriesconfig.incaid, incainstancetablename, incalinktablename " +
+      "FROM incaseries " +
+        "INNER JOIN incaseriesconfig ON incaseries.incaid = incaseriesconfig.incaseries_id " +
+      "WHERE incanickname = ? " +
+        "AND incaresource = ? " +
+        "AND incatargethostname = ?"
     );
 
     if (start != null)
@@ -180,10 +175,7 @@ public class DeleteSeries {
     if (end != null)
       queryBuilder.append(" AND incadeactivated <= ?");
 
-    PreparedStatement selectStmt = dbConn.prepareStatement(queryBuilder.toString());
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(queryBuilder.toString())) {
       selectStmt.setString(1, nickname);
       selectStmt.setString(2, resource);
 
@@ -201,7 +193,7 @@ public class DeleteSeries {
         selectStmt.setTimestamp(index, new Timestamp(end.getTime()));
       }
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, SeriesRecord> result = new TreeMap<Long, SeriesRecord>();
 
@@ -224,12 +216,6 @@ public class DeleteSeries {
 
       return new ArrayList<SeriesRecord>(result.values());
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -247,16 +233,11 @@ public class DeleteSeries {
     queryBuilder.append(linkTable);
     queryBuilder.append(" WHERE incaseriesconfig_id = ?");
 
-    PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString());
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString())) {
       deleteStmt.setLong(1, configId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -268,19 +249,14 @@ public class DeleteSeries {
    */
   private static void deleteSuiteLinks(Connection dbConn, long configId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incasuitesseriesconfigs " +
-        "WHERE incaseriesconfig_id = ?"
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incasuitesseriesconfigs " +
+      "WHERE incaseriesconfig_id = ?"
+    )) {
       deleteStmt.setLong(1, configId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -292,19 +268,14 @@ public class DeleteSeries {
    */
   private static void deleteComparisons(Connection dbConn, long configId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incacomparisonresult " +
-        "WHERE incaseriesconfigid = ?"
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incacomparisonresult " +
+      "WHERE incaseriesconfigid = ?"
+    )) {
       deleteStmt.setLong(1, configId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -316,19 +287,14 @@ public class DeleteSeries {
    */
   private static void deleteConfig(Connection dbConn, long configId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incaseriesconfig " +
-        "WHERE incaid = ?"
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incaseriesconfig " +
+      "WHERE incaid = ?"
+    )) {
       deleteStmt.setLong(1, configId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -349,15 +315,10 @@ public class DeleteSeries {
     queryBuilder.append(linkTable);
     queryBuilder.append(" )");
 
-    Statement deleteStmt = dbConn.createStatement();
-
-    try {
+    try (Statement deleteStmt = dbConn.createStatement()) {
       deleteStmt.executeUpdate(queryBuilder.toString());
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -370,28 +331,19 @@ public class DeleteSeries {
    */
   private static int numConfigs(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT COUNT(*) " +
-        "FROM incaseriesconfig " +
-        "WHERE incaseries_id = ?"
-    );
-    ResultSet row = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT COUNT(*) " +
+      "FROM incaseriesconfig " +
+      "WHERE incaseries_id = ?"
+    )) {
       selectStmt.setLong(1, seriesId);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return 0;
 
       return row.getInt(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 
@@ -403,19 +355,14 @@ public class DeleteSeries {
    */
   private static void deleteReports(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incareport " +
-        "WHERE incaseries_id = ?"
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incareport " +
+      "WHERE incaseries_id = ?"
+    )) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -427,19 +374,14 @@ public class DeleteSeries {
    */
   private static void deleteSeries(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement deleteStmt = dbConn.prepareStatement(
-        "DELETE FROM incaseries " +
-        "WHERE incaid = ?"
-    );
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(
+      "DELETE FROM incaseries " +
+      "WHERE incaid = ?"
+    )) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -452,16 +394,11 @@ public class DeleteSeries {
    */
   private static void dropInstanceTables(Connection dbConn, String instanceTable, String linkTable) throws SQLException
   {
-    Statement dropStmt = dbConn.createStatement();
-
-    try {
+    try (Statement dropStmt = dbConn.createStatement()) {
       dropStmt.executeUpdate("DROP TABLE " + linkTable + " CASCADE");
       dropStmt.executeUpdate("DROP TABLE " + instanceTable + " CASCADE");
 
       dbConn.commit();
-    }
-    finally {
-      dropStmt.close();
     }
   }
 }

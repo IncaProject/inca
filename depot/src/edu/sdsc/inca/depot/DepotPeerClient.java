@@ -294,13 +294,8 @@ public class DepotPeerClient extends Client {
 	{
 		m_logger.debug("Downloading peer DB data to " + fileName);
 
-		Writer outStream = new BufferedWriter(new OutputStreamWriter(new Base64OutputStream(new FileOutputStream(fileName), false)));
-
-		try {
+		try (Writer outStream = new BufferedWriter(new OutputStreamWriter(new Base64OutputStream(new FileOutputStream(fileName), false)))) {
 			return reader.readStatement(outStream);
-		}
-		finally {
-			outStream.close();
 		}
 	}
 }

@@ -1057,19 +1057,14 @@ public class SyncResponseParser extends DefaultHandler {
      */
     private void updateTableNameColumns() throws SQLException
     {
-      Statement updateStmt = m_dbConn.createStatement();
-
-      try {
+      try (Statement updateStmt = m_dbConn.createStatement()) {
         updateStmt.executeUpdate(
-            "UPDATE incaseries " +
-            "SET incainstancetablename = 'incainstanceinfo_' || incaid, " +
-              "incalinktablename = 'incaseriesconfigsinstances_' || incaid"
+          "UPDATE incaseries " +
+          "SET incainstancetablename = 'incainstanceinfo_' || incaid, " +
+            "incalinktablename = 'incaseriesconfigsinstances_' || incaid"
         );
 
         m_dbConn.commit();
-      }
-      finally {
-        updateStmt.close();
       }
     }
 
@@ -1079,27 +1074,17 @@ public class SyncResponseParser extends DefaultHandler {
      */
     private void createInstanceTables() throws SQLException
     {
-      Statement selectStmt = m_dbConn.createStatement();
-      ResultSet rows = null;
-
-      try {
-        rows = selectStmt.executeQuery(
-            "SELECT incainstancetablename, incalinktablename " +
-            "FROM incaseries"
-        );
-
+      try (Statement selectStmt = m_dbConn.createStatement();
+           ResultSet rows = selectStmt.executeQuery(
+             "SELECT incainstancetablename, incalinktablename " +
+             "FROM incaseries"
+      )) {
         while (rows.next()) {
           String instanceTableName = rows.getString(1);
           String linkTableName = rows.getString(2);
 
           Series.createInstanceTables(m_dbConn, instanceTableName, linkTableName);
         }
-      }
-      finally {
-        if (rows != null)
-          rows.close();
-
-        selectStmt.close();
       }
     }
   }
@@ -3242,13 +3227,8 @@ public class SyncResponseParser extends DefaultHandler {
    */
   public static void parseResponse(Depot owner, InputStream inStream) throws SQLException, IOException, SAXException
   {
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       parseResponse(dbConn, owner, inStream);
-    }
-    finally {
-      dbConn.close();
     }
   }
 

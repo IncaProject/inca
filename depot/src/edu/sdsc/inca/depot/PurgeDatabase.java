@@ -74,9 +74,7 @@ public class PurgeDatabase {
   {
     m_logger.info("purging database...");
 
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       dbConn.setAutoCommit(false);
 
       List<SeriesRecord> names = getSeriesRecords(dbConn);
@@ -134,9 +132,6 @@ public class PurgeDatabase {
 
       m_logger.info("finished purge, deleted " + totalInstancesDeleted + " InstanceInfo records and " + totalReportsDeleted +  " Reports");
     }
-    finally {
-      dbConn.close();
-    }
   }
 
 
@@ -171,13 +166,9 @@ public class PurgeDatabase {
   {
     DatabaseMetaData dbData = dbConn.getMetaData();
     String tableName = convertCase(dbData, table);
-    ResultSet row = dbData.getTables(null, null, tableName, null);
 
-    try {
+    try (ResultSet row = dbData.getTables(null, null, tableName, null)) {
       return row.next();
-    }
-    finally {
-      row.close();
     }
   }
 
@@ -189,16 +180,13 @@ public class PurgeDatabase {
    */
   private List<SeriesRecord> getSeriesRecords(Connection dbConn) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement(
-        "SELECT incaid, incainstancetablename, incalinktablename " +
-        "FROM incaseries"
-    );
-    ResultSet rows = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT incaid, incainstancetablename, incalinktablename " +
+      "FROM incaseries"
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       List<SeriesRecord> result = new ArrayList<SeriesRecord>();
 
@@ -212,12 +200,6 @@ public class PurgeDatabase {
 
       return result;
     }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
-    }
   }
 
   /**
@@ -229,24 +211,17 @@ public class PurgeDatabase {
    */
   private int getNumReports(Connection dbConn, long seriesId) throws SQLException
   {
-    PreparedStatement selectStmt = dbConn.prepareStatement("SELECT COUNT(*) FROM incareport WHERE incaseries_id = ?");
-    ResultSet row = null;
-
-    try {
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
+      "SELECT COUNT(*) FROM incareport WHERE incaseries_id = ?"
+    )) {
       selectStmt.setLong(1, seriesId);
 
-      row = selectStmt.executeQuery();
+      ResultSet row = selectStmt.executeQuery();
 
       if (!row.next())
         return 0;
 
       return row.getInt(1);
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 
@@ -271,11 +246,8 @@ public class PurgeDatabase {
     queryBuilder.append(".incareportid GROUP BY incareport.incaid ORDER BY latest DESC LIMIT 1 OFFSET ");
     queryBuilder.append(cutoff);
 
-    Statement selectStmt = dbConn.createStatement();
-    ResultSet row = null;
-
-    try {
-      row = selectStmt.executeQuery(queryBuilder.toString());
+    try (Statement selectStmt = dbConn.createStatement()) {
+      ResultSet row = selectStmt.executeQuery(queryBuilder.toString());
 
       if (!row.next())
         return null;
@@ -283,12 +255,6 @@ public class PurgeDatabase {
       Timestamp result = row.getTimestamp(2);
 
       return new Date(result.getTime());
-    }
-    finally {
-      if (row != null)
-        row.close();
-
-      selectStmt.close();
     }
   }
 
@@ -311,9 +277,7 @@ public class PurgeDatabase {
     queryBuilder.append(instanceTable);
     queryBuilder.append(" WHERE incacollected < ? )");
 
-    PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString());
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString())) {
       deleteStmt.setTimestamp(1, new Timestamp(cutoff.getTime()));
 
       int numDeleted = deleteStmt.executeUpdate();
@@ -321,9 +285,6 @@ public class PurgeDatabase {
       dbConn.commit();
 
       return numDeleted;
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -343,9 +304,7 @@ public class PurgeDatabase {
     queryBuilder.append(instanceTable);
     queryBuilder.append(" WHERE incacollected < ?");
 
-    PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString());
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString())) {
       deleteStmt.setTimestamp(1, new Timestamp(cutoff.getTime()));
 
       int numDeleted = deleteStmt.executeUpdate();
@@ -353,9 +312,6 @@ public class PurgeDatabase {
       dbConn.commit();
 
       return numDeleted;
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -371,24 +327,19 @@ public class PurgeDatabase {
     StringBuilder queryBuilder = new StringBuilder();
 
     queryBuilder.append(
-        "UPDATE incaseriesconfig " +
-        "SET incalatestinstanceid = -1, incalatestcomparisonid = -1 " +
-        "WHERE incaseries_id = ? " +
-          "AND incalatestinstanceid NOT IN ( SELECT incaid FROM "
+      "UPDATE incaseriesconfig " +
+      "SET incalatestinstanceid = -1, incalatestcomparisonid = -1 " +
+      "WHERE incaseries_id = ? " +
+        "AND incalatestinstanceid NOT IN ( SELECT incaid FROM "
     );
     queryBuilder.append(table);
     queryBuilder.append(" )");
 
-    PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString());
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString())) {
       deleteStmt.setLong(1, seriesId);
       deleteStmt.executeUpdate();
 
       dbConn.commit();
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -405,16 +356,14 @@ public class PurgeDatabase {
     StringBuilder queryBuilder = new StringBuilder();
 
     queryBuilder.append(
-        "DELETE FROM incareport " +
-        "WHERE incaseries_id = ? " +
-          "AND incaid NOT IN ( SELECT incareportid FROM "
+      "DELETE FROM incareport " +
+      "WHERE incaseries_id = ? " +
+        "AND incaid NOT IN ( SELECT incareportid FROM "
     );
     queryBuilder.append(table);
     queryBuilder.append(" )");
 
-    PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString());
-
-    try {
+    try (PreparedStatement deleteStmt = dbConn.prepareStatement(queryBuilder.toString())) {
       deleteStmt.setLong(1, seriesId);
 
       int result = deleteStmt.executeUpdate();
@@ -422,9 +371,6 @@ public class PurgeDatabase {
       dbConn.commit();
 
       return result;
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -436,23 +382,18 @@ public class PurgeDatabase {
    */
   private int deleteOrphanedComparisons(Connection dbConn) throws SQLException
   {
-    Statement deleteStmt = dbConn.createStatement();
-
-    try {
+    try (Statement deleteStmt = dbConn.createStatement()) {
       int result = deleteStmt.executeUpdate(
-          "DELETE FROM incacomparisonresult " +
-          "WHERE incareportid NOT IN ( " +
-            "SELECT incaid " +
-            "FROM incareport " +
-          ")"
+        "DELETE FROM incacomparisonresult " +
+        "WHERE incareportid NOT IN ( " +
+          "SELECT incaid " +
+          "FROM incareport " +
+        ")"
       );
 
       dbConn.commit();
 
       return result;
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 
@@ -464,23 +405,18 @@ public class PurgeDatabase {
    */
   private int deleteOrphanedRunInfo(Connection dbConn) throws SQLException
   {
-    Statement deleteStmt = dbConn.createStatement();
-
-    try {
+    try (Statement deleteStmt = dbConn.createStatement()) {
       int result = deleteStmt.executeUpdate(
-          "DELETE FROM incaruninfo " +
-          "WHERE incaid NOT IN ( " +
-            "SELECT incaruninfo_id " +
-            "FROM incareport " +
-          ")"
+        "DELETE FROM incaruninfo " +
+        "WHERE incaid NOT IN ( " +
+          "SELECT incaruninfo_id " +
+          "FROM incareport " +
+        ")"
       );
 
       dbConn.commit();
 
       return result;
-    }
-    finally {
-      deleteStmt.close();
     }
   }
 }

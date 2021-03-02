@@ -543,13 +543,11 @@ public class Query extends HibernateMessageHandler {
     if (isHql)
       l = (new HqlQuery(select)).select();
     else {
-      Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-      PreparedStatement selectStmt = null;
-      ResultSet rows = null;
+      try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+           PreparedStatement selectStmt = dbConn.prepareStatement(select)
+      ) {
+        ResultSet rows = selectStmt.executeQuery();
 
-      try {
-        selectStmt = dbConn.prepareStatement(select);
-        rows = selectStmt.executeQuery();
         l = new ArrayList<Object>();
 
         int numCols = rows.getMetaData().getColumnCount();
@@ -562,15 +560,6 @@ public class Query extends HibernateMessageHandler {
 
           l.add(newRow);
         }
-      }
-      finally {
-        if (rows != null)
-          rows.close();
-
-        if (selectStmt != null)
-          selectStmt.close();
-
-        dbConn.close();
       }
     }
     // Send one response per row.  If the row is a Row object (e.g.,
@@ -622,9 +611,7 @@ public class Query extends HibernateMessageHandler {
    */
   private void getLatestInstances(ProtocolWriter writer, String expr) throws Exception {
 
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Iterator<Object> scList = getSelectedConfigs(dbConn, expr);
       Statement reply = new Statement(Protocol.QUERY_RESULT, null);
 
@@ -664,9 +651,6 @@ public class Query extends HibernateMessageHandler {
         writer.write(reply);
       }
     }
-    finally {
-      dbConn.close();
-    }
   }
 
   /**
@@ -682,9 +666,7 @@ public class Query extends HibernateMessageHandler {
   private void getPeriodInstances(ProtocolWriter writer, String request)
     throws Exception {
 
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       // Parse the request
       String[] pieces = request.split(" ", 3);
       if(pieces.length != 3) {
@@ -731,9 +713,6 @@ public class Query extends HibernateMessageHandler {
         writer.write(reply);
       }
     }
-    finally {
-      dbConn.close();
-    }
   }
 
   /**
@@ -750,9 +729,7 @@ public class Query extends HibernateMessageHandler {
   private void getStatusHistory(ProtocolWriter writer, String request)
     throws Exception {
 
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       // Parse the request
       String[] pieces = request.split(" ", 4);
       if(pieces.length != 4) {
@@ -884,9 +861,6 @@ public class Query extends HibernateMessageHandler {
         }
       }
     }
-    finally {
-      dbConn.close();
-    }
   }
 
   /**
@@ -921,9 +895,7 @@ public class Query extends HibernateMessageHandler {
    */
   private void getReporterSeries(ProtocolWriter writer) throws Exception {
 
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Pattern targetPattern = Pattern.compile("(.+)_to_.+");
       Map<String, Timestamp> activatedDates = new TreeMap<String, Timestamp>();
       Iterator<Object> queryResult = (new HqlQuery(
@@ -1110,9 +1082,6 @@ public class Query extends HibernateMessageHandler {
         writer.flush();
       }
     }
-    finally {
-      dbConn.close();
-    }
   }
 
   /**
@@ -1122,9 +1091,7 @@ public class Query extends HibernateMessageHandler {
    */
   private void getReporterSeriesDetail(ProtocolWriter writer) throws Exception {
 
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       Iterator<Object> queryResult = (new HqlQuery(
         "SELECT seriesConfig, suite.name AS suiteName " +
         "FROM SeriesConfig seriesConfig INNER JOIN seriesConfig.suites suite " +
@@ -1186,9 +1153,6 @@ public class Query extends HibernateMessageHandler {
         writer.write("</configs>\r\n");
         writer.flush();
       }
-    }
-    finally {
-      dbConn.close();
     }
   }
 
@@ -1374,9 +1338,7 @@ public class Query extends HibernateMessageHandler {
    */
   private Map<Long, String> getRelatedComparisons(long configId) throws SQLException, PersistenceException {
 
-    Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
-
-    try {
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
       StopWatch timer = new Log4JStopWatch(logger);
       String query = "SELECT cr.reportId, cr.result FROM ComparisonResult cr " +
         "WHERE cr.seriesConfigId = " + configId;
@@ -1389,9 +1351,6 @@ public class Query extends HibernateMessageHandler {
       }
       timer.lap("getRelatedComparisons", "numCRs=" + crResultsByReportId.size());
       return crResultsByReportId;
-    }
-    finally {
-      dbConn.close();
     }
   }
 
@@ -1414,7 +1373,8 @@ public class Query extends HibernateMessageHandler {
     Series s = sc.getSeries();
     String instanceTableName = s.getInstanceTableName();
     String linkTableName = s.getLinkTableName();
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT instanceid " +
       "FROM " + linkTableName +
       " INNER JOIN (" +
@@ -1424,16 +1384,13 @@ public class Query extends HibernateMessageHandler {
           "AND incacollected <= ?" +
         ") AS instances ON " + linkTableName + ".incainstance_id = instances.instanceid " +
       "WHERE " + linkTableName + ".incaseriesconfig_id = ?"
-    );
-    ResultSet rows = null;
-
-    try {
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
       selectStmt.setTimestamp(1, new Timestamp(begin.getTime()));
       selectStmt.setTimestamp(2, new Timestamp(end.getTime()));
       selectStmt.setLong(3, sc.getId());
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       Map<Long, Report> reports = new TreeMap<Long, Report>();
 
@@ -1442,13 +1399,6 @@ public class Query extends HibernateMessageHandler {
 
         processor.process(instance, reports);
       }
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      if (selectStmt != null)
-        selectStmt.close();
     }
   }
 
@@ -1518,17 +1468,14 @@ public class Query extends HibernateMessageHandler {
    */
   private List<Timestamp> getCollectedDates(Connection dbConn, String tableName, String idList) throws SQLException {
 
-    PreparedStatement selectStmt = dbConn.prepareStatement(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incacollected " +
       "FROM " + tableName +
       " WHERE incaid IN ( " + idList + " )"
-    );
-    ResultSet rows = null;
-
-    try {
+    )) {
       selectStmt.setFetchSize(FETCH_SIZE);
 
-      rows = selectStmt.executeQuery();
+      ResultSet rows = selectStmt.executeQuery();
 
       List<Timestamp> result = new ArrayList<Timestamp>();
 
@@ -1536,12 +1483,6 @@ public class Query extends HibernateMessageHandler {
         result.add(rows.getTimestamp(1));
 
       return result;
-    }
-    finally {
-      if (rows != null)
-        rows.close();
-
-      selectStmt.close();
     }
   }
 }
