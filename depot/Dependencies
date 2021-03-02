@@ -12,6 +12,7 @@ dom4j-1.6.1.jar
 ehcache-1.2.3.jar
 hibernate-3.6.4.jar
 hibernate-jpa-2.0-api-1.0.0.Final.jar
+HikariCP-4.0.2.jar
 hsqldb-2.2.8.jar
 inca-common.jar
 incaXmlBeans.jar
@@ -27,7 +28,7 @@ junit-3.8.1.jar
 log4j-1.2.17.jar
 perf4j-0.9.10.jar
 rabbitmq-client-3.1.5.jar
-slf4j-api-1.6.1.jar
-slf4j-log4j12-1.6.1.jar
+slf4j-api-1.7.30.jar
+slf4j-log4j12-1.7.30.jar
 xbean-2.4.jar
 xml-apis.jar

@@ -4,7 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
-import java.lang.reflect.InvocationTargetException;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -37,16 +37,10 @@ public class DriverConnectionSource extends ConnectionSource {
    * Constructs an instance of the object using the set of properties returned from
    * the {@link ConnectionSource#getDatabaseConfiguration() getDatabaseConfiguration}
    * method of the <code>ConnectionSource</code> class.
-   * @throws ClassNotFoundException
-   * @throws SecurityException
-   * @throws NoSuchMethodException
-   * @throws InvocationTargetException
-   * @throws IllegalArgumentException
-   * @throws IllegalAccessException
-   * @throws InstantiationException
    *
+   * @throws IOException
    */
-  public DriverConnectionSource() throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException
+  public DriverConnectionSource() throws IOException
   {
     this(getDatabaseConfiguration());
   }
@@ -55,24 +49,28 @@ public class DriverConnectionSource extends ConnectionSource {
    * Constructs an instance of the object using the given set of properties.
    *
    * @param configProps
-   * @throws ClassNotFoundException
-   * @throws SecurityException
-   * @throws NoSuchMethodException
-   * @throws InvocationTargetException
-   * @throws IllegalArgumentException
-   * @throws IllegalAccessException
-   * @throws InstantiationException
    */
-  public DriverConnectionSource(Properties configProps) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException
+  public DriverConnectionSource(Properties configProps)
   {
-    loadDriver(configProps);
+    String dbUrl = configProps.getProperty("jdbcUrl");
 
-    m_dbUsername = configProps.getProperty("hibernate.connection.username");
-    m_dbPassword = configProps.getProperty("hibernate.connection.password");
-    m_dbUrl = configProps.getProperty("hibernate.connection.url");
+    if (dbUrl == null) {
+      String className = configProps.getProperty("dataSourceClassName");
+      String host = configProps.getProperty("dataSource.serverName");
+      String port = configProps.getProperty("dataSource.portNumber");
+      String database = configProps.getProperty("dataSource.databaseName");
 
-    m_log.debug("url: " + m_dbUrl);
-    m_log.debug("user: " + m_dbUsername);
+      m_dbUrl = constructJdbcUrl(className, host, port, database);
+      m_dbUsername = configProps.getProperty("dataSource.user");
+      m_dbPassword = configProps.getProperty("dataSource.password");
+    }
+    else {
+      m_dbUrl = dbUrl;
+      m_dbUsername = configProps.getProperty("username");
+      m_dbPassword = configProps.getProperty("password");
+    }
+
+    m_log.debug("url: " + m_dbUrl + ", user: " + m_dbUsername);
   }
 
 
@@ -80,10 +78,7 @@ public class DriverConnectionSource extends ConnectionSource {
 
 
   /**
-   * Returns a <code>Connection</code> object from the data source.
-   *
-   * @return a <code>Connection</code> object
-   * @throws SQLException
+   * {@inheritDoc}
    */
   @Override
   public Connection getConnection() throws SQLException
@@ -93,20 +88,52 @@ public class DriverConnectionSource extends ConnectionSource {
     connProps.setProperty("user", m_dbUsername);
     connProps.setProperty("password", m_dbPassword);
 
-    Connection connection = DriverManager.getConnection(m_dbUrl, connProps);
-
-    return connection;
+    return DriverManager.getConnection(m_dbUrl, connProps);
   }
 
   /**
-   * Releases any resources required by the data source. The <code>DriverManager</code> class
-   * doesn't require manual resource management, so this method does nothing.
-   *
-   * @throws SQLException
+   * {@inheritDoc}
    */
   @Override
-  public void close() throws SQLException
+  public void close()
   {
     // do nothing
+  }
+
+
+  // private methods
+
+
+  /**
+   *
+   * @param name
+   * @param host
+   * @param port
+   * @param database
+   * @return
+   */
+  private String constructJdbcUrl(String name, String host, String port, String database)
+  {
+    if (name.contains("hsqldb"))
+      return "jdbc:hsqldb:file:" + database;
+
+    if (host == null || host.isBlank())
+      host = "localhost";
+
+    if (port != null && !port.isBlank())
+      port = ":" + port;
+    else
+      port = "";
+
+    if (name.contains("mariadb"))
+      return "jdbc:mariadb://" + host + port + "/" + database;
+    else if (name.contains("mysql"))
+      return "jdbc:mysql://" + host + port + "/" + database;
+    else if (name.contains("oracle"))
+      return "jdbc:oracle:thin:@" + host + port + ":" + database;
+    else if (name.contains("postgresql"))
+      return "jdbc:postgresql://" + host + port + "/" + database;
+    else
+      return null;
   }
 }

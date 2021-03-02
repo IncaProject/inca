@@ -4,7 +4,7 @@
 package edu.sdsc.inca.depot.persistent;
 
 
-import java.lang.reflect.InvocationTargetException;
+import java.io.IOException;
 import java.util.Properties;
 
 
@@ -50,19 +50,13 @@ public class ConnectionManager {
    * instance. The new instance is created using the set of properties returned from the
    * {@link ConnectionSource#getDatabaseConfiguration() getDatabaseConfiguration} method
    * of the <code>ConnectionSource</code> class.
-   * @throws ClassNotFoundException
-   * @throws SecurityException
-   * @throws NoSuchMethodException
-   * @throws InvocationTargetException
-   * @throws IllegalArgumentException
-   * @throws IllegalAccessException
-   * @throws InstantiationException
    *
+   * @throws IOException
    */
-  public static void setConnectionSource() throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException
+  public static void setConnectionSource() throws IOException
   {
     Properties configProps = ConnectionSource.getDatabaseConfiguration();
-    ConnectionSource connSource = new DriverConnectionSource(configProps);
+    ConnectionSource connSource = new HikariCPConnectionSource(configProps);
 
     setConnectionSource(connSource);
   }

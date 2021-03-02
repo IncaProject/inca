@@ -4,12 +4,14 @@
 package edu.sdsc.inca.depot.persistent;
 
 
-import java.lang.reflect.InvocationTargetException;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import org.apache.log4j.Logger;
 import org.hibernate.cfg.Configuration;
 
 
@@ -24,7 +26,7 @@ public abstract class ConnectionSource {
   // data fields
 
 
-  private static final Logger m_baseLog = Logger.getLogger(ConnectionSource.class);
+  private static final String DATABASE_CONFIG_FILE = "hikaricp.properties";
 
 
   // public methods
@@ -41,44 +43,45 @@ public abstract class ConnectionSource {
   /**
    * Releases any resources required by the data source.
    *
-   * @throws SQLException
    */
-  public abstract void close() throws SQLException;
+  public abstract void close();
 
   /**
-   * Returns a set of database properties from the resource located at <code>DATABASE_CONFIG_URL</code>.
+   * Returns a set of database properties from the resource located at <code>DATABASE_CONFIG_FILE</code>.
    *
    * @return a <code>Properties</code> object containing the set of database properties
+   * @throws IOException
    */
-  public static Properties getDatabaseConfiguration()
+  public static Properties getDatabaseConfiguration() throws IOException
   {
-    Configuration config = new Configuration();
+    Properties result = new Properties();
+    InputStream configStream = ClassLoader.getSystemClassLoader().getResourceAsStream(DATABASE_CONFIG_FILE);
 
-    return config.getProperties();
-  }
+    if (configStream == null) {
+      try {
+        configStream = new FileInputStream(DATABASE_CONFIG_FILE);
+      }
+      catch (FileNotFoundException err) {
+        Properties hibernateProps = (new Configuration()).getProperties();
+        String dbUsername = hibernateProps.getProperty("hibernate.connection.username");
+        String dbPassword = hibernateProps.getProperty("hibernate.connection.password");
+        String dbUrl = hibernateProps.getProperty("hibernate.connection.url");
 
+        result.put("username", dbUsername);
+        result.put("password", dbPassword);
+        result.put("jdbcUrl", dbUrl);
 
-  // protected methods
+        return result;
+      }
+    }
 
+    try {
+      result.load(configStream);
+    }
+    finally {
+      configStream.close();
+    }
 
-  /**
-   * Loads the database vendor's JDBC driver class, using a property from the provided <code>Properties</code> object.
-   *
-   * @param configProps a <code>Properties</code> object that contains a value for the key "driverClass"
-   * @throws ClassNotFoundException
-   * @throws SecurityException
-   * @throws NoSuchMethodException
-   * @throws InvocationTargetException
-   * @throws IllegalArgumentException
-   * @throws IllegalAccessException
-   * @throws InstantiationException
-   */
-  protected static void loadDriver(Properties configProps) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException
-  {
-    String driverClassName = configProps.getProperty("hibernate.connection.driver_class");
-
-    m_baseLog.debug("Loading driver " + driverClassName);
-
-    Class.forName(driverClassName).getDeclaredConstructor().newInstance();
+    return result;
   }
 }
