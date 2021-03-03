@@ -183,8 +183,12 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
 
     m_args = new ArgSet(new HashSet<Arg>());
 
-    for (Arg arg : args)
-      m_args.add(arg);
+    if (args != null && !args.isEmpty()) {
+      for (Arg arg : args)
+        m_args.add(arg);
+    }
+    else
+      setSignature(null);
   }
 
   /**
