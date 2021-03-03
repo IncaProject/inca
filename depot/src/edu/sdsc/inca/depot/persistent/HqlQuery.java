@@ -105,6 +105,8 @@ public class HqlQuery {
   public List<Object> select(Map<String, Object> params) throws SQLException
   {
     try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
+      dbConn.setAutoCommit(false);
+
       Iterator<Object> resultList = select(dbConn, params);
       List<Object> result = new ArrayList<Object>();
 

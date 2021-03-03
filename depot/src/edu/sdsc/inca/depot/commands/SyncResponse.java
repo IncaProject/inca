@@ -1256,6 +1256,8 @@ public class SyncResponse extends MessageHandler {
     try (PrintStream output = new PrintStream(new BufferedOutputStream(new GZIPOutputStream(new Base64OutputStream(new ClonedOutputStream(outStream), true, 0, CRLF))));
          Connection dbConn = ConnectionManager.getConnectionSource().getConnection()
     ) {
+      dbConn.setAutoCommit(false);
+
       output.print("<syncResponse>");
 
       m_logger.debug("Writing Suite records...");
