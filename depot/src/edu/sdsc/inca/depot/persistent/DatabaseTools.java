@@ -487,7 +487,7 @@ public class DatabaseTools {
   {
     try (Statement dropStmt = dbConn.createStatement()) {
       for (String name : names) {
-        dropStmt.executeUpdate("DROP TABLE " + name + " CASCADE");
+        dropStmt.executeUpdate("DROP TABLE IF EXISTS " + name + " CASCADE");
 
         dbConn.commit();
       }
@@ -504,7 +504,7 @@ public class DatabaseTools {
   {
     try (Statement dropStmt = dbConn.createStatement()) {
       for (String name : names) {
-        dropStmt.executeUpdate("DROP SEQUENCE " + name + "_incaid_seq CASCADE");
+        dropStmt.executeUpdate("DROP SEQUENCE IF EXISTS " + name + "_incaid_seq CASCADE");
 
         dbConn.commit();
       }
