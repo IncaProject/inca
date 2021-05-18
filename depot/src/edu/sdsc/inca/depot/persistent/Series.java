@@ -1028,6 +1028,12 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
   @Override
   protected boolean insert(Connection dbConn) throws IOException, SQLException, PersistenceException
   {
+    if (m_uri.isNull())
+      m_uri.setValue(DB_EMPTY_STRING);
+
+    if (m_targetHostname.isNull())
+      m_targetHostname.setValue(DB_EMPTY_STRING);
+
     boolean inserted = super.insert(dbConn);
 
     if (inserted)

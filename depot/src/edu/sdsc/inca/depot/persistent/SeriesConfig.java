@@ -992,7 +992,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
     m_schedule.setSuspended(m_suspended.getValue());
 
     m_limits = new Limits(m_memory.getValue(), m_cpuTime.getValue(), m_wallClockTime.getValue());
-    m_series = new Series(m_seriesId.getValue());
+    m_series = new Series(dbConn, m_seriesId.getValue());
     m_suites = null;
     m_tags = null;
   }
