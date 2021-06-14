@@ -1,35 +1,38 @@
 package edu.sdsc.inca.util;
 
-import edu.sdsc.inca.dataModel.suite.SuiteDocument;
-import edu.sdsc.inca.dataModel.suite.Suite;
-import edu.sdsc.inca.dataModel.suiteStages.SuiteStagesDocument;
-import edu.sdsc.inca.dataModel.suiteStages.MultiResourceConfig;
-import edu.sdsc.inca.dataModel.util.SeriesConfig;
-import edu.sdsc.inca.dataModel.util.Schedule;
-import edu.sdsc.inca.dataModel.util.Cron;
-import edu.sdsc.inca.dataModel.util.Args;
-import edu.sdsc.inca.dataModel.inca.IncaDocument;
-import edu.sdsc.inca.dataModel.resourceConfig.ResourceConfigDocument;
-import edu.sdsc.inca.ConfigurationException;
-import edu.sdsc.inca.repository.Repositories;
-import edu.sdsc.inca.repository.Repository;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Properties;
+import java.util.Random;
+import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
-import org.apache.xmlbeans.XmlException;
-import org.apache.xmlbeans.XmlOptions;
-import org.apache.xmlbeans.XmlObject;
 import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlObject;
+import org.apache.xmlbeans.XmlOptions;
 
-import java.io.IOException;
-import java.io.File;
-import java.util.Arrays;
-import java.util.Properties;
-import java.util.Vector;
-import java.util.Random;
-import java.util.HashMap;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import java.net.URL;
+import edu.sdsc.inca.ConfigurationException;
+import edu.sdsc.inca.dataModel.inca.IncaDocument;
+import edu.sdsc.inca.dataModel.resourceConfig.ResourceConfigDocument;
+import edu.sdsc.inca.dataModel.suite.Suite;
+import edu.sdsc.inca.dataModel.suite.SuiteDocument;
+import edu.sdsc.inca.dataModel.suiteStages.MultiResourceConfig;
+import edu.sdsc.inca.dataModel.suiteStages.SuiteStagesDocument;
+import edu.sdsc.inca.dataModel.util.Args;
+import edu.sdsc.inca.dataModel.util.Cron;
+import edu.sdsc.inca.dataModel.util.Schedule;
+import edu.sdsc.inca.dataModel.util.SeriesConfig;
+import edu.sdsc.inca.repository.Repositories;
+import edu.sdsc.inca.repository.Repository;
+
 
 /**
  * Convenience object for accessing suite stages documents and persisting
@@ -289,18 +292,18 @@ public class SuiteStagesWrapper extends XmlWrapper {
     throws ConfigurationException {
 
     Cron resolved_cron = null;
-    
+
     if ( schedule.isSetCron() ) {
       resolved_cron = (Cron)schedule.getCron().copy();
     }
     if ( schedule.isSetCrontime() ) {
       resolved_cron = createCron( schedule.getCrontime() );
     }
-    
+
     if ( resolved_cron == null ) { // '?' only appear in cron
       return schedule;
     }
-    
+
     Schedule resolved = Schedule.Factory.newInstance();
     if ( resolved_cron.getMin() != null ) {
       resolved_cron.setMin( chooseCronFieldValue
@@ -446,7 +449,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
       suite.appendSeriesConfig( deletedConfig );
       SeriesConfig addedConfig = (SeriesConfig)result.copy();
       addedConfig.getSeries().setVersion( newVersion );
-      addedConfig.getSeries().setUri( newUri );      
+      addedConfig.getSeries().setUri( newUri );
       addedConfig.setAction( "add" );
       suite.appendSeriesConfig( addedConfig );
     }
@@ -546,7 +549,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
         );
         sched.getCron().setMonth(
           sched.getCron().getMonth().replaceAll("\\?=", "")
-        );    
+        );
       }
       suites.get(resource).appendSeriesConfig( newConfig );
     }
@@ -589,7 +592,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
   public SuiteDocument getSuiteDocumentWithVersions() {
     return createSuiteDocument( "//multiResourceConfig/config" );
   }
-  
+
   /**
    * Apply multi-resource series config changes in the provided suite to the
    * SuiteStages document.
@@ -642,7 +645,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
       committedChanges.getDocument().getSuiteStages().setVersion(
         suiteChanges.getSuiteDocument().getSuite().getVersion()
       );
-    }  
+    }
 
     // look through configs and apply add or delete
     SeriesConfig[] configs = suiteChanges.getSeriesConfigs();
@@ -1179,7 +1182,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
    *
    * where suiteFile can be a suite stages doc or a plain suite doc. If dir
    * argument is present, will print out the suites for each host.
-   * 
+   *
    * @param args   The command line arguments
    */
   public static void main(String[] args) {
@@ -1236,7 +1239,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
       logger.info
         ("Expanding suites from " + incaFile);
       try {
-        IncaDocument incaDoc = IncaDocument.Factory.parse(new File(incaFile));
+        IncaDocument incaDoc = IncaDocument.Factory.parse(new File(incaFile), (new XmlOptions()).setLoadStripWhitespace());
         ResourceConfigDocument rcDoc = ResourceConfigDocument.Factory.newInstance();
         rcDoc.setResourceConfig( incaDoc.getInca().getResourceConfig() );
         Repositories repos = new Repositories();
@@ -1260,7 +1263,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
           if ( expandedDir != null ) {
             File suiteFile =
               new File( expandedDir + File.separator + suite.getName() + ".xml");
-            suiteStages.getDocument().save( suiteFile );
+            suiteStages.getDocument().save( suiteFile, (new XmlOptions()).setSavePrettyPrint() );
             logger.info( "Saving suite " + suite.getName() + " to " + suiteFile);
           } else {
             System.out.println( suiteStages.getDocument().xmlText() );
