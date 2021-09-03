@@ -1,19 +1,21 @@
 package edu.sdsc.inca;
 
-import edu.sdsc.inca.dataModel.inca.IncaDocument;
-import edu.sdsc.inca.dataModel.inca.IncaDocument.Inca;
-import edu.sdsc.inca.dataModel.util.Resource;
-import edu.sdsc.inca.dataModel.util.Resources;
-import edu.sdsc.inca.dataModel.suite.Suite;
-import edu.sdsc.inca.util.StringMethods;
-import edu.sdsc.inca.util.XmlWrapper;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
+
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlOptions;
+
+import edu.sdsc.inca.dataModel.inca.IncaDocument;
+import edu.sdsc.inca.dataModel.inca.IncaDocument.Inca;
+import edu.sdsc.inca.dataModel.suite.Suite;
+import edu.sdsc.inca.dataModel.util.Resource;
+import edu.sdsc.inca.dataModel.util.Resources;
+import edu.sdsc.inca.util.StringMethods;
+
 
 /**
  * A class that wraps an IncaDocument.
@@ -38,8 +40,8 @@ public class WrapConfig {
    * @throws XmlException if the XML is invalid
    */
   public WrapConfig(String xml) throws XmlException {
-    ArrayList errors = new ArrayList();
-    this.doc = IncaDocument.Factory.parse(xml);
+    ArrayList<Object> errors = new ArrayList<Object>();
+    this.doc = IncaDocument.Factory.parse(xml, (new XmlOptions()).setLoadStripWhitespace());
     if(!this.doc.validate(new XmlOptions().setErrorListener(errors))) {
       throw new XmlException("Invalid inca XML:" + errors.get(0).toString());
     }
@@ -58,7 +60,7 @@ public class WrapConfig {
       System.err.println("Faulty XML: " + this.toXml());
       return new WrapConfig();
     }
-  } 
+  }
 
   /**
    * Returns a new WrapConfig that contains the modifications necessary to
@@ -82,7 +84,7 @@ public class WrapConfig {
       null : wc.getResources()
     );
     // For suites, we have to figure out which suites to change/delete ...
-    ArrayList changedSuites = new ArrayList();
+    ArrayList<WrapSuite> changedSuites = new ArrayList<WrapSuite>();
     WrapSuite[] thisSuites = this.getSuites();
     WrapSuite[] wcSuites = wc.getSuites();
     if(thisSuites == null) {
@@ -121,7 +123,7 @@ public class WrapConfig {
       }
     }
     result.setSuites
-      ((WrapSuite[])changedSuites.toArray(new WrapSuite[changedSuites.size()]));
+      (changedSuites.toArray(new WrapSuite[changedSuites.size()]));
     return result;
   }
 
@@ -131,6 +133,7 @@ public class WrapConfig {
    * @param o the object to compare to this one
    * @return true iff o specifies the same config
    */
+  @Override
   public boolean equals(Object o) {
     if(!(o instanceof WrapConfig)) {
       return false;
@@ -248,7 +251,7 @@ public class WrapConfig {
    * @return the configuration, as an XML string
    */
   public String toXml() {
-    return XmlWrapper.prettyPrint(this.doc.xmlText(new XmlOptions()), "  ");
+    return this.doc.xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
   static public void main( String [] args ) {

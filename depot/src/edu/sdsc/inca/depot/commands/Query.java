@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlOptions;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.metadata.ClassMetadata;
 import org.perf4j.StopWatch;
@@ -136,7 +137,7 @@ public class Query extends HibernateMessageHandler {
       gi.setInstanceId(String.valueOf(instance.getId()));
       gi.setReportId(reportId.toString());
       gi.setConfigId(String.valueOf(config.getId()));
-      gi.setBody( AnyXmlSequence.Factory.parse(r.getBody()) );
+      gi.setBody( AnyXmlSequence.Factory.parse(r.getBody(), (new XmlOptions()).setLoadStripWhitespace()) );
 
       Calendar cal = Calendar.getInstance();
 
@@ -623,17 +624,17 @@ public class Query extends HibernateMessageHandler {
         Long id = sc.getLatestInstanceId();
 
         if(id != null && id >= 0) {
-          ii = new InstanceInfo(sc.getSeries(), id);
+          ii = new InstanceInfo(dbConn, sc.getSeries(), id);
           id = ii.getReportId();
 
           if (id != null && id >= 0)
-            r = new Report(id);
+            r = new Report(dbConn, id);
         }
 
         id = sc.getLatestComparisonId();
 
         if (id != null && id >= 0)
-          cr = new ComparisonResult(id);
+          cr = new ComparisonResult(dbConn, id);
 
         if (ii == null)
           logger.debug("No latest instance for SC " + sc);
@@ -1261,7 +1262,7 @@ public class Query extends HibernateMessageHandler {
     if(log != null && !log.equals("") &&
       !log.equals(Row.DB_EMPTY_STRING)) {
       try {
-        rd.getReport().setLog(Log.Factory.parse(log));
+        rd.getReport().setLog(Log.Factory.parse(log, (new XmlOptions()).setLoadStripWhitespace()));
       } catch(Exception e) {
         logger.error("Unable to parse log stored in DB:", e);
       }
@@ -1313,7 +1314,7 @@ public class Query extends HibernateMessageHandler {
     if(r != null) {
       String bodyText = r.getBody();
       try {
-        summary.setBody(AnyXmlSequence.Factory.parse(bodyText));
+        summary.setBody(AnyXmlSequence.Factory.parse(bodyText, (new XmlOptions()).setLoadStripWhitespace()));
       } catch(XmlException e) {
         // empty
       }

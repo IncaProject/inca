@@ -154,7 +154,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
     File suiteFile  = new File( filename );
     if ( suiteFile.exists() ) {
       String xml = read( filename, passphrase );
-      this.suiteStages = SuiteStagesDocument.Factory.parse( xml );
+      this.suiteStages = SuiteStagesDocument.Factory.parse( xml, (new XmlOptions()).setLoadStripWhitespace() );
       logger.debug(
         "Loading suite '" + this.suiteStages.getSuiteStages().getName() +
         "' at " + filename
@@ -697,7 +697,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
 
     if ( this.filePath == null ) return;
 
-    String xml = XmlWrapper.prettyPrint(this.suiteStages, "  ");
+    String xml = this.suiteStages.xmlText((new XmlOptions()).setSavePrettyPrint());
     save( xml, this.filePath, this.passphrase );
     logger.debug(
       "Saved suite '" + suiteStages.getSuiteStages().getName() +
@@ -732,7 +732,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
     Vector<SeriesConfig> seriesConfigCP = new Vector<SeriesConfig>();
     for ( int i = 0; i < seriesConfigCPText.size(); i++ ) {
       try {
-        SeriesConfig config = SeriesConfig.Factory.parse(seriesConfigCPText.get(i));
+        SeriesConfig config = SeriesConfig.Factory.parse(seriesConfigCPText.get(i), (new XmlOptions()).setLoadStripWhitespace());
         if ( targetResources.size() > 0 ) {
           config.setTargetHostname(targetResources.get(i));
         }
@@ -1266,7 +1266,7 @@ public class SuiteStagesWrapper extends XmlWrapper {
             suiteStages.getDocument().save( suiteFile, (new XmlOptions()).setSavePrettyPrint() );
             logger.info( "Saving suite " + suite.getName() + " to " + suiteFile);
           } else {
-            System.out.println( suiteStages.getDocument().xmlText() );
+            System.out.println( suiteStages.getDocument().xmlText((new XmlOptions()).setSavePrettyPrint()) );
           }
         }
       } catch (Exception e) {
@@ -1313,8 +1313,8 @@ public class SuiteStagesWrapper extends XmlWrapper {
                        " does not exist in " + suiteDir2.getPath());
         } else {
           try {
-            SuiteStagesDocument doc1 = SuiteStagesDocument.Factory.parse(suiteFile1);
-            SuiteStagesDocument doc2 = SuiteStagesDocument.Factory.parse(suiteFile2);
+            SuiteStagesDocument doc1 = SuiteStagesDocument.Factory.parse(suiteFile1, (new XmlOptions()).setLoadStripWhitespace());
+            SuiteStagesDocument doc2 = SuiteStagesDocument.Factory.parse(suiteFile2, (new XmlOptions()).setLoadStripWhitespace());
             boolean ignoreTarget = false;
             boolean ignoreUri = false;
             boolean allDiffs = false;

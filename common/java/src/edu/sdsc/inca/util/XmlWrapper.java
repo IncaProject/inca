@@ -201,14 +201,15 @@ abstract public class XmlWrapper {
     File file  = new File( filePath );
     if ( file.exists() ) {
       // Slurp the entire file.
-      BufferedReader br = new BufferedReader(new FileReader(file));
-      StringBuffer contents = new StringBuffer();
-      String line;
-      while((line = br.readLine()) != null) {
-        contents.append(line).append("\n");
+      try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+        StringBuffer contents = new StringBuffer();
+        String line;
+        while((line = br.readLine()) != null) {
+          contents.append(line).append("\n");
+        }
+        // decrypt passwords
+        return cryptSensitive(contents.toString(), passphrase, true);
       }
-      // decrypt passwords
-      return cryptSensitive(contents.toString(), passphrase, true);
     } else {
       throw new FileNotFoundException( "File '" + filePath + "' not found" );
     }
@@ -224,7 +225,7 @@ abstract public class XmlWrapper {
           ("Unable to create parent dirs " + saveFile.getParentFile().getAbsolutePath());
       }
     }
-    
+
     String encryptedXml = xmlText;
     if ( passphrase != null ) {
       encryptedXml = cryptSensitive(xmlText, passphrase, false);
@@ -272,12 +273,12 @@ abstract public class XmlWrapper {
   protected static void validate( XmlObject xml )
     throws XmlException {
 
-    final Collection errorList = new ArrayList();
+    final Collection<Object> errorList = new ArrayList<Object>();
     final XmlOptions opts = new XmlOptions();
     opts.setErrorListener(errorList);
     if (!xml.validate(opts)) {
       String errors = "";
-      for (Iterator it = errorList.iterator(); it.hasNext();) {
+      for (Iterator<Object>it = errorList.iterator(); it.hasNext();) {
         errors += it.next() + "\n";
       }
       throw new XmlException(
@@ -298,11 +299,10 @@ abstract public class XmlWrapper {
     }
     Arrays.sort(
       args,
-      new Comparator() {
-        public int compare( Object o1, Object o2) {
-          Args.Arg arg1 = (Args.Arg)o1;
-          Args.Arg arg2 = (Args.Arg)o2;
-          return arg1.getName().compareTo( arg2.getName() );
+      new Comparator<Args.Arg>() {
+        @Override
+        public int compare( Args.Arg o1, Args.Arg o2 ) {
+          return o1.getName().compareTo( o2.getName() );
         }
       }
     );

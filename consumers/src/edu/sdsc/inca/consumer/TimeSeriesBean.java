@@ -1,24 +1,28 @@
 package edu.sdsc.inca.consumer;
 
-import de.laures.cewolf.DatasetProduceException;
-import de.laures.cewolf.DatasetProducer;
-import de.laures.cewolf.links.XYItemLinkGenerator;
-import de.laures.cewolf.tooltips.XYToolTipGenerator;
-import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
+
+import java.util.Date;
+import java.util.Map;
+import java.util.Vector;
+import java.util.regex.Pattern;
+
 import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlCalendar;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
-import org.apache.xmlbeans.XmlCalendar;
+import org.apache.xmlbeans.XmlOptions;
 import org.apache.xmlbeans.impl.values.XmlObjectBase;
 import org.jfree.data.time.Minute;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.xy.XYDataset;
 
-import java.util.Date;
-import java.util.Map;
-import java.util.Vector;
-import java.util.regex.Pattern;
+import de.laures.cewolf.DatasetProduceException;
+import de.laures.cewolf.DatasetProducer;
+import de.laures.cewolf.links.XYItemLinkGenerator;
+import de.laures.cewolf.tooltips.XYToolTipGenerator;
+import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
+
 
 /**
  * A dataset producer for graphing time series data based on an xpath values
@@ -82,7 +86,7 @@ public class TimeSeriesBean extends TimeSeriesCollection
     ObjectDocument doc;
     logger.debug( "Generating data for time series " + this.id );
     try {
-      doc = ObjectDocument.Factory.parse( xml );
+      doc = ObjectDocument.Factory.parse( xml, (new XmlOptions()).setLoadStripWhitespace() );
     } catch (XmlException e) {
       throw new DatasetProduceException( "Unable to parse xml: " + e );
     }
@@ -109,7 +113,7 @@ public class TimeSeriesBean extends TimeSeriesCollection
         } else {
           XmlObjectBase valueObject = (XmlObjectBase)valueObjects[0];
           try {
-            value = new Float(valueObject.getStringValue());
+            value = Float.valueOf(valueObject.getStringValue());
           } catch (NumberFormatException e) {
             logger.warn( "Unable to convert value to float: " + valueObject.getStringValue() );
             continue;
@@ -133,9 +137,9 @@ public class TimeSeriesBean extends TimeSeriesCollection
       // Get link if a link xpath exists
       XmlObjectBase lValue = null;
       XmlObject[] lObjects = tsObject.selectPath(relLinkXpath);
-      if ( lObjects != null || lObjects.length == 1 ) {
+      if ( lObjects != null && lObjects.length >= 1 ) {
         lValue = (XmlObjectBase)lObjects[0];
-      }     
+      }
 
       try {
         Date date = new XmlCalendar( timestampObject.getStringValue() ).getTime();
@@ -170,6 +174,7 @@ public class TimeSeriesBean extends TimeSeriesCollection
   *
    * @return  A string containing a url
    */
+  @Override
   public String generateLink( Object data, int series, int item ) {
     return ((TimeSeriesBean)data).generateLink(series, item);
   }
@@ -198,6 +203,7 @@ public class TimeSeriesBean extends TimeSeriesCollection
     *
     * @return  A string containing a url
     */
+  @Override
   public String generateToolTip( XYDataset data, int series, int item ) {
     return ((TimeSeriesBean)data).generateToolTip(series, item);
   }
@@ -219,6 +225,7 @@ public class TimeSeriesBean extends TimeSeriesCollection
   /**
    * Returns a unique ID for this DatasetProducer
    */
+  @Override
   public String getProducerId() {
     return this.id;
   }
@@ -263,6 +270,7 @@ public class TimeSeriesBean extends TimeSeriesCollection
    *   log.debug(getClass().getName() + "hasExpired()");
    *   return (System.currentTimeMillis() - since.getTime()) > 86400000;
    */
+  @Override
   public boolean hasExpired(Map params, Date since) {
     return true;
   }
@@ -277,6 +285,7 @@ public class TimeSeriesBean extends TimeSeriesCollection
    *
    * @throws DatasetProduceException if trouble generating data
    */
+  @Override
   public Object produceDataset(Map params) throws DatasetProduceException {
     return this;
   }

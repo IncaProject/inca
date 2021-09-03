@@ -7,15 +7,12 @@ import java.net.URL;
 import java.util.HashMap;
 
 import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlOptions;
 
 import edu.sdsc.inca.Agent;
 import edu.sdsc.inca.dataModel.inca.IncaDocument;
 import edu.sdsc.inca.dataModel.resourceConfig.ResourceConfigDocument;
 import edu.sdsc.inca.dataModel.suite.SuiteDocument;
-import edu.sdsc.inca.repository.Repository;
-import edu.sdsc.inca.util.ResourcesWrapper;
-import edu.sdsc.inca.util.SuiteWrapper;
-import edu.sdsc.inca.util.XmlWrapper;
 import edu.sdsc.inca.protocol.MessageHandler;
 import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.protocol.ProtocolException;
@@ -23,6 +20,10 @@ import edu.sdsc.inca.protocol.ProtocolReader;
 import edu.sdsc.inca.protocol.ProtocolWriter;
 import edu.sdsc.inca.protocol.StandardMessageHandler;
 import edu.sdsc.inca.protocol.Statement;
+import edu.sdsc.inca.repository.Repository;
+import edu.sdsc.inca.util.ResourcesWrapper;
+import edu.sdsc.inca.util.SuiteWrapper;
+import edu.sdsc.inca.util.XmlWrapper;
 
 
 public class ConfigCommands extends StandardMessageHandler {
@@ -32,6 +33,7 @@ public class ConfigCommands extends StandardMessageHandler {
   /**
    * Execute the get/putrepositories command.
    */
+  @Override
   public void execute(ProtocolReader reader,
                       ProtocolWriter writer,
                       String dn) throws ProtocolException {
@@ -68,7 +70,7 @@ public class ConfigCommands extends StandardMessageHandler {
       if(agent.getResources() != null) {
         passphrase = agent.getResources().getPassphrase();
       }
-      String xml = doc.xmlText();
+      String xml = doc.xmlText((new XmlOptions()).setLoadStripWhitespace());
       try {
         xml = XmlWrapper.cryptSensitive(xml, passphrase, false);
         reply = Statement.getOkStatement( xml );
@@ -93,7 +95,7 @@ public class ConfigCommands extends StandardMessageHandler {
       String xml = new String(request.getData());
       try {
         xml = XmlWrapper.cryptSensitive(xml, passphrase, true);
-        doc = IncaDocument.Factory.parse(xml);
+        doc = IncaDocument.Factory.parse(xml, (new XmlOptions()).setLoadStripWhitespace());
       } catch (Exception e) {
         throw new ProtocolException("Unable to parse configuration " + e, e);
       }
@@ -171,7 +173,7 @@ public class ConfigCommands extends StandardMessageHandler {
         }
         logger.info( "Suite updates complete" );
       }
-      agent.notifyAdminsofChanges( proposedChangeCount ); 
+      agent.notifyAdminsofChanges( proposedChangeCount );
       logger.info( "Set config request complete" );
 
     } else if(command.equals(Protocol.RUN_NOW_COMMAND)) {
@@ -190,7 +192,7 @@ public class ConfigCommands extends StandardMessageHandler {
 
       String xml = data.substring( spaceIndex + 1 );
       try {
-        SuiteDocument doc = SuiteDocument.Factory.parse(xml);
+        SuiteDocument doc = SuiteDocument.Factory.parse(xml, (new XmlOptions()).setLoadStripWhitespace());
         suite = new SuiteWrapper(doc);
       } catch (Exception e) {
         throw new ProtocolException("Unable to parse suite " + e, e);
@@ -200,7 +202,7 @@ public class ConfigCommands extends StandardMessageHandler {
       String suiteName = suite.getSuiteDocument().getSuite().getName();
       if ( ! suiteName.equals(Protocol.IMMEDIATE_SUITE_NAME) ) {
         throw new ProtocolException( "Invalid suite name " + suiteName + "; " +
-                                     Protocol.IMMEDIATE_SUITE_NAME + " only" );  
+                                     Protocol.IMMEDIATE_SUITE_NAME + " only" );
       }
 
       try {

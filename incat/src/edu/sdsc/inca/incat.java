@@ -1,9 +1,6 @@
 package edu.sdsc.inca;
 
-import edu.sdsc.inca.protocol.Protocol;
-import edu.sdsc.inca.util.ConfigProperties;
-import edu.sdsc.inca.util.StringMethods;
-import edu.sdsc.inca.util.XmlWrapper;
+
 import java.awt.BorderLayout;
 import java.awt.Frame;
 import java.awt.KeyboardFocusManager;
@@ -16,8 +13,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.Properties;
+
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
@@ -29,6 +26,12 @@ import javax.swing.JOptionPane;
 import javax.swing.JTabbedPane;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+
+import edu.sdsc.inca.protocol.Protocol;
+import edu.sdsc.inca.util.ConfigProperties;
+import edu.sdsc.inca.util.StringMethods;
+import edu.sdsc.inca.util.XmlWrapper;
+
 
 public class incat extends JTabbedPane
   implements ActionListener, ChangeListener, WindowListener {
@@ -112,6 +115,7 @@ public class incat extends JTabbedPane
   /**
    * Responds to user GUI actions.
    */
+  @Override
   public void actionPerformed(ActionEvent ae) {
 
     String action = ae.getActionCommand();
@@ -551,7 +555,7 @@ public class incat extends JTabbedPane
         new BufferedWriter(new FileWriter(new File(filePath)));
       String xml = XmlWrapper.cryptSensitive
         (getConfig().toXml(), ac.getPassword(), false);
-      bw.write(XmlWrapper.prettyPrint(xml, "  "));
+      bw.write(xml);
       bw.close();
       this.path = filePath;
       this.lastSavedConfig = getConfig();
@@ -564,6 +568,7 @@ public class incat extends JTabbedPane
   /**
    * Invoked when the user clicks a tab.
    */
+  @Override
   public void stateChanged(ChangeEvent e) {
     int tabIndex = ((JTabbedPane)e.getSource()).getSelectedIndex();
     setHelpSection(
@@ -576,17 +581,24 @@ public class incat extends JTabbedPane
   /**
    * Transforms window closing into an action event.
    */
+  @Override
   public void windowClosing(WindowEvent e) {
     actionPerformed
       (new ActionEvent(e.getSource(), ActionEvent.RESERVED_ID_MAX + 1, "quit"));
   }
 
   // Must define these to implement interface, but don't care about the events.
+  @Override
   public void windowActivated(WindowEvent e)   { /*empty*/ }
+  @Override
   public void windowClosed(WindowEvent e)      { /*empty*/ }
+  @Override
   public void windowDeactivated(WindowEvent e) { /*empty*/ }
+  @Override
   public void windowDeiconified(WindowEvent e) { /*empty*/ }
+  @Override
   public void windowIconified(WindowEvent e)   { /*empty*/ }
+  @Override
   public void windowOpened(WindowEvent e)      { /*empty*/ }
 
   /**
@@ -665,6 +677,7 @@ public class incat extends JTabbedPane
     }
     // Taken verbatim from the Swing tutorial.
     javax.swing.SwingUtilities.invokeLater(new Runnable() {
+      @Override
       public void run() {
         createAndShowGUI(ac, props.getProperty("file"));
       }

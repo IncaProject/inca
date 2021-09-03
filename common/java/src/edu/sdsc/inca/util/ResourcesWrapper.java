@@ -1,22 +1,25 @@
 package edu.sdsc.inca.util;
 
+
+import java.io.File;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.Hashtable;
+import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlObject;
+import org.apache.xmlbeans.XmlOptions;
+
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.dataModel.resourceConfig.ResourceConfigDocument;
 import edu.sdsc.inca.dataModel.util.Macro;
 import edu.sdsc.inca.dataModel.util.Resource;
 import edu.sdsc.inca.protocol.Protocol;
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Vector;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import org.apache.log4j.Logger;
-import org.apache.xmlbeans.XmlException;
-import org.apache.xmlbeans.XmlObject;
-import org.apache.xmlbeans.XmlOptions;
+
 
 /**
  * A convenience class for dealing with resource configuration files which
@@ -118,7 +121,7 @@ public class ResourcesWrapper extends XmlWrapper {
     File rcFile  = new File( filename );
     if ( rcFile.exists() ) {
       String xml = read( filename, passphrase );
-      this.rcDoc = ResourceConfigDocument.Factory.parse( xml );
+      this.rcDoc = ResourceConfigDocument.Factory.parse( xml, (new XmlOptions()).setLoadStripWhitespace() );
       validateAndInitialize();
     } else {
       logger.debug( "Resource configuration file '" + filename +
@@ -137,7 +140,7 @@ public class ResourcesWrapper extends XmlWrapper {
   public ResourcesWrapper( final Reader rcXml )
     throws IOException, XmlException {
 
-    this.rcDoc = ResourceConfigDocument.Factory.parse( rcXml );
+    this.rcDoc = ResourceConfigDocument.Factory.parse( rcXml, (new XmlOptions()).setLoadStripWhitespace() );
     validateAndInitialize();
   }
 
@@ -148,13 +151,14 @@ public class ResourcesWrapper extends XmlWrapper {
    * @param o the object to compare
    * @return true if o contains identical resource information, else false
    */
+  @Override
   public boolean equals( Object o ) {
     // NOTE: to be precise, we should consider two ResourcesWrappers equal if
     // the resources are simply reordered, or if macros are reordered w/in a
     // resource.  This simpler definition is sufficient for our needs for now.
     return o instanceof ResourcesWrapper &&
-      XmlWrapper.prettyPrint(rcDoc, "  ").equals
-        ( XmlWrapper.prettyPrint(((ResourcesWrapper)o).rcDoc, "  ") );
+      rcDoc.xmlText((new XmlOptions()).setSavePrettyPrint()).equals
+        (((ResourcesWrapper)o).rcDoc.xmlText((new XmlOptions()).setSavePrettyPrint()));
   }
 
   /**
@@ -493,7 +497,7 @@ public class ResourcesWrapper extends XmlWrapper {
 
     if ( this.filePath == null ) return;
 
-    String xml = XmlWrapper.prettyPrint(rcDoc, "  ");
+    String xml = rcDoc.xmlText((new XmlOptions()).setSavePrettyPrint());
     save( xml, this.filePath, this.passphrase );
     logger.debug( "Saved resources to file '" + filePath + "'" );
   }

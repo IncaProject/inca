@@ -1,22 +1,29 @@
 package edu.sdsc.inca.agent;
 
-import edu.sdsc.inca.util.Constants;
-import edu.sdsc.inca.util.SuiteWrapper;
-import edu.sdsc.inca.dataModel.catalog.*;
-import edu.sdsc.inca.dataModel.catalog.PackageType;
-import edu.sdsc.inca.dataModel.util.SeriesConfig;
-import edu.sdsc.inca.repository.Repository;
-import edu.sdsc.inca.repository.Repositories;
-import edu.sdsc.inca.Agent;
-import edu.sdsc.inca.ConfigurationException;
-import org.apache.log4j.Logger;
-import org.apache.xmlbeans.XmlOptions;
-import org.apache.xmlbeans.XmlObject;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Properties;
 import java.util.Vector;
 import java.util.regex.Pattern;
+
+import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlObject;
+import org.apache.xmlbeans.XmlOptions;
+
+import edu.sdsc.inca.Agent;
+import edu.sdsc.inca.ConfigurationException;
+import edu.sdsc.inca.dataModel.catalog.CatalogDocument;
+import edu.sdsc.inca.dataModel.catalog.DependenciesType;
+import edu.sdsc.inca.dataModel.catalog.PackageType;
+import edu.sdsc.inca.dataModel.util.SeriesConfig;
+import edu.sdsc.inca.repository.Repositories;
+import edu.sdsc.inca.repository.Repository;
+import edu.sdsc.inca.util.Constants;
+import edu.sdsc.inca.util.SuiteWrapper;
+
 
 /**
  * The Agent will cache packages (reporter or library) locally when
@@ -66,7 +73,7 @@ public class RepositoryCache extends Thread {
     if ( catalogFile.exists() ) {
       try {
         logger.info( "Reading repository cache catalog " + catalogFile );
-        catalog = CatalogDocument.Factory.parse( catalogFile );
+        catalog = CatalogDocument.Factory.parse( catalogFile, (new XmlOptions()).setLoadStripWhitespace() );
       } catch ( Exception e ) {
         logger.error( "Unable to read " + catalogFile.getAbsolutePath(), e );
         logger.info( "Creating new repository cache catalog" );
@@ -504,6 +511,7 @@ public class RepositoryCache extends Thread {
    * Starts a thread to check for package updates from the available
    * repositories.
    */
+  @Override
   public void run() {
     try {
       logger.info(
@@ -713,7 +721,7 @@ public class RepositoryCache extends Thread {
       repPackage.setPermissions( "755" );
     }
     String dependencies = properties.getProperty( Repositories.DEPENDS_ATTR );
-    DependenciesType repDependencies = repPackage.addNewDependencies();    
+    DependenciesType repDependencies = repPackage.addNewDependencies();
     if ( dependencies != null ) {
       for ( String d : Repository.getPropertyValues(dependencies) ) {
         if ( ! d.equals("") ) repDependencies.addDependency( d.trim() );

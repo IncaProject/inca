@@ -1,7 +1,13 @@
 package edu.sdsc.inca;
 
+
+import java.awt.Color;
+import java.util.Enumeration;
+import java.util.Properties;
+
+import org.apache.xmlbeans.XmlOptions;
+
 import edu.sdsc.inca.dataModel.util.AcceptedOutput;
-import edu.sdsc.inca.dataModel.util.AnyXmlSequence;
 import edu.sdsc.inca.dataModel.util.Args;
 import edu.sdsc.inca.dataModel.util.Args.Arg;
 import edu.sdsc.inca.dataModel.util.Cron;
@@ -11,10 +17,7 @@ import edu.sdsc.inca.dataModel.util.Schedule;
 import edu.sdsc.inca.dataModel.util.Series;
 import edu.sdsc.inca.dataModel.util.SeriesConfig;
 import edu.sdsc.inca.dataModel.util.Tags;
-import edu.sdsc.inca.util.XmlWrapper;
-import java.awt.Color;
-import java.util.Enumeration;
-import java.util.Properties;
+
 
 /**
  * A class that wraps a SeriesConfig and its accompanying Series with some
@@ -79,6 +82,7 @@ public class WrapSeries {
    * @param o the object to compare to this one
    * @return true iff o specifies the same series
    */
+  @Override
   public boolean equals(Object o) {
     if(!(o instanceof WrapSeries)) {
       return false;
@@ -219,7 +223,7 @@ public class WrapSeries {
     }
     return null;
   }
- 
+
   /**
    * Returns the maximum Memory MBs an instance of the series is allowed to
    * use; null if unlimited.
@@ -375,7 +379,7 @@ public class WrapSeries {
    */
   public void setArgs(Properties args) {
     Arg[] allArgs = new Arg[args.size()];
-    Enumeration e = args.propertyNames();
+    Enumeration<?> e = args.propertyNames();
     for(int i = 0; i < allArgs.length; i++) {
       String name = (String)e.nextElement();
       Arg arg = Arg.Factory.newInstance();
@@ -548,6 +552,7 @@ public class WrapSeries {
   /**
    * An override of the default toString function.
    */
+  @Override
   public String toString() {
     String result = this.getNickname();
     return result == null || result.equals("") ? this.getReporter() : result;
@@ -559,7 +564,7 @@ public class WrapSeries {
    * @return the suite, as an XML string
    */
   public String toXml() {
-    return XmlWrapper.prettyPrint(this.config.toString(), "  ");
+    return this.config.xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
 }

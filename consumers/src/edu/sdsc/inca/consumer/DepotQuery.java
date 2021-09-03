@@ -1,24 +1,28 @@
 package edu.sdsc.inca.consumer;
 
-import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
-import edu.sdsc.inca.dataModel.queryResults.Rows;
-import edu.sdsc.inca.dataModel.queryResults.Row;
-import edu.sdsc.inca.util.StringMethods;
-import edu.sdsc.inca.DepotClient;
-import edu.sdsc.inca.ConfigurationException;
-import edu.sdsc.inca.protocol.ProtocolException;
-import org.apache.log4j.Logger;
-import org.apache.xmlbeans.XmlObject;
-import org.apache.xmlbeans.XmlException;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.FileWriter;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Properties;
 import java.util.TimerTask;
-import java.lang.reflect.Method;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlObject;
+import org.apache.xmlbeans.XmlOptions;
+
+import edu.sdsc.inca.ConfigurationException;
+import edu.sdsc.inca.DepotClient;
+import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
+import edu.sdsc.inca.dataModel.queryResults.Row;
+import edu.sdsc.inca.dataModel.queryResults.Rows;
+import edu.sdsc.inca.protocol.ProtocolException;
+import edu.sdsc.inca.util.StringMethods;
+
 
 /**
  * Handles the prefetching and caching of HQL queries to the depot.  The HQL
@@ -213,7 +217,7 @@ public class DepotQuery extends TimerTask {
     if ( queryresult != null && queryresult.length > 0 ) {
       if ( queryresult.length == 1 ) {
         try {
-          object.set(XmlObject.Factory.parse( queryresult[0].trim() ) );
+          object.set(XmlObject.Factory.parse( queryresult[0].trim(), (new XmlOptions()).setLoadStripWhitespace() ) );
         } catch ( XmlException e ) {
           logger.error( "Unable to parse query result", e );
         }
@@ -222,7 +226,7 @@ public class DepotQuery extends TimerTask {
         for ( int i = 0; i < queryresult.length; i++ ) {
           Row row = rows.addNewRow();
           try {
-            row.set( XmlObject.Factory.parse( queryresult[i].trim() ) );
+            row.set( XmlObject.Factory.parse( queryresult[i].trim(), (new XmlOptions()).setLoadStripWhitespace() ) );
           } catch ( XmlException e ) {
             logger.error( "Unable to parse query result " + i, e );
           }
@@ -321,6 +325,7 @@ public class DepotQuery extends TimerTask {
    * the depot.  Once the first query is made, this thread will continously
    * query until it receives an interrupt.
    */
+  @Override
   public void run() {
     try {
       refresh();
@@ -433,6 +438,7 @@ public class DepotQuery extends TimerTask {
    *
    * @return  A string representation of the query
    */
+  @Override
   public String toString() {
     StringBuffer buf = new StringBuffer( this.getCommand() );
     buf.append( "(" );

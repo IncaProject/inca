@@ -1,20 +1,24 @@
 package edu.sdsc.inca.consumer;
 
-import de.laures.cewolf.DatasetProduceException;
-import de.laures.cewolf.DatasetProducer;
-import de.laures.cewolf.tooltips.CategoryToolTipGenerator;
-import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
+
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
+import org.apache.xmlbeans.XmlOptions;
 import org.apache.xmlbeans.impl.values.XmlAnyTypeImpl;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
 
-import java.util.Vector;
-import java.util.Map;
-import java.util.Date;
-import java.util.HashMap;
+import de.laures.cewolf.DatasetProduceException;
+import de.laures.cewolf.DatasetProducer;
+import de.laures.cewolf.tooltips.CategoryToolTipGenerator;
+import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
+
 
 /**
  * A dataset producer for graphing distribution data based on an xpath values
@@ -48,7 +52,7 @@ public class DistributionBean extends DefaultCategoryDataset
   public DistributionBean( String id, String xml ) throws XmlException {
     logger.info( "Creating distribution dataset bean " + id );
     this.id = id;
-    this.doc = ObjectDocument.Factory.parse( xml );
+    this.doc = ObjectDocument.Factory.parse( xml, (new XmlOptions()).setLoadStripWhitespace() );
   }
 
   /**
@@ -60,7 +64,7 @@ public class DistributionBean extends DefaultCategoryDataset
    * @param rowKey  an identifier to use for the row (or series)
    *
    * @param statusAsFloat if true, assumes xpath is a path to a graph instance
-   * object and that we want the status of it interpreted as a float 
+   * object and that we want the status of it interpreted as a float
    */
   public void add(String xpath, String rowKey, boolean statusAsFloat) {
     logger.debug( "Adding row key " + rowKey + " using xpath " + xpath );
@@ -78,7 +82,7 @@ public class DistributionBean extends DefaultCategoryDataset
         this.colKeys.add( value );
         for( String existingRowKey : this.rowKeys ) {
           this.addValue
-            ( (java.lang.Number)0, existingRowKey, this.colKeys.size()-1 );          
+            ( (java.lang.Number)0, existingRowKey, this.colKeys.size()-1 );
         }
       }
       if ( ! valueMap.containsKey(value) ) {
@@ -106,6 +110,7 @@ public class DistributionBean extends DefaultCategoryDataset
    *
    * @return  Mouseover text string
    */
+  @Override
   public String generateToolTip( CategoryDataset data, int row, int column ) {
     DistributionBean categoryBean = (DistributionBean)data;
     return Util.formatStringAsTooltip( categoryBean.colKeys.get( column ) );
@@ -121,7 +126,7 @@ public class DistributionBean extends DefaultCategoryDataset
   public int getColKeyIndex( String colValue ) {
     return this.colKeys.indexOf( colValue );
   }
-  
+
   /**
    * Return the vector of column keys (or unique values found in the xpath)
    *
@@ -134,6 +139,7 @@ public class DistributionBean extends DefaultCategoryDataset
   /**
    * Returns a unique id for this dataset
    */
+  @Override
   public String getProducerId() {
     return this.id;
   }
@@ -154,6 +160,7 @@ public class DistributionBean extends DefaultCategoryDataset
    *
    * @return  A vector of row keys
    */
+  @Override
   public Vector<String> getRowKeys() {
      return this.rowKeys;
    }
@@ -165,6 +172,7 @@ public class DistributionBean extends DefaultCategoryDataset
    *   log.debug(getClass().getName() + "hasExpired()");
    *   return (System.currentTimeMillis() - since.getTime()) > 86400000;
    */
+  @Override
   public boolean hasExpired(Map params, Date since) {
     return true;
   }
@@ -179,6 +187,7 @@ public class DistributionBean extends DefaultCategoryDataset
    *
    * @throws de.laures.cewolf.DatasetProduceException
    */
+  @Override
   public Object produceDataset(Map params) throws DatasetProduceException {
     return this;
   }

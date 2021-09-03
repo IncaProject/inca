@@ -1,17 +1,21 @@
 package edu.sdsc.inca;
 
-import edu.sdsc.inca.protocol.Protocol;
-import edu.sdsc.inca.protocol.ProtocolException;
-import edu.sdsc.inca.util.ConfigProperties;
-import edu.sdsc.inca.util.StringMethods;
-import edu.sdsc.inca.dataModel.inca.IncaDocument;
 
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.Properties;
 import java.util.Vector;
+
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlOptions;
+
+import edu.sdsc.inca.dataModel.inca.IncaDocument;
+import edu.sdsc.inca.protocol.Protocol;
+import edu.sdsc.inca.protocol.ProtocolException;
+import edu.sdsc.inca.util.ConfigProperties;
+import edu.sdsc.inca.util.StringMethods;
+
 
 /**
  * This class allows access to the services provided by an Inca Agent.  Along
@@ -77,11 +81,11 @@ public class AgentClient extends Client {
       return new Properties[0];
     }
     // Attribute lines in the data have the form "attribute: value", blank
-    // lines indicate the start of a new package, and lines that begin with a 
+    // lines indicate the start of a new package, and lines that begin with a
     // space indicate a continuation of the value of the preceding attribute.
     String[] lines = data.split("\n");
     String lastProp = null;
-    Vector result = new Vector();
+    Vector<Properties> result = new Vector<Properties>();
     Properties p = new Properties();
     for(int i = 0; i < lines.length; i++) {
       String line = lines[i];
@@ -109,7 +113,7 @@ public class AgentClient extends Client {
       result.add(p);
     }
     logger.debug("Returning attributes for " + result.size() + " reporters");
-    return (Properties[])result.toArray(new Properties[result.size()]);
+    return result.toArray(new Properties[result.size()]);
   }
 
   /**
@@ -133,7 +137,7 @@ public class AgentClient extends Client {
     for(int i = 0; i < catalog.length; i++) {
       Properties p = catalog[i];
       result.append("  <reporter>\n");
-      for(Enumeration e = p.propertyNames(); e.hasMoreElements(); ) {
+      for(Enumeration<?> e = p.propertyNames(); e.hasMoreElements(); ) {
         String name = (String)e.nextElement();
         String value = p.getProperty(name);
         result.append("    <property>\n")
@@ -174,7 +178,7 @@ public class AgentClient extends Client {
    * @param resource The resource name for the manager we are requesting for
    *
    * @return IncaDocument containing all of the proposed changes for the manager
-   * 
+   *
    * @throws IOException on read/write error
    * @throws ProtocolException on an invalid message
    */
@@ -184,7 +188,7 @@ public class AgentClient extends Client {
     String result = this.dialog(Protocol.PROPOSED_GET_COMMAND, resource );
     IncaDocument proposed;
     try {
-      proposed = IncaDocument.Factory.parse( result );
+      proposed = IncaDocument.Factory.parse( result, (new XmlOptions()).setLoadStripWhitespace() );
     } catch (XmlException e) {
       throw new ProtocolException( "Unable to parse result: " + e );
     }
@@ -224,6 +228,7 @@ public class AgentClient extends Client {
    * @param config contains AgentClient configuration values
    * @throws ConfigurationException on a faulty configuration property value
    */
+  @Override
   public void setConfiguration(Properties config) throws ConfigurationException{
     super.setConfiguration(config);
     String prop;

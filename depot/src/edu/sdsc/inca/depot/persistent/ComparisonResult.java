@@ -78,7 +78,7 @@ public class ComparisonResult extends GeneratedKeyRow implements Comparable<Comp
    * @throws SQLException
    * @throws PersistenceException
    */
-  ComparisonResult(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  public ComparisonResult(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
   {
     this();
 

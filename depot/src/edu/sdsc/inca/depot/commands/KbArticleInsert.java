@@ -10,6 +10,7 @@ import java.util.Properties;
 
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlOptions;
 
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.Depot;
@@ -171,7 +172,7 @@ public class KbArticleInsert extends HibernateMessageHandler implements DelayedW
    */
   private KbArticle parseArticleXml(String xml) throws XmlException
   {
-    KbArticleDocument doc = KbArticleDocument.Factory.parse(xml);
+    KbArticleDocument doc = KbArticleDocument.Factory.parse(xml, (new XmlOptions()).setLoadStripWhitespace());
 
     if(!doc.validate())
       throw new XmlException("Invalid article XML '" + xml + "'");

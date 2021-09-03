@@ -1,14 +1,17 @@
 package edu.sdsc.inca;
 
+
+import java.util.Enumeration;
+import java.util.Hashtable;
+
+import org.apache.xmlbeans.XmlOptions;
+
 import edu.sdsc.inca.dataModel.util.Macro;
 import edu.sdsc.inca.dataModel.util.Macros;
 import edu.sdsc.inca.dataModel.util.Resource;
 import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.util.ExpandablePattern;
-import edu.sdsc.inca.util.XmlWrapper;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import org.apache.xmlbeans.XmlOptions;
+
 
 /**
  * A class that wraps a resource or resource group, represented by an Inca
@@ -35,8 +38,8 @@ public class WrapResource {
 
   protected Resource resource;
   // Non-bean set of "inherited" macros, and a convenience cache of local ones.
-  protected Hashtable inheritedMacros = new Hashtable();
-  protected Hashtable localMacros = new Hashtable();
+  protected Hashtable<String, String[]> inheritedMacros = new Hashtable<String, String[]>();
+  protected Hashtable<String, String[]> localMacros = new Hashtable<String, String[]>();
 
   /**
    * Constructs a new WrapResource.
@@ -86,6 +89,7 @@ public class WrapResource {
    * @param o the object to compare to this one
    * @return true iff o specifies the same resource
    */
+  @Override
   public boolean equals(Object o) {
     if(!(o instanceof WrapResource)) {
       return false;
@@ -109,7 +113,7 @@ public class WrapResource {
     try {
       pat = pat.replaceAll("[ ,]", "|");
       result =
-        (String[])(new ExpandablePattern(pat, true).expand().toArray(result));
+        (new ExpandablePattern(pat, true).expand().toArray(result));
     } catch(Exception e) {
       // empty
     }
@@ -123,9 +127,9 @@ public class WrapResource {
    */
   public String[] getInheritedMacroNames() {
     String[] result = new String[this.inheritedMacros.size()];
-    Enumeration e = this.inheritedMacros.keys();
+    Enumeration<String> e = this.inheritedMacros.keys();
     for(int i = 0; i < result.length; i++) {
-      result[i] = (String)e.nextElement();
+      result[i] = e.nextElement();
     }
     return result;
   }
@@ -137,9 +141,9 @@ public class WrapResource {
    */
   public String[] getLocalMacroNames() {
     String[] result = new String[this.localMacros.size()];
-    Enumeration e = this.localMacros.keys();
+    Enumeration<String> e = this.localMacros.keys();
     for(int i = 0; i < result.length; i++) {
-      result[i] = (String)e.nextElement();
+      result[i] = e.nextElement();
     }
     return result;
   }
@@ -164,7 +168,7 @@ public class WrapResource {
    * @return the values of the macro with the given name, null if none
    */
   public String[] getMacroValues(String name) {
-    String[] result = (String [])this.localMacros.get(name);
+    String[] result = this.localMacros.get(name);
     return result == null ? (String [])this.inheritedMacros.get(name) : result;
   }
 
@@ -236,7 +240,7 @@ public class WrapResource {
    * Deletes any inherited macros defined in the resource.
    */
   public void removeAllInheritedMacros() {
-    this.inheritedMacros = new Hashtable();
+    this.inheritedMacros = new Hashtable<String, String[]>();
   }
 
   /**
@@ -303,13 +307,13 @@ public class WrapResource {
    */
   public void setMacroValue(String name, String value, String defaultValue) {
     this.removeMacro(name);
-    String[] inherited = (String [])this.inheritedMacros.get(name);
+    String[] inherited = this.inheritedMacros.get(name);
     if(!value.equals(defaultValue) &&
        (inherited==null || inherited.length>1 || !value.equals(inherited[0]))) {
       this.setMacroValue(name, value);
     }
   }
- 
+
 
   /**
    * Adds a macro with multiple values to the resource, replacing any other
@@ -399,6 +403,7 @@ public class WrapResource {
   /**
    * An override of the default toString function.
    */
+  @Override
   public String toString() {
     return this.resource.getName();
   }
@@ -409,7 +414,7 @@ public class WrapResource {
    * @return the configuration, as an XML string
    */
   public String toXml() {
-    return XmlWrapper.prettyPrint(this.resource.xmlText(new XmlOptions()),"  ");
+    return this.resource.xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
 }

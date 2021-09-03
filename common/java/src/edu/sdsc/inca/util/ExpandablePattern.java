@@ -1,9 +1,11 @@
 package edu.sdsc.inca.util;
 
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.Iterator;
+
 
 /**
  * A pattern (regular expression) that can return the set of strings it matches.
@@ -49,7 +51,7 @@ public class ExpandablePattern {
    * @return a HashSet containing the set of matching strings
    * @throws Exception if the set is too large
    */
-  public HashSet expand() throws Exception {
+  public HashSet<String> expand() throws Exception {
     return ExpandablePattern.expand(this.regexp);
   }
 
@@ -68,6 +70,7 @@ public class ExpandablePattern {
    *
    * @return a regular expression equivalent to this pattern.
    */
+  @Override
   public String toString() {
     return this.regexp;
   }
@@ -79,7 +82,7 @@ public class ExpandablePattern {
    * @return a HashSet containing the set of matching strings
    * @throws Exception if the set is too large
    */
-  public static HashSet expand(String regexp) throws Exception {
+  public static HashSet<String> expand(String regexp) throws Exception {
     return ExpandablePattern.expand(regexp, null);
   }
 
@@ -92,13 +95,13 @@ public class ExpandablePattern {
    * @return a HashSet containing the set of matching strings
    * @throws Exception if the set is too large
    */
-  public static HashSet expand(String regexp, HashSet prepend)
+  public static HashSet<String> expand(String regexp, HashSet<String> prepend)
     throws Exception {
 
     char c;
     int cursor = 0;
     int len = regexp.length();
-    HashSet result = new HashSet();
+    HashSet<String> result = new HashSet<String>();
 
     // Find the end of the first element w/in regexp and expand it.  An element
     // is either '.', a character set (surrounded by brackets), a capturing
@@ -186,7 +189,7 @@ public class ExpandablePattern {
           throw EXPANSION_SET_TOO_BIG;
         }
         if(high < low) {
-          result = new HashSet();
+          result = new HashSet<String>();
         } else {
           String longPat = "";
           for(int i = 0; i < low; i++) {
@@ -216,11 +219,11 @@ public class ExpandablePattern {
     } else if(prepend.size() * result.size() > MAX_EXPANSION) {
       throw EXPANSION_SET_TOO_BIG;
     } else {
-      HashSet merged = new HashSet();
-      for(Iterator i = prepend.iterator(); i.hasNext(); ) {
-        String prefix = (String)i.next();
-        for(Iterator j = result.iterator(); j.hasNext(); ) {
-          merged.add(prefix + (String)j.next());
+      HashSet<String> merged = new HashSet<String>();
+      for(Iterator<String> i = prepend.iterator(); i.hasNext(); ) {
+        String prefix = i.next();
+        for(Iterator<String> j = result.iterator(); j.hasNext(); ) {
+          merged.add(prefix + j.next());
         }
       }
       result = merged;
@@ -246,12 +249,12 @@ public class ExpandablePattern {
    * @param charSet the character set to expand, not including enclosing []
    * @return a HashSet containing the set of matching strings
    */
-  protected static HashSet expandCharSet(String charSet) throws Exception {
+  protected static HashSet<String> expandCharSet(String charSet) throws Exception {
 
     int len = charSet.length();
     int cursor = len > 0 && charSet.charAt(0) == '^' ? 1 : 0;
     char rangeLow = (char)-1;
-    HashSet result = new HashSet();
+    HashSet<String> result = new HashSet<String>();
 
     while(cursor < len) {
       // TODO union []/intersection &&[]
@@ -360,8 +363,8 @@ public class ExpandablePattern {
         if(pat == null) {
           break;
         }
-        HashSet expanded = new ExpandablePattern(pat).expand();
-        for(Iterator i = expanded.iterator(); i.hasNext(); ) {
+        HashSet<String> expanded = new ExpandablePattern(pat).expand();
+        for(Iterator<String> i = expanded.iterator(); i.hasNext(); ) {
           System.out.println("'" + i.next() + "'");
         }
       } catch(Exception e) {

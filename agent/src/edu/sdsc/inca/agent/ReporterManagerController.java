@@ -103,7 +103,7 @@ public class ReporterManagerController  {
     catalogFile = new File( this.tempDir + File.separator + "catalog.xml" );
     if ( catalogFile.exists() ) {
       try {
-        catalog = CatalogDocument.Factory.parse( catalogFile );
+        catalog = CatalogDocument.Factory.parse( catalogFile, (new XmlOptions()).setLoadStripWhitespace() );
         logger.info(
           "Read reporter manager packages list from '" + catalogFile + "'"
         );
@@ -130,7 +130,7 @@ public class ReporterManagerController  {
     }
     for ( File unsentSuiteFile : this.approvedSuites.listFiles() ) {
       try {
-        this.addSuite( SuiteDocument.Factory.parse(unsentSuiteFile) );
+        this.addSuite( SuiteDocument.Factory.parse(unsentSuiteFile, (new XmlOptions()).setLoadStripWhitespace()) );
       } catch (Exception e) {
         logger.error( "Error reading approved suite " +
                       unsentSuiteFile.getAbsolutePath(), e);
@@ -502,7 +502,7 @@ public class ReporterManagerController  {
     synchronized( this.proposedSuites ) {
       for ( File proposedFile : this.proposedSuites.listFiles() ) {
         try {
-          SuiteDocument proposed = SuiteDocument.Factory.parse(proposedFile);
+          SuiteDocument proposed = SuiteDocument.Factory.parse(proposedFile, (new XmlOptions()).setLoadStripWhitespace());
           sendProposedSuites.addNewSuite();
           sendProposedSuites.setSuiteArray
             ( sendProposedCount, proposed.getSuite() );
@@ -849,7 +849,7 @@ public class ReporterManagerController  {
     for ( File depotFile : this.depotSuites.listFiles() ) {
       try {
         lastDepotSendAttempt = Calendar.getInstance().getTimeInMillis();
-        SuiteDocument proposed = SuiteDocument.Factory.parse(depotFile);
+        SuiteDocument proposed = SuiteDocument.Factory.parse(depotFile, (new XmlOptions()).setLoadStripWhitespace());
         this.agent.updateSuiteOnDepot(proposed);
         lastDepotSendAttempt = 0;
         depotFile.delete();

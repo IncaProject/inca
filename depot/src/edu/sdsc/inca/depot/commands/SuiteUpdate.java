@@ -11,6 +11,7 @@ import java.util.Properties;
 
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlOptions;
 
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.Depot;
@@ -166,7 +167,7 @@ public class SuiteUpdate extends HibernateMessageHandler implements DelayedWork 
    */
   private SuiteDocument parseSuiteXml(String xml) throws XmlException
   {
-    SuiteDocument doc = SuiteDocument.Factory.parse(xml);
+    SuiteDocument doc = SuiteDocument.Factory.parse(xml, (new XmlOptions()).setLoadStripWhitespace());
 
     if(!doc.validate())
       throw new XmlException("Invalid suite XML '" + xml + "'");

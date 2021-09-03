@@ -1,26 +1,29 @@
 package edu.sdsc.inca.consumer;
 
-import org.apache.log4j.Logger;
-import org.apache.xmlbeans.XmlException;
-import edu.sdsc.inca.util.Constants;
-import edu.sdsc.inca.util.XmlWrapper;
-import edu.sdsc.inca.util.ResourcesWrapper;
-import edu.sdsc.inca.ConfigurationException;
-import edu.sdsc.inca.AgentClient;
-import edu.sdsc.inca.protocol.ProtocolException;
-import edu.sdsc.inca.protocol.Protocol;
-import edu.sdsc.inca.dataModel.inca.IncaDocument;
-import edu.sdsc.inca.dataModel.suite.Suite;
-import edu.sdsc.inca.dataModel.suite.SuiteDocument;
-import edu.sdsc.inca.dataModel.resourceConfig.ResourceConfigDocument;
-import edu.sdsc.inca.dataModel.util.Resource;
-import edu.sdsc.inca.dataModel.util.Resources;
-import edu.sdsc.inca.dataModel.util.Macros;
-import edu.sdsc.inca.dataModel.util.SeriesConfig;
-import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
 
 import java.io.IOException;
 import java.util.Properties;
+
+import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlOptions;
+
+import edu.sdsc.inca.AgentClient;
+import edu.sdsc.inca.ConfigurationException;
+import edu.sdsc.inca.dataModel.inca.IncaDocument;
+import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
+import edu.sdsc.inca.dataModel.resourceConfig.ResourceConfigDocument;
+import edu.sdsc.inca.dataModel.suite.Suite;
+import edu.sdsc.inca.dataModel.suite.SuiteDocument;
+import edu.sdsc.inca.dataModel.util.Macros;
+import edu.sdsc.inca.dataModel.util.Resource;
+import edu.sdsc.inca.dataModel.util.Resources;
+import edu.sdsc.inca.dataModel.util.SeriesConfig;
+import edu.sdsc.inca.protocol.Protocol;
+import edu.sdsc.inca.protocol.ProtocolException;
+import edu.sdsc.inca.util.Constants;
+import edu.sdsc.inca.util.ResourcesWrapper;
+
 
 /**
  * Special bean that periodically queries and caches the current Inca
@@ -179,7 +182,7 @@ public class AgentBean extends Thread implements java.io.Serializable {
     } else {
       tempDoc.addNewInca();
     }
-    return XmlWrapper.prettyPrint( tempDoc.getInca().xmlText(), "  " );
+    return tempDoc.getInca().xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
   /**
@@ -193,13 +196,13 @@ public class AgentBean extends Thread implements java.io.Serializable {
     if ( incaDoc != null && incaDoc.getInca().isSetSuites() ) {
       IncaDocument.Inca.Suites suites = tempDoc.addNewInca().addNewSuites();
       for( Suite s : incaDoc.getInca().getSuites().getSuiteArray() ) {
-        suites.addNewSuite().setName( s.getName() ); 
+        suites.addNewSuite().setName( s.getName() );
       }
     } else {
       tempDoc.addNewInca();
     }
 
-    return XmlWrapper.prettyPrint( tempDoc.getInca().xmlText(), "  " );
+    return tempDoc.getInca().xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
   public String getUri( ) {
@@ -217,6 +220,7 @@ public class AgentBean extends Thread implements java.io.Serializable {
    * configuration from the depot.  Will use the configured
    * cache reload period to wait in between iterations.
    */
+  @Override
   public void run() {
     logger.info( "Starting inca config cache thread" );
     boolean interrupted = false;
@@ -274,9 +278,9 @@ public class AgentBean extends Thread implements java.io.Serializable {
   public void setRunNow( String queryXml )
     throws ConfigurationException, IOException, ProtocolException,XmlException {
 
-    ObjectDocument queryObject = ObjectDocument.Factory.parse(queryXml);
+    ObjectDocument queryObject = ObjectDocument.Factory.parse(queryXml, (new XmlOptions()).setLoadStripWhitespace());
     SeriesConfig config =
-      SeriesConfig.Factory.parse( queryObject.getObject().xmlText());
+      SeriesConfig.Factory.parse( queryObject.getObject().xmlText(), (new XmlOptions()).setLoadStripWhitespace());
     // empty schedule object so it is a run now request
     if ( config.getSchedule().isSetCron()) {
       config.getSchedule().unsetCron();
@@ -322,10 +326,10 @@ public class AgentBean extends Thread implements java.io.Serializable {
     String prop;
     if((prop = beanConfig.getProperty("reload")) != null) {
       this.setCacheReloadPeriod(
-        (new Integer(prop)) * Constants.MILLIS_TO_SECOND
+        Integer.valueOf(prop) * Constants.MILLIS_TO_SECOND
       );
     }
-    
+
   }
 
   /**
@@ -344,8 +348,9 @@ public class AgentBean extends Thread implements java.io.Serializable {
    *
    * @return   Inca config in xml format.
    */
+  @Override
   public String toString() {
-    return XmlWrapper.prettyPrint( incaDoc.xmlText(), "  " );
+    return incaDoc.xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
   // Private Functions
@@ -399,7 +404,7 @@ public class AgentBean extends Thread implements java.io.Serializable {
    ac.close();
    Util.printElapsedTime( startTime, "query agent" );
    if( config != null ) {
-     return IncaDocument.Factory.parse(config);
+     return IncaDocument.Factory.parse(config, (new XmlOptions()).setLoadStripWhitespace());
    } else {
      return null;
    }
@@ -417,7 +422,7 @@ public class AgentBean extends Thread implements java.io.Serializable {
     throws IOException, ClassNotFoundException {
 
     try {
-      this.incaDoc = IncaDocument.Factory.parse( in );
+      this.incaDoc = IncaDocument.Factory.parse( in, (new XmlOptions()).setLoadStripWhitespace() );
       logger.debug( "Read inca config object from stream" );
     } catch (XmlException e) {
       throw new IOException( "Unable to read in inca config from stream" );

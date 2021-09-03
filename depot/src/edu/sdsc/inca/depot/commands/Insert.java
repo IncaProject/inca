@@ -20,6 +20,7 @@ import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
+import org.apache.xmlbeans.XmlOptions;
 
 import edu.sdsc.inca.ConfigurationException;
 import edu.sdsc.inca.Depot;
@@ -368,7 +369,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
    */
   private edu.sdsc.inca.dataModel.util.Report parseReportXml(String xml) throws XmlException
   {
-    ReportDocument doc = ReportDocument.Factory.parse(xml);
+    ReportDocument doc = ReportDocument.Factory.parse(xml, (new XmlOptions()).setLoadStripWhitespace());
 
     if (!doc.validate())
       throw new XmlException("Invalid report XML '" + xml + "'");

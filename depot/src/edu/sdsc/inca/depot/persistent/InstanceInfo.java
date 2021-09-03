@@ -273,7 +273,7 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
    * @throws SQLException
    * @throws PersistenceException
    */
-  InstanceInfo(Connection dbConn, Series owner, long instanceId) throws IOException, SQLException, PersistenceException
+  public InstanceInfo(Connection dbConn, Series owner, long instanceId) throws IOException, SQLException, PersistenceException
   {
     this(owner);
 

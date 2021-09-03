@@ -2,17 +2,18 @@ package edu.sdsc.inca.agent.commands;
 
 
 import org.apache.xmlbeans.XmlException;
+import org.apache.xmlbeans.XmlOptions;
 
 import edu.sdsc.inca.Agent;
 import edu.sdsc.inca.agent.ReporterManagerController;
 import edu.sdsc.inca.dataModel.inca.IncaDocument;
 import edu.sdsc.inca.protocol.MessageHandler;
+import edu.sdsc.inca.protocol.Protocol;
 import edu.sdsc.inca.protocol.ProtocolException;
 import edu.sdsc.inca.protocol.ProtocolReader;
 import edu.sdsc.inca.protocol.ProtocolWriter;
 import edu.sdsc.inca.protocol.StandardMessageHandler;
 import edu.sdsc.inca.protocol.Statement;
-import edu.sdsc.inca.protocol.Protocol;
 
 
 /**
@@ -28,6 +29,7 @@ import edu.sdsc.inca.protocol.Protocol;
  */
 public class Approve extends StandardMessageHandler {
 
+  @Override
   public void execute(ProtocolReader reader,
                       ProtocolWriter writer,
                       String dn) throws Exception {
@@ -58,7 +60,7 @@ public class Approve extends StandardMessageHandler {
       }
       String xml = data.substring( delimiterIndex+1 );
       try {
-        doc = IncaDocument.Factory.parse(xml);
+        doc = IncaDocument.Factory.parse(xml, (new XmlOptions()).setLoadStripWhitespace());
         if(!doc.validate()) {
           throw new XmlException("Invalid Inca config XML '" + xml + "'");
         }
@@ -69,7 +71,7 @@ public class Approve extends StandardMessageHandler {
       ReporterManagerController rmc =
         Agent.getGlobalAgent().getReporterManager(resource );
       rmc.approveSuites( doc );
-      writer.write( new Statement("OK") );      
+      writer.write( new Statement("OK") );
     }
   }
 

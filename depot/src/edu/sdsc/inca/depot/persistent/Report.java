@@ -14,6 +14,7 @@ import java.util.Calendar;
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
+import org.apache.xmlbeans.XmlOptions;
 
 import edu.sdsc.inca.dataModel.util.AnyXmlSequence;
 
@@ -101,7 +102,7 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
    * @throws SQLException
    * @throws PersistenceException
    */
-  Report(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  public Report(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
   {
     this();
 
@@ -307,7 +308,7 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
       if (body.equals(DB_EMPTY_STRING))
         result.setBody(AnyXmlSequence.Factory.newInstance());
       else
-        result.setBody(AnyXmlSequence.Factory.parse(body));
+        result.setBody(AnyXmlSequence.Factory.parse(body, (new XmlOptions()).setLoadStripWhitespace()));
     }
     catch (XmlException e) {
       m_log.error("Unable to parse body from DB:", e);

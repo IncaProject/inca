@@ -382,7 +382,7 @@ public class SuiteWrapper extends XmlWrapper {
    */
   public void save( String saveTo ) throws IOException {
     try {
-      save(XmlWrapper.prettyPrint(this.suiteDoc, "  "), saveTo, null);
+      save(this.suiteDoc.xmlText((new XmlOptions()).setSavePrettyPrint()), saveTo, null);
     } catch (CrypterException e) {
       throw new IOException("Unexpected crypt exception");
     }

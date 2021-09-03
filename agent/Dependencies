@@ -1,5 +1,6 @@
 bcpkix-jdk15on-168.jar
 bcprov-jdk15on-168.jar
+commons-codec-1.13.jar
 inca-common.jar
 Inca-ReporterManager.tar.gz
 incaXmlBeans.jar

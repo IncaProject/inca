@@ -1,32 +1,36 @@
 package edu.sdsc.inca.consumer;
 
-import edu.sdsc.inca.util.CrypterException;
-import org.apache.log4j.Logger;
-import org.apache.xmlbeans.XmlString;
-import org.apache.xmlbeans.XmlLong;
-import org.apache.xmlbeans.XmlAnySimpleType;
-import org.apache.xmlbeans.XmlDate;
-import org.apache.xmlbeans.XmlInteger;
-import edu.sdsc.inca.dataModel.queryStore.QueryStoreDocument;
-import edu.sdsc.inca.dataModel.queryStore.Query;
-import edu.sdsc.inca.dataModel.queryStore.Type;
-import edu.sdsc.inca.dataModel.queryStore.Cache;
-import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
-import edu.sdsc.inca.ConfigurationException;
-import edu.sdsc.inca.DepotClient;
-import edu.sdsc.inca.protocol.Protocol;
-import edu.sdsc.inca.util.XmlWrapper;
-import edu.sdsc.inca.util.Constants;
-import edu.sdsc.inca.util.StringMethods;
-import edu.sdsc.inca.util.CronSchedule;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
+import java.text.ParseException;
 import java.util.Hashtable;
 import java.util.Properties;
 import java.util.Timer;
-import java.math.BigInteger;
-import java.text.ParseException;
+
+import org.apache.log4j.Logger;
+import org.apache.xmlbeans.XmlAnySimpleType;
+import org.apache.xmlbeans.XmlDate;
+import org.apache.xmlbeans.XmlInteger;
+import org.apache.xmlbeans.XmlLong;
+import org.apache.xmlbeans.XmlOptions;
+import org.apache.xmlbeans.XmlString;
+
+import edu.sdsc.inca.ConfigurationException;
+import edu.sdsc.inca.DepotClient;
+import edu.sdsc.inca.dataModel.queryResults.ObjectDocument;
+import edu.sdsc.inca.dataModel.queryStore.Cache;
+import edu.sdsc.inca.dataModel.queryStore.Query;
+import edu.sdsc.inca.dataModel.queryStore.QueryStoreDocument;
+import edu.sdsc.inca.dataModel.queryStore.Type;
+import edu.sdsc.inca.protocol.Protocol;
+import edu.sdsc.inca.util.Constants;
+import edu.sdsc.inca.util.CronSchedule;
+import edu.sdsc.inca.util.CrypterException;
+import edu.sdsc.inca.util.StringMethods;
+import edu.sdsc.inca.util.XmlWrapper;
+
 
 /**
  * Manages a list of stored (persistent) depot queries, some of which are longer
@@ -200,7 +204,7 @@ public class DepotBean extends Thread {
    * @return An xml document containing the query store info
    */
   public synchronized String getQueriesXml() {
-    return XmlWrapper.prettyPrint(queryStore, "  ");
+    return queryStore.xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
   /**
@@ -380,6 +384,7 @@ public class DepotBean extends Thread {
   /**
    * Periodically query depot and refresh caching of suites
    */
+  @Override
   public void run() {
     this.refreshSuiteCaching();
     this.startQueries();
@@ -405,7 +410,7 @@ public class DepotBean extends Thread {
    */
   public void save() throws IOException {
     try {
-      XmlWrapper.save(XmlWrapper.prettyPrint(queryStore, "  "), qsFile.getAbsolutePath(), null);
+      XmlWrapper.save(queryStore.xmlText((new XmlOptions()).setSavePrettyPrint()), qsFile.getAbsolutePath(), null);
     } catch (CrypterException e) {
       throw new IOException("Unexpected crypt error");
     }
@@ -689,7 +694,7 @@ public class DepotBean extends Thread {
     if ( qsFile.exists() ) {
       try {
         logger.debug( "Reading query store: " + qsFile );
-        queryStore = QueryStoreDocument.Factory.parse( qsFile );
+        queryStore = QueryStoreDocument.Factory.parse( qsFile, (new XmlOptions()).setLoadStripWhitespace() );
         for( Query q : queryStore.getQueryStore().getQueryArray() ) {
           DepotQuery cache = this.readQuery( q );
           if ( cache != null ) {

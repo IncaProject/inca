@@ -1,11 +1,15 @@
 package edu.sdsc.inca;
 
-import edu.sdsc.inca.dataModel.suite.SuiteDocument;
+
+import java.util.ArrayList;
+
+import org.apache.xmlbeans.XmlOptions;
+
 import edu.sdsc.inca.dataModel.suite.Suite;
+import edu.sdsc.inca.dataModel.suite.SuiteDocument;
 import edu.sdsc.inca.dataModel.util.SeriesConfig;
 import edu.sdsc.inca.protocol.Protocol;
-import edu.sdsc.inca.util.XmlWrapper;
-import java.util.ArrayList;
+
 
 /**
  * A class that wraps a suite, represented by an Inca XmlBean, with some
@@ -15,7 +19,7 @@ public class WrapSuite {
 
   protected SuiteDocument doc;
   protected Suite suite;
-  protected ArrayList series;
+  protected ArrayList<WrapSeries> series;
 
   /**
    * Creates a new suite.
@@ -31,7 +35,7 @@ public class WrapSuite {
     this.setDescription(description);
     this.suite.setGuid("");
     this.suite.setVersion(java.math.BigInteger.valueOf(1));
-    this.series = new ArrayList();
+    this.series = new ArrayList<WrapSeries>();
   }
 
   /**
@@ -43,7 +47,7 @@ public class WrapSuite {
     this.doc = SuiteDocument.Factory.newInstance();
     this.doc.setSuite(suite);
     this.suite = suite;
-    this.series = new ArrayList();
+    this.series = new ArrayList<WrapSeries>();
     SeriesConfig[] scs = this.suite.getSeriesConfigs().getSeriesConfigArray();
     for(int i = 0; i < scs.length; i++) {
       this.series.add(new WrapSeries(scs[i]));
@@ -132,7 +136,7 @@ public class WrapSuite {
    */
   public WrapSeries[] getAllSeries() {
     return
-      (WrapSeries [])this.series.toArray(new WrapSeries[this.series.size()]);
+      this.series.toArray(new WrapSeries[this.series.size()]);
   }
 
   /**
@@ -159,7 +163,7 @@ public class WrapSuite {
    * @param index the index into the SeriesConfig array of the desired item
    */
   public WrapSeries getSeriesAt(int index) {
-    return (WrapSeries)this.series.get(index);
+    return this.series.get(index);
   }
 
   /**
@@ -200,6 +204,7 @@ public class WrapSuite {
   /**
    * An override of the default toString function.
    */
+  @Override
   public String toString() {
     return this.getName();
   }
@@ -232,7 +237,7 @@ public class WrapSuite {
    * @return the suite, as an XML string
    */
   public String toXml() {
-    return XmlWrapper.prettyPrint(this.doc.xmlText(), "  ");
+    return this.doc.xmlText((new XmlOptions()).setSavePrettyPrint());
   }
 
 }
