@@ -81,6 +81,8 @@ class SelectOp implements RowOperation {
     Iterator<Column<?>> columns = m_columns.iterator();
 
     stmtBuilder.append("SELECT ");
+    stmtBuilder.append(m_tableName);
+    stmtBuilder.append(".");
     stmtBuilder.append(columns.next().getName());
 
     while (columns.hasNext()) {
