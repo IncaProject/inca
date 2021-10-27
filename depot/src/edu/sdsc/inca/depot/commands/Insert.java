@@ -435,7 +435,7 @@ public class Insert extends HibernateMessageHandler implements DelayedWork {
       r.save();
       dbReport = r;
     }
-    dbSeries.getReports().add(dbReport);
+    dbReport.setSeries(dbSeries);
     dbSeries.save();
     dbReport.save();
     logger.debug("Add new instance to DB");
