@@ -542,7 +542,7 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
           while (rows.next()) {
             long reportId = rows.getLong(1);
 
-            reports.add(new Report(dbConn, reportId));
+            reports.add(new Report(reportId));
           }
         }
       }
@@ -579,7 +579,7 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
           while (rows.next()) {
             long configId = rows.getLong(1);
 
-            configs.add(new SeriesConfig(dbConn, configId));
+            configs.add(new SeriesConfig(configId));
           }
         }
       }

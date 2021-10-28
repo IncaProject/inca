@@ -5,7 +5,6 @@ package edu.sdsc.inca.depot.persistent;
 
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -77,7 +76,6 @@ class HqlIterator implements Iterator<Object> {
 
   private static final Logger m_log = Logger.getLogger(HqlIterator.class);
   private final SessionImplementor m_session;
-  private final Connection m_dbConn;
   private final PreparedStatement m_statement;
   private final ResultSet m_rows;
   private final String[][] m_columnNames;
@@ -91,17 +89,15 @@ class HqlIterator implements Iterator<Object> {
 
   /**
    *
-   * @param dbConn
    * @param statement
    * @param rows
    * @param translator
    * @param session
    * @throws SQLException
    */
-  public HqlIterator(Connection dbConn, PreparedStatement statement, ResultSet rows, QueryTranslator translator, SessionImplementor session) throws SQLException
+  public HqlIterator(PreparedStatement statement, ResultSet rows, QueryTranslator translator, SessionImplementor session) throws SQLException
   {
     m_session = session;
-    m_dbConn = dbConn;
     m_statement = statement;
     m_rows = rows;
     m_columnNames = translator.getColumnNames();
@@ -182,23 +178,23 @@ class HqlIterator implements Iterator<Object> {
       long id = m_rows.getLong(m_columnNames[index][0]);
 
       if (entityName.equals("edu.sdsc.inca.depot.persistent.Arg"))
-        result = new Arg(m_dbConn, id);
+        result = new Arg(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.ArgSignature"))
-        result = new ArgSignature(m_dbConn, id);
+        result = new ArgSignature(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.ComparisonResult"))
-        result = new ComparisonResult(m_dbConn, id);
+        result = new ComparisonResult(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.KbArticle"))
-        result = new KbArticle(m_dbConn, id);
+        result = new KbArticle(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.Report"))
-        result = new Report(m_dbConn, id);
+        result = new Report(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.RunInfo"))
-        result = new RunInfo(m_dbConn, id);
+        result = new RunInfo(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.Series"))
-        result = new Series(m_dbConn, id);
+        result = new Series(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.SeriesConfig"))
-        result = new SeriesConfig(m_dbConn, id);
+        result = new SeriesConfig(id);
       else if (entityName.equals("edu.sdsc.inca.depot.persistent.Suite"))
-        result = new Suite(m_dbConn, id);
+        result = new Suite(id);
       else {
         m_log.warn("Can't instantiate unknown entity type " + entityName);
 

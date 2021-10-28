@@ -574,7 +574,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
           while (rows.next()) {
             long suiteId = rows.getLong(1);
 
-            suites.add(new Suite(dbConn, suiteId));
+            suites.add(new Suite(suiteId));
           }
         }
       }

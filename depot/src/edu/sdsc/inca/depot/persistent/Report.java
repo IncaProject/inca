@@ -102,7 +102,7 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
    * @throws SQLException
    * @throws PersistenceException
    */
-  public Report(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
+  Report(Connection dbConn, long id) throws IOException, SQLException, PersistenceException
   {
     this();
 

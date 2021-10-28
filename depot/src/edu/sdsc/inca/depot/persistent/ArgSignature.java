@@ -244,7 +244,7 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
           List<Long> argIds = getArgIds(dbConn, m_key.getValue());
 
           for (Long id : argIds)
-            args.add(new Arg(dbConn, id));
+            args.add(new Arg(id));
         }
       }
 

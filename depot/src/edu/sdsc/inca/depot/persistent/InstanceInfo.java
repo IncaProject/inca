@@ -273,7 +273,7 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
    * @throws SQLException
    * @throws PersistenceException
    */
-  public InstanceInfo(Connection dbConn, Series owner, long instanceId) throws IOException, SQLException, PersistenceException
+  InstanceInfo(Connection dbConn, Series owner, long instanceId) throws IOException, SQLException, PersistenceException
   {
     this(owner);
 
@@ -284,7 +284,6 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
 
   /**
    *
-   * @param dbConn
    * @param instanceId
    * @param instanceTableName
    * @param linkTableName
@@ -292,13 +291,13 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
    * @throws SQLException
    * @throws PersistenceException
    */
-  private InstanceInfo(Connection dbConn, long instanceId, String instanceTableName, String linkTableName) throws IOException, SQLException, PersistenceException
+  private InstanceInfo(long instanceId, String instanceTableName, String linkTableName) throws IOException, SQLException, PersistenceException
   {
     this(instanceTableName, linkTableName);
 
     m_key.assignValue(instanceId);
 
-    load(dbConn);
+    load();
   }
 
 
@@ -475,7 +474,7 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
           while (rows.next()) {
             long seriesConfigId = rows.getLong(1);
 
-            seriesConfigs.add(new SeriesConfig(dbConn, seriesConfigId));
+            seriesConfigs.add(new SeriesConfig(seriesConfigId));
           }
         }
       }
@@ -623,10 +622,10 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
         long seriesConfigId = rows.getLong(1);
         String instanceTableName = rows.getString(2);
         String linkTableName = rows.getString(3);
-        List<Long> instanceIds = findInstanceIds(dbConn, instanceTableName, linkTableName, collected, seriesConfigId);
+        List<Long> instanceIds = findInstanceIds(instanceTableName, linkTableName, collected, seriesConfigId);
 
         if (!instanceIds.isEmpty())
-          return new InstanceInfo(dbConn, instanceIds.get(0), instanceTableName, linkTableName);
+          return new InstanceInfo(instanceIds.get(0), instanceTableName, linkTableName);
       }
 
       return null;
@@ -706,7 +705,6 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
 
   /**
    *
-   * @param dbConn
    * @param instanceTableName
    * @param linkTableName
    * @param collected
@@ -714,17 +712,18 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
    * @return
    * @throws SQLException
    */
-  private static List<Long> findInstanceIds(Connection dbConn, String instanceTableName, String linkTableName, Date collected, long seriesConfigId) throws SQLException
+  private static List<Long> findInstanceIds(String instanceTableName, String linkTableName, Date collected, long seriesConfigId) throws SQLException
   {
-    try (PreparedStatement selectStmt = dbConn.prepareStatement(
-      "SELECT instanceid " +
-      "FROM " + linkTableName +
-        " INNER JOIN (" +
-          "SELECT incaid AS instanceid " +
-          "FROM " + instanceTableName +
-          " WHERE incacollected = ?" +
-        ") AS instances ON " + linkTableName + ".incainstance_id = instances.instanceid " +
-      "WHERE " + linkTableName + ".incaseriesconfig_id = ?"
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
+         PreparedStatement selectStmt = dbConn.prepareStatement(
+           "SELECT instanceid " +
+           "FROM " + linkTableName +
+             " INNER JOIN (" +
+               "SELECT incaid AS instanceid " +
+               "FROM " + instanceTableName +
+               " WHERE incacollected = ?" +
+             ") AS instances ON " + linkTableName + ".incainstance_id = instances.instanceid " +
+           "WHERE " + linkTableName + ".incaseriesconfig_id = ?"
     )) {
       selectStmt.setTimestamp(1, new Timestamp(collected.getTime()));
       selectStmt.setLong(2, seriesConfigId);

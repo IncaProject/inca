@@ -280,7 +280,7 @@ public class HqlQuery {
 
       ResultSet rows = selectStmt.executeQuery();
 
-      return new HqlIterator(dbConn, selectStmt, rows, translator, session);
+      return new HqlIterator(selectStmt, rows, translator, session);
     }
     catch (SQLException sqlErr) {
       selectStmt.close();
