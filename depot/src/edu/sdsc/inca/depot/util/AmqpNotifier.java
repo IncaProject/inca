@@ -259,15 +259,18 @@ public class AmqpNotifier implements ReportNotifier {
     m_logger.info("Refreshing SSL credentials");
     try {
       KeyStore userStore = readCredentials(this.cert, this.key, this.keyPassPhrase);
-      KeyManagerFactory keyFactory = KeyManagerFactory.getInstance("SunX509");
+      String keyAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
+      KeyManagerFactory keyFactory = KeyManagerFactory.getInstance(keyAlgorithm);
 
       keyFactory.init(userStore, this.keyPassPhrase.toCharArray());
 
       KeyStore trustedStore = readTrustedCerts(this.trustedCerts);
-      TrustManagerFactory trustFactory = TrustManagerFactory.getInstance("SunX509");
+      String trustAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
+      TrustManagerFactory trustFactory = TrustManagerFactory.getInstance(trustAlgorithm);
+
       trustFactory.init(trustedStore);
 
-      SSLContext context = SSLContext.getInstance("SSLv3");
+      SSLContext context = SSLContext.getInstance("SSL");
 
       context.init(keyFactory.getKeyManagers(), trustFactory.getTrustManagers(), null);
 
