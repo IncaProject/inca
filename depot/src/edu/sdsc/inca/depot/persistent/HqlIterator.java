@@ -9,6 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 import org.apache.log4j.Logger;
 import org.hibernate.engine.SessionImplementor;
@@ -133,7 +134,7 @@ class HqlIterator implements Iterator<Object> {
   {
     try {
       if (!hasNext())
-        return null;
+        throw new NoSuchElementException();
 
       Object result = m_resolver.resolveRow();
 
