@@ -1061,88 +1061,89 @@ public class SyncResponse extends MessageHandler {
 
   /**
    *
-   * @param dbConn
    * @param output
    * @param names
    * @throws SQLException
    */
-  private void writeSeriesInstances(Connection dbConn, PrintStream output, SeriesTableNames names) throws SQLException
+  private void writeSeriesInstances(PrintStream output, SeriesTableNames names) throws SQLException
   {
-    Map<Long, List<Long>> mappings = getConfigInstanceMappings(dbConn, names.linkTableName);
+    try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
+      Map<Long, List<Long>> mappings = getConfigInstanceMappings(dbConn, names.linkTableName);
 
-    try (PreparedStatement selectStmt = dbConn.prepareStatement(
-      "SELECT incaid, incacollected, incacommited, incamemoryUsageMB, " +
-        "incacpuUsageSec, incawallClockTimeSec, incalog, incareportId " +
-      "FROM " + names.instanceTableName
-    )) {
-      selectStmt.setFetchSize(FETCH_SIZE);
+      try (PreparedStatement selectStmt = dbConn.prepareStatement(
+        "SELECT incaid, incacollected, incacommited, incamemoryUsageMB, " +
+          "incacpuUsageSec, incawallClockTimeSec, incalog, incareportId " +
+        "FROM " + names.instanceTableName
+      )) {
+        selectStmt.setFetchSize(FETCH_SIZE);
 
-      ResultSet rows = selectStmt.executeQuery();
+        ResultSet rows = selectStmt.executeQuery();
 
-      int totalWritten = 0;
+        int totalWritten = 0;
 
-      output.print("<instanceInfoRows>");
+        output.print("<instanceInfoRows>");
 
-      while (rows.next()) {
-        long instanceId = rows.getLong(1);
+        while (rows.next()) {
+          long instanceId = rows.getLong(1);
 
-        output.print("<instanceInfo><id>");
-        output.print(instanceId);
-        output.print("</id><collected>");
+          output.print("<instanceInfo><id>");
+          output.print(instanceId);
+          output.print("</id><collected>");
 
-        writeTimestampValue(rows, 2, output);
+          writeTimestampValue(rows, 2, output);
 
-        output.print("</collected><commited>");
+          output.print("</collected><commited>");
 
-        writeTimestampValue(rows, 3, output);
+          writeTimestampValue(rows, 3, output);
 
-        output.print("</commited><memoryUsageMB>");
+          output.print("</commited><memoryUsageMB>");
 
-        writeFloatValue(rows, 4, output);
+          writeFloatValue(rows, 4, output);
 
-        output.print("</memoryUsageMB><cpuUsageSec>");
+          output.print("</memoryUsageMB><cpuUsageSec>");
 
-        writeFloatValue(rows, 5, output);
+          writeFloatValue(rows, 5, output);
 
-        output.print("</cpuUsageSec><wallClockTimeSec>");
+          output.print("</cpuUsageSec><wallClockTimeSec>");
 
-        writeFloatValue(rows, 6, output);
+          writeFloatValue(rows, 6, output);
 
-        output.print("</wallClockTimeSec><log>");
+          output.print("</wallClockTimeSec><log>");
 
-        writeCdataValue(rows, 7, output);
+          writeCdataValue(rows, 7, output);
 
-        output.print("</log><reportId>");
+          output.print("</log><reportId>");
 
-        writeLongValue(rows, 8, output);
+          writeLongValue(rows, 8, output);
 
-        output.print("</reportId>");
+          output.print("</reportId>");
 
-        List<Long> configIds = mappings.get(instanceId);
+          List<Long> configIds = mappings.get(instanceId);
 
-        if (configIds != null) {
-          output.print("<seriesConfigs>");
+          if (configIds != null) {
+            output.print("<seriesConfigs>");
 
-          for (Long id : configIds) {
-            output.print("<id>");
-            output.print(id);
-            output.print("</id>");
+            for (Long id : configIds) {
+              output.print("<id>");
+              output.print(id);
+              output.print("</id>");
+            }
+
+            output.print("</seriesConfigs>");
           }
+          else
+            output.print("<seriesConfigs/>");
 
-          output.print("</seriesConfigs>");
+          output.print("</instanceInfo>");
+
+          if (m_logger.isDebugEnabled())
+            totalWritten += 1;
         }
-        else
-          output.print("<seriesConfigs/>");
 
-        output.print("</instanceInfo>");
+        output.print("</instanceInfoRows>");
 
-        if (m_logger.isDebugEnabled())
-          totalWritten += 1;
+        m_logger.debug("Wrote " + totalWritten + " InstanceInfo records for Series " + names.seriesId);
       }
-
-      output.print("</instanceInfoRows>");
-
-      m_logger.debug("Wrote " + totalWritten + " InstanceInfo records for Series " + names.seriesId);
     }
   }
 
@@ -1169,7 +1170,7 @@ public class SyncResponse extends MessageHandler {
       output.print(names.seriesId);
       output.print("</id>");
 
-      writeSeriesInstances(dbConn, output, names);
+      writeSeriesInstances(output, names);
 
       output.print("</seriesInstances>");
     }
