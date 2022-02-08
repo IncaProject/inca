@@ -245,6 +245,8 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
   public void setSeries(Series series)
   {
     m_series = series;
+
+    m_seriesId.setValue(series.getId());
   }
 
   /**
@@ -263,6 +265,8 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
   public void setRunInfo(RunInfo info)
   {
     m_runInfo = info;
+
+    m_runInfoId.setValue(info.getId());
   }
 
   /**
@@ -476,8 +480,8 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
   {
     super.load(dbConn);
 
-    m_series = new Series(dbConn, m_seriesId.getValue());
-    m_runInfo = new RunInfo(dbConn, m_runInfoId.getValue());
+    setSeries(new Series(dbConn, m_seriesId.getValue()));
+    setRunInfo(new RunInfo(dbConn, m_runInfoId.getValue()));
   }
 
   /**
