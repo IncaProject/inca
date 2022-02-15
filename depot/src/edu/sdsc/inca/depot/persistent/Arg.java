@@ -42,6 +42,9 @@ public class Arg extends GeneratedKeyRow implements Comparable<Arg> {
     super(TABLE_NAME, KEY_NAME);
 
     construct(m_name, m_value);
+
+    m_name.setValue(DB_EMPTY_STRING);
+    m_value.setValue(DB_EMPTY_STRING);
   }
 
   /**

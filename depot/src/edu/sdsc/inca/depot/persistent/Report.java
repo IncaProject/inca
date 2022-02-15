@@ -57,12 +57,14 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
 
     construct(m_exitStatus, m_exitMessage, m_bodypart1, m_bodypart2, m_bodypart3, m_stderr, m_seriesId, m_runInfoId);
 
-    setExit_status(false);
-    setExit_message(null);
-    setBody(null);
-    setStderr(null);
-    setSeries(new Series());
-    setRunInfo(new RunInfo());
+    m_exitMessage.setValue(DB_EMPTY_STRING);
+    m_bodypart1.setValue(DB_EMPTY_STRING);
+    m_bodypart2.setValue(DB_EMPTY_STRING);
+    m_bodypart3.setValue(DB_EMPTY_STRING);
+    m_stderr.setValue(DB_EMPTY_STRING);
+
+    m_series = new Series();
+    m_runInfo = new RunInfo();
   }
 
   /**
@@ -480,8 +482,8 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
   {
     super.load(dbConn);
 
-    setSeries(new Series(dbConn, m_seriesId.getValue()));
-    setRunInfo(new RunInfo(dbConn, m_runInfoId.getValue()));
+    m_series = new Series(dbConn, m_seriesId.getValue());
+    m_runInfo = new RunInfo(dbConn, m_runInfoId.getValue());
   }
 
   /**

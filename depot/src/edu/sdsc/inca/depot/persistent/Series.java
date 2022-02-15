@@ -268,6 +268,13 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
 
     construct(m_reporter, m_version, m_uri, m_context, m_nice, m_resource, m_targetHostname, m_instanceTableName, m_linkTableName, m_argSignatureId);
 
+    m_reporter.setValue(DB_EMPTY_STRING);
+    m_version.setValue(DB_EMPTY_STRING);
+    m_uri.setValue(DB_EMPTY_STRING);
+    m_context.setValue(DB_EMPTY_STRING);
+    m_resource.setValue(DB_EMPTY_STRING);
+    m_targetHostname.setValue(DB_EMPTY_STRING);
+
     m_argSignature = new ArgSignature();
   }
 

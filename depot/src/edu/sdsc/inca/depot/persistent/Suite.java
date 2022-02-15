@@ -164,6 +164,10 @@ public class Suite extends GeneratedKeyRow implements Comparable<Suite> {
     super(TABLE_NAME, KEY_NAME);
 
     construct(m_name, m_guid, m_description, m_version);
+
+    m_name.setValue(DB_EMPTY_STRING);
+    m_guid.setValue(DB_EMPTY_STRING);
+    m_description.setValue(DB_EMPTY_STRING);
   }
 
   /**

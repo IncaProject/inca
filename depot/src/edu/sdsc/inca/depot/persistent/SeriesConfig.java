@@ -483,6 +483,17 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   public void setLimits(Limits l)
   {
     m_limits = l;
+
+    if (l != null) {
+      m_memory.setValue(l.getMemory());
+      m_cpuTime.setValue(l.getCpuTime());
+      m_wallClockTime.setValue(l.getWallClockTime());
+    }
+    else {
+      m_memory.setValue(null);
+      m_cpuTime.setValue(null);
+      m_wallClockTime.setValue(null);
+    }
   }
 
   /**
@@ -503,6 +514,28 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   public void setAcceptedOutput(AcceptedOutput ao)
   {
     m_acceptedOutput = ao;
+
+    if (ao != null) {
+      m_comparitor.setValue(ao.getComparitor());
+      m_comparison.setValue(ao.getComparison());
+
+      Notification notification = ao.getNotification();
+
+      if (notification != null) {
+        m_notifier.setValue(notification.getNotifier());
+        m_target.setValue(notification.getTarget());
+      }
+      else {
+        m_notifier.setValue(DB_EMPTY_STRING);
+        m_target.setValue(DB_EMPTY_STRING);
+      }
+    }
+    else {
+      m_comparitor.setValue(DB_EMPTY_STRING);
+      m_comparison.setValue(DB_EMPTY_STRING);
+      m_notifier.setValue(DB_EMPTY_STRING);
+      m_target.setValue(DB_EMPTY_STRING);
+    }
   }
 
   /**
@@ -523,6 +556,27 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   public void setSchedule(Schedule s)
   {
     m_schedule = s;
+
+    if (s != null) {
+      m_minute.setValue(s.getMinute());
+      m_hour.setValue(s.getHour());
+      m_mday.setValue(s.getMday());
+      m_month.setValue(s.getMonth());
+      m_wday.setValue(s.getWday());
+      m_type.setValue(s.getType());
+      m_numOccurs.setValue(s.getNumOccurs());
+      m_suspended.setValue(s.getSuspended());
+    }
+    else {
+      m_minute.setValue(DB_EMPTY_STRING);
+      m_hour.setValue(DB_EMPTY_STRING);
+      m_mday.setValue(DB_EMPTY_STRING);
+      m_month.setValue(DB_EMPTY_STRING);
+      m_wday.setValue(DB_EMPTY_STRING);
+      m_type.setValue(DB_EMPTY_STRING);
+      m_numOccurs.setValue(null);
+      m_suspended.setValue(null);
+    }
   }
 
   /**
@@ -854,10 +908,11 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   @Override
   public String toString()
   {
+    AcceptedOutput output = getAcceptedOutput();
     String result;
 
-    if (!m_comparitor.isNull() && !m_comparison.isNull())
-      result = getAcceptedOutput().toString();
+    if (output != null)
+      result = output.toString();
     else
       result = "";
 
@@ -907,60 +962,6 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
     m_series.save(dbConn);
 
     m_seriesId.setValue(m_series.getId());
-
-    if (m_limits != null) {
-      m_memory.setValue(m_limits.getMemory());
-      m_cpuTime.setValue(m_limits.getCpuTime());
-      m_wallClockTime.setValue(m_limits.getWallClockTime());
-    }
-    else {
-      m_memory.setValue(null);
-      m_cpuTime.setValue(null);
-      m_wallClockTime.setValue(null);
-    }
-
-    if (m_acceptedOutput != null) {
-      m_comparitor.setValue(m_acceptedOutput.getComparitor());
-      m_comparison.setValue(m_acceptedOutput.getComparison());
-
-      Notification notification = m_acceptedOutput.getNotification();
-
-      if (notification != null) {
-        m_notifier.setValue(notification.getNotifier());
-        m_target.setValue(notification.getTarget());
-      }
-      else {
-        m_notifier.setValue(null);
-        m_target.setValue(null);
-      }
-    }
-    else {
-      m_comparitor.setValue(null);
-      m_comparison.setValue(null);
-      m_notifier.setValue(null);
-      m_target.setValue(null);
-    }
-
-    if (m_schedule != null) {
-      m_minute.setValue(m_schedule.getMinute());
-      m_hour.setValue(m_schedule.getHour());
-      m_mday.setValue(m_schedule.getMday());
-      m_month.setValue(m_schedule.getMonth());
-      m_wday.setValue(m_schedule.getWday());
-      m_type.setValue(m_schedule.getType());
-      m_numOccurs.setValue(m_schedule.getNumOccurs());
-      m_suspended.setValue(m_schedule.getSuspended());
-    }
-    else {
-      m_minute.setValue(null);
-      m_hour.setValue(null);
-      m_mday.setValue(null);
-      m_month.setValue(null);
-      m_wday.setValue(null);
-      m_type.setValue(null);
-      m_numOccurs.setValue(null);
-      m_suspended.setValue(null);
-    }
 
     super.save(dbConn);
 

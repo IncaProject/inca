@@ -171,6 +171,8 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
     super(TABLE_NAME, KEY_NAME);
 
     construct(m_signature);
+
+    m_signature.setValue(DB_EMPTY_STRING);
   }
 
   /**

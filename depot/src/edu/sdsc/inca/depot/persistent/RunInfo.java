@@ -40,6 +40,10 @@ public class RunInfo extends GeneratedKeyRow implements Comparable<RunInfo> {
 
     construct(m_hostname, m_workingDir, m_reporterPath, m_argSignatureId);
 
+    m_hostname.setValue(DB_EMPTY_STRING);
+    m_workingDir.setValue(DB_EMPTY_STRING);
+    m_reporterPath.setValue(DB_EMPTY_STRING);
+
     m_argSignature = new ArgSignature();
   }
 

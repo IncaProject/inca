@@ -46,6 +46,14 @@ public class KbArticle extends GeneratedKeyRow implements Comparable<KbArticle> 
     super(TABLE_NAME, KEY_NAME);
 
     construct(m_entered, m_errorMsg, m_series, m_reporter, m_authorName, m_authorEmail, m_articleTitle, m_articleText);
+
+    m_errorMsg.setValue(DB_EMPTY_STRING);
+    m_series.setValue(DB_EMPTY_STRING);
+    m_reporter.setValue(DB_EMPTY_STRING);
+    m_authorName.setValue(DB_EMPTY_STRING);
+    m_authorEmail.setValue(DB_EMPTY_STRING);
+    m_articleTitle.setValue(DB_EMPTY_STRING);
+    m_articleText.setValue(DB_EMPTY_STRING);
   }
 
   /**
