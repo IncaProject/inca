@@ -626,9 +626,7 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
    */
   private static Long find(Connection dbConn, boolean status, String message, String bodypart1, String bodypart2, String bodypart3, String stderr, long seriesId, long runInfoId) throws SQLException
   {
-    StringBuilder stmtBuilder = new StringBuilder();
-
-    stmtBuilder.append(
+    try (PreparedStatement selectStmt = dbConn.prepareStatement(
       "SELECT incaid " +
       "FROM INCAREPORT " +
       "WHERE incaexit_status = ? " +
@@ -636,28 +634,18 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
         "AND incabodypart1 = ? " +
         "AND incabodypart2 = ? " +
         "AND incabodypart3 = ? " +
-        "AND incastderr = ?"
-    );
-
-    if (seriesId > 0)
-      stmtBuilder.append(" AND incaseries_id = ?");
-
-    if (runInfoId > 0)
-      stmtBuilder.append(" AND incarunInfo_id = ?");
-
-    try (PreparedStatement selectStmt = dbConn.prepareStatement(stmtBuilder.toString())) {
+        "AND incastderr = ? " +
+        "AND incaseries_id = ? " +
+        "AND incarunInfo_id = ?"
+    )) {
       selectStmt.setBoolean(1, status);
       selectStmt.setString(2, message);
       selectStmt.setString(3, bodypart1);
       selectStmt.setString(4, bodypart2);
       selectStmt.setString(5, bodypart3);
       selectStmt.setString(6, stderr);
-
-      if (seriesId > 0)
-        selectStmt.setLong(7, seriesId);
-
-      if (runInfoId > 0)
-        selectStmt.setLong(8, runInfoId);
+      selectStmt.setLong(7, seriesId);
+      selectStmt.setLong(8, runInfoId);
 
       ResultSet row = selectStmt.executeQuery();
 
