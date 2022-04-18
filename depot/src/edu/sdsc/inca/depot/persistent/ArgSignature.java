@@ -9,7 +9,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
@@ -183,7 +182,7 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
   {
     this();
 
-    m_args = new ArgSet(new HashSet<Arg>());
+    m_args = new ArgSet(new TreeSet<Arg>());
 
     if (args != null && !args.isEmpty()) {
       for (Arg arg : args)
@@ -239,7 +238,7 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
   public Set<Arg> getArgs() throws IOException, SQLException, PersistenceException
   {
     if (m_args == null) {
-      Set<Arg> args = new HashSet<Arg>();
+      Set<Arg> args = new TreeSet<Arg>();
 
       if (!isNew()) {
         try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection()) {
@@ -316,7 +315,7 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
   public ArgSignature fromBean(edu.sdsc.inca.dataModel.util.Args a) throws IOException, SQLException, PersistenceException
   {
     edu.sdsc.inca.dataModel.util.Args.Arg[] args = a.getArgArray();
-    Set<Arg> allArgs = new HashSet<Arg>();
+    Set<Arg> allArgs = new TreeSet<Arg>();
 
     for(int index = 0 ; index < args.length ; index++)
       allArgs.add(new Arg().fromBean(args[index]));
@@ -384,7 +383,16 @@ public class ArgSignature extends GeneratedKeyRow implements Comparable<ArgSigna
     if (this == other)
       return 0;
 
-    return hashCode() - other.hashCode();
+    if (isNew()) {
+      if (other.isNew())
+        return hashCode() - other.hashCode();
+      else
+        return -1;
+    }
+    else if (other.isNew())
+      return 1;
+
+    return (int)(getId() - other.getId());
   }
 
   /**

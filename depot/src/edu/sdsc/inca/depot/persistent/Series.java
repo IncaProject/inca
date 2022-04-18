@@ -15,10 +15,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.log4j.Logger;
 import org.apache.xmlbeans.XmlObject;
@@ -533,7 +533,7 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
   public Set<Report> getReports() throws IOException, SQLException, PersistenceException
   {
     if (m_reports == null) {
-      Set<Report> reports = new HashSet<Report>();
+      Set<Report> reports = new TreeSet<Report>();
 
       if (!isNew()) {
         try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
@@ -570,7 +570,7 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
   public Set<SeriesConfig> getSeriesConfigs() throws IOException, SQLException, PersistenceException
   {
     if (m_seriesConfigs == null) {
-      Set<SeriesConfig> configs = new HashSet<SeriesConfig>();
+      Set<SeriesConfig> configs = new TreeSet<SeriesConfig>();
 
       if (!isNew()) {
         try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
@@ -819,7 +819,16 @@ public class Series extends GeneratedKeyRow implements Comparable<Series> {
     if (this == other)
       return 0;
 
-    return hashCode() - other.hashCode();
+    if (isNew()) {
+      if (other.isNew())
+        return hashCode() - other.hashCode();
+      else
+        return -1;
+    }
+    else if (other.isNew())
+      return 1;
+
+    return (int)(getId() - other.getId());
   }
 
   /**

@@ -13,10 +13,10 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -458,7 +458,7 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
   public Set<SeriesConfig> getSeriesConfigs() throws IOException, SQLException, PersistenceException
   {
     if (m_seriesConfigs == null) {
-      Set<SeriesConfig> seriesConfigs = new HashSet<SeriesConfig>();
+      Set<SeriesConfig> seriesConfigs = new TreeSet<SeriesConfig>();
 
       if (!isNew()) {
         try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
@@ -583,7 +583,16 @@ public class InstanceInfo extends GeneratedKeyRow implements Comparable<Instance
     if (this == other)
       return 0;
 
-    return hashCode() - other.hashCode();
+    if (isNew()) {
+      if (other.isNew())
+        return hashCode() - other.hashCode();
+      else
+        return -1;
+    }
+    else if (other.isNew())
+      return 1;
+
+    return (int)(getId() - other.getId());
   }
 
   /**

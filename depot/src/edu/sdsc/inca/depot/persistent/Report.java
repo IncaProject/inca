@@ -382,7 +382,16 @@ public class Report extends GeneratedKeyRow implements Comparable<Report> {
     if (this == other)
       return 0;
 
-    return hashCode() - other.hashCode();
+    if (isNew()) {
+      if (other.isNew())
+        return hashCode() - other.hashCode();
+      else
+        return -1;
+    }
+    else if (other.isNew())
+      return 1;
+
+    return (int)(getId() - other.getId());
   }
 
   /**

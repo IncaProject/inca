@@ -13,11 +13,11 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.xmlbeans.XmlObject;
 
@@ -327,7 +327,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
 
     setSeries(series);
 
-    m_suites = new SuiteSet(new HashSet<Suite>());
+    m_suites = new SuiteSet(new TreeSet<Suite>());
 
     m_suites.add(suite);
   }
@@ -612,7 +612,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   public Set<Suite> getSuites() throws IOException, SQLException, PersistenceException
   {
     if (m_suites == null) {
-      Set<Suite> suites = new HashSet<Suite>();
+      Set<Suite> suites = new TreeSet<Suite>();
 
       if (!isNew()) {
         try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
@@ -672,7 +672,7 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
   public Set<String> getTags() throws IOException, SQLException, PersistenceException
   {
     if (m_tags == null) {
-      Set<String> tags = new HashSet<String>();
+      Set<String> tags = new TreeSet<String>();
 
       if (!isNew()) {
         try (Connection dbConn = ConnectionManager.getConnectionSource().getConnection();
@@ -897,7 +897,16 @@ public class SeriesConfig extends GeneratedKeyRow implements Comparable<SeriesCo
     if (this == other)
       return 0;
 
-    return hashCode() - other.hashCode();
+    if (isNew()) {
+      if (other.isNew())
+        return hashCode() - other.hashCode();
+      else
+        return -1;
+    }
+    else if (other.isNew())
+      return 1;
+
+    return (int)(getId() - other.getId());
   }
 
   /**
